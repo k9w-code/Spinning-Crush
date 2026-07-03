@@ -601,7 +601,20 @@ class GameApp {
     // ① タイトル画面
     document.getElementById('btn-new-game')?.addEventListener('click', () => {
       this.snd.initContext();
+
+      // セーブデータが存在する場合は誤消去防止の警告を出す
+      const saved = localStorage.getItem('spinning_crush_save');
+      if (saved) {
+        const confirmStart = confirm('すでにセーブデータが存在します。最初から始めるとこれまでの記録（所持パーツ、JP、進行状況）はすべて消去されますが、本当に最初から始めますか？');
+        if (!confirmStart) {
+          return; // キャンセル
+        }
+      }
+
       this.saveData = JSON.parse(JSON.stringify(INITIAL_SAVE_DATA));
+      // 新規データを即時セーブ（ページ更新で消えるのを防止）
+      localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
+
       // まず自宅ガレージ画面へ遷移
       this.changeScreen('garage-screen');
       // シャッター演出の終了を待ってからガレージ背景の上でプロローグを再生
