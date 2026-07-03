@@ -602,10 +602,14 @@ class GameApp {
     document.getElementById('btn-new-game')?.addEventListener('click', () => {
       this.snd.initContext();
       this.saveData = JSON.parse(JSON.stringify(INITIAL_SAVE_DATA));
-      // シナリオマスタからプロローグを再生
-      this.playScenario('prologue', () => {
-        this.changeScreen('garage-screen');
-      });
+      // まず自宅ガレージ画面へ遷移
+      this.changeScreen('garage-screen');
+      // シャッター演出の終了を待ってからガレージ背景の上でプロローグを再生
+      setTimeout(() => {
+        this.playScenario('prologue', () => {
+          // 会話劇終了
+        });
+      }, 550);
     });
 
     document.getElementById('btn-load-game')?.addEventListener('click', () => {
