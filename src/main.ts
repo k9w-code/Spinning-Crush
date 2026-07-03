@@ -1377,16 +1377,7 @@ class GameApp {
 
       card.addEventListener('click', () => {
         this.selectedNpc = npc;
-        // バトル前セリフADVのキューイング
-        const textKey = `${npc.エネミーID}_btl`;
-        const foundSerifu = this.セリフマスタ.find(s => s.TEXT_ID === textKey);
-        const serifuContent = foundSerifu?.テキスト内容 || `「ふっ、予選第${npc.並び順}戦の相手はお前か。手加減はしないぞ！」`;
-
-        this.startADV([
-          { speaker: npc.エネミー名, text: serifuContent }
-        ], () => {
-          this.changeScreen('vs-screen');
-        });
+        this.changeScreen('vs-screen');
       });
 
       listEl.appendChild(card);

@@ -185,15 +185,16 @@
         <div class="vs-layout">
           <!-- 左側: プレイヤーギア情報 & スロット切り替えギミック -->
           <div class="vs-gear-panel vs-player">
-            <div class="vs-slot-selector">
-              <button id="btn-vs-slot-prev" class="btn btn-small">◀</button>
-              <span id="vs-slot-label">スロット1 (出撃)</span>
-              <button id="btn-vs-slot-next" class="btn btn-small">▶</button>
-            </div>
+            <div class="vs-enemy-title">自機ギア</div>
             <div class="vs-gear-visual">
               <canvas id="vs-player-canvas" width="200" height="200"></canvas>
             </div>
             <div class="vs-gear-details">
+              <div class="vs-slot-selector" style="margin-bottom: 15px;">
+                <button id="btn-vs-slot-prev" class="btn btn-small">◀</button>
+                <span id="vs-slot-label">スロット1 (出撃)</span>
+                <button id="btn-vs-slot-next" class="btn btn-small">▶</button>
+              </div>
               <h3 id="vs-player-gear-name">コズミック・ドラゴン</h3>
               <div class="vs-parts-list" id="vs-player-parts"></div>
               <div class="vs-stats" id="vs-player-stats"></div>
@@ -209,6 +210,8 @@
               <canvas id="vs-enemy-canvas" width="200" height="200"></canvas>
             </div>
             <div class="vs-gear-details">
+              <!-- 左側のスロット選択ギミックと高さを揃えて完璧な対称性を作るためのスペーサー -->
+              <div class="vs-slot-selector-spacer" style="height: 38px; margin-bottom: 15px;"></div>
               <h3 id="vs-enemy-gear-name">メタル・タートル</h3>
               <div class="vs-parts-list" id="vs-enemy-parts"></div>
               <div class="vs-stats" id="vs-enemy-stats"></div>
