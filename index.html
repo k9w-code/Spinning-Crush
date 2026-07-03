@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/index.css">
+  <title>Spinning Crush - 2D格闘ホビーRPG</title>
+</head>
+<body>
+  <div id="app">
+    <!-- 全画面共通：ダイナミック背景 -->
+    <div class="dynamic-background">
+      <div class="bg-grid"></div>
+      <div class="bg-glow"></div>
+    </div>
+
+    <!-- UIオーバーレイコンテナ -->
+    <div id="ui-container">
+      
+      <!-- ================= ① タイトル画面 ================= -->
+      <div id="title-screen" class="screen active">
+        <div class="title-logo">
+          <span class="logo-sub">2D格闘ホビーRPG</span>
+          <h1 class="logo-main">Spinning Crush</h1>
+        </div>
+        <div class="menu-buttons">
+          <button id="btn-new-game" class="btn btn-primary">NEW GAME</button>
+          <button id="btn-load-game" class="btn btn-secondary">LOAD GAME</button>
+          <button id="btn-setting" class="btn btn-outline">SETTING</button>
+        </div>
+        <div class="press-any-key">PRESS ANY KEY TO START</div>
+      </div>
+
+      <!-- ================= ② 自宅ガレージ画面 ================= -->
+      <div id="garage-screen" class="screen">
+        <div class="screen-header">
+          <h2>自宅ガレージ</h2>
+          <div class="jp-display">所持JP: <span id="garage-jp">0</span></div>
+        </div>
+        <div class="garage-content">
+          <!-- 現在のギアグラフィック（Canvasで美しく回転するプレビュー） -->
+          <div class="gear-preview-panel">
+            <canvas id="garage-gear-canvas" width="300" height="300"></canvas>
+            <div class="gear-name-display" id="garage-gear-name">コズミック・ドラゴン</div>
+          </div>
+          <!-- 6大パラメータ簡易表示 -->
+          <div class="stats-panel">
+            <h3>ギアステータス</h3>
+            <div class="stats-list" id="garage-stats-list">
+              <!-- JSで動的生成 -->
+            </div>
+          </div>
+        </div>
+        <div class="navigation-menu">
+          <button id="btn-goto-custom" class="btn btn-primary">カスタマイズ</button>
+          <button id="btn-garage-save" class="btn btn-secondary">PC（日記）</button>
+          <button id="btn-goto-map" class="btn btn-accent">外に出る（マップ）</button>
+        </div>
+      </div>
+
+      <!-- ================= ③ カスタマイズ画面 ================= -->
+      <div id="custom-screen" class="screen">
+        <div class="screen-header">
+          <h2>ギア・カスタマイズ</h2>
+          <div class="jp-display">所持JP: <span id="custom-jp">0</span></div>
+        </div>
+        <div class="custom-layout">
+          <!-- 左側：5スロット選択リスト -->
+          <div class="slots-list-panel">
+            <h3>ギアスロット</h3>
+            <div class="slots-container" id="custom-slots-container">
+              <!-- スロット1〜5がJSで生成される -->
+            </div>
+          </div>
+          <!-- 右側：パーツ換装・シミュレーションエリア -->
+          <div class="assemble-panel">
+            <div class="assemble-header">
+              <span class="current-slot-title" id="custom-active-slot-name">スロット1の編集</span>
+            </div>
+            
+            <div class="parts-slots-grid">
+              <button class="part-select-btn" data-part-type="チップ">
+                <span class="part-type">バトルチップ</span>
+                <span class="part-name" id="equipped-chip-name">未装備</span>
+              </button>
+              <button class="part-select-btn" data-part-type="ブレード">
+                <span class="part-type">ブレード</span>
+                <span class="part-name" id="equipped-blade-name">未装備</span>
+              </button>
+              <button class="part-select-btn" data-part-type="ウェイト">
+                <span class="part-type">ウェイト</span>
+                <span class="part-name" id="equipped-weight-name">未装備</span>
+              </button>
+              <button class="part-select-btn" data-part-type="ソール">
+                <span class="part-type">ソール</span>
+                <span class="part-name" id="equipped-sole-name">未装備</span>
+              </button>
+            </div>
+
+            <!-- パラメータシミュレーション（増減比較） -->
+            <div class="sim-stats-panel">
+              <h3>ステータスシミュレーション</h3>
+              <div class="sim-stats-grid" id="custom-sim-stats-grid">
+                <!-- JSで動的生成 -->
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 下部：所持パーツ一覧（換装選択用ポップアップ/ドロワー） -->
+        <div class="inventory-drawer" id="inventory-drawer">
+          <div class="drawer-header">
+            <h4 id="inventory-part-type-title">ブレード一覧</h4>
+            <button id="btn-close-drawer" class="btn btn-small btn-outline">閉じる</button>
+          </div>
+          <div class="inventory-items-grid" id="inventory-items-grid">
+            <!-- JSで動的生成 -->
+          </div>
+        </div>
+
+        <div class="navigation-menu">
+          <button id="btn-custom-cancel" class="btn btn-secondary">戻る</button>
+          <button id="btn-custom-confirm" class="btn btn-primary">決定（アセンブル確定）</button>
+        </div>
+      </div>
+
+      <!-- ================= ④ 全体マップ画面 ================= -->
+      <div id="map-screen" class="screen">
+        <div class="screen-header">
+          <h2>バトルマップ</h2>
+          <div class="jp-display">所持JP: <span id="map-jp">0</span></div>
+        </div>
+        
+        <div class="map-view-container">
+          <!-- 街のイラスト背景とステージピンを配置 -->
+          <div class="town-map">
+            <!-- Canvasで雲や黒塗り霧、進捗に応じたピンを描画 -->
+            <canvas id="map-canvas" width="800" height="400"></canvas>
+            
+            <!-- DOMで重ね合わせるピン要素（動的制御） -->
+            <div id="map-pins-container"></div>
+          </div>
+        </div>
+
+        <div class="navigation-menu">
+          <button id="btn-map-to-garage" class="btn btn-secondary">自宅に戻る</button>
+        </div>
+      </div>
+
+      <!-- ================= ⑤ ステージ詳細・対戦相手選択画面 ================= -->
+      <div id="stage-screen" class="screen">
+        <div class="screen-header">
+          <h2 id="stage-title">ステージ1: はじまりの街</h2>
+          <button id="btn-stage-back" class="btn btn-secondary">戻る</button>
+        </div>
+        <div class="stage-content">
+          <div class="npc-list-panel">
+            <h3>対戦ライバル</h3>
+            <div class="npc-list" id="stage-npc-list">
+              <!-- JSで動的生成 -->
+            </div>
+          </div>
+          <div class="stage-info-panel">
+            <h3>ステージ情報</h3>
+            <p>ライバル全員を撃破してステージをクリアし、新しいエリアを解放しよう！</p>
+            <div class="stage-clear-gauge-container">
+              <span>進行状況:</span>
+              <div class="stage-clear-gauge">
+                <div class="stage-clear-gauge-fill" id="stage-clear-gauge-fill" style="width: 0%"></div>
+              </div>
+              <span id="stage-clear-text">0 / 5</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= ⑥ バトル準備（VS）画面 ================= -->
+      <div id="vs-screen" class="screen">
+        <div class="screen-header">
+          <h2>BATTLE READY</h2>
+        </div>
+        <div class="vs-layout">
+          <!-- 左側: プレイヤーギア情報 & スロット切り替えギミック -->
+          <div class="vs-gear-panel vs-player">
+            <div class="vs-slot-selector">
+              <button id="btn-vs-slot-prev" class="btn btn-small">◀</button>
+              <span id="vs-slot-label">スロット1 (出撃)</span>
+              <button id="btn-vs-slot-next" class="btn btn-small">▶</button>
+            </div>
+            <div class="vs-gear-visual">
+              <canvas id="vs-player-canvas" width="200" height="200"></canvas>
+            </div>
+            <div class="vs-gear-details">
+              <h3 id="vs-player-gear-name">コズミック・ドラゴン</h3>
+              <div class="vs-parts-list" id="vs-player-parts"></div>
+              <div class="vs-stats" id="vs-player-stats"></div>
+            </div>
+          </div>
+
+          <div class="vs-divider">VS</div>
+
+          <!-- 右側: 対戦相手NPCギア情報 -->
+          <div class="vs-gear-panel vs-enemy">
+            <div class="vs-enemy-title">対戦ライバル</div>
+            <div class="vs-gear-visual">
+              <canvas id="vs-enemy-canvas" width="200" height="200"></canvas>
+            </div>
+            <div class="vs-gear-details">
+              <h3 id="vs-enemy-gear-name">メタル・タートル</h3>
+              <div class="vs-parts-list" id="vs-enemy-parts"></div>
+              <div class="vs-stats" id="vs-enemy-stats"></div>
+            </div>
+          </div>
+        </div>
+        <div class="navigation-menu">
+          <button id="btn-vs-back" class="btn btn-secondary">戻る</button>
+          <button id="btn-vs-custom" class="btn btn-outline">カスタマイズへ直行</button>
+          <button id="btn-vs-start" class="btn btn-primary btn-large">バトル開始！</button>
+        </div>
+      </div>
+
+      <!-- ================= ⑦ 【バトル画面】 ================= -->
+      <div id="battle-screen" class="screen">
+        <!-- バトル描画Canvas（最背面） -->
+        <canvas id="main-battle-canvas" width="800" height="600"></canvas>
+
+        <!-- バトルUI（前面） -->
+        <div class="battle-hud">
+          <!-- プレイヤーHUD -->
+          <div class="hud-panel hud-player">
+            <div class="hud-name">PLAYER</div>
+            <div class="hud-gauge-container">
+              <div class="hud-label">ライフ</div>
+              <div class="hud-bar hud-bar-hp">
+                <div id="battle-player-hp-damage" class="hud-damage-bar" style="width: 100%"></div>
+                <div id="battle-player-hp-bar" style="width: 100%"></div>
+              </div>
+              <div class="hud-value" id="battle-player-hp-val">100 / 100</div>
+            </div>
+            <div class="hud-gauge-row">
+              <div class="hud-gauge-container half">
+                <div class="hud-label">攻撃ゲージ</div>
+                <div class="hud-bar hud-bar-atk"><div id="battle-player-atk-bar" style="width: 0%"></div></div>
+                <div class="hud-value" id="battle-player-atk-val">0</div>
+              </div>
+              <div class="hud-gauge-container half">
+                <div class="hud-label">奥義ゲージ</div>
+                <div class="hud-bar hud-bar-sp"><div id="battle-player-sp-bar" style="width: 0%"></div></div>
+                <div class="hud-value" id="battle-player-sp-val">0</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 間合いインジケーター -->
+          <div class="hud-center">
+            <div class="distance-label">間合い</div>
+            <div class="distance-value" id="battle-distance-display">300 px</div>
+          </div>
+
+          <!-- 敵HUD -->
+          <div class="hud-panel hud-enemy">
+            <div class="hud-name" id="battle-enemy-name">ENEMY</div>
+            <div class="hud-gauge-container">
+              <div class="hud-label">ライフ</div>
+              <div class="hud-bar hud-bar-hp">
+                <div id="battle-enemy-hp-damage" class="hud-damage-bar" style="width: 100%"></div>
+                <div id="battle-enemy-hp-bar" style="width: 100%"></div>
+              </div>
+              <div class="hud-value" id="battle-enemy-hp-val">100 / 100</div>
+            </div>
+            <div class="hud-gauge-row">
+              <div class="hud-gauge-container half">
+                <div class="hud-label">攻撃ゲージ</div>
+                <div class="hud-bar hud-bar-atk"><div id="battle-enemy-atk-bar" style="width: 0%"></div></div>
+                <div class="hud-value" id="battle-enemy-atk-val">0</div>
+              </div>
+              <div class="hud-gauge-container half">
+                <div class="hud-label">奥義ゲージ</div>
+                <div class="hud-bar hud-bar-sp"><div id="battle-enemy-sp-bar" style="width: 0%"></div></div>
+                <div class="hud-value" id="battle-enemy-sp-val">0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- リアルタイム操作補助（画面タッチ/マウスクリック対応ボタン） -->
+        <div class="distance-controls" id="distance-controls">
+          <button id="btn-action-away" class="btn btn-action">遠ざかる [A]</button>
+          <button id="btn-action-trigger" class="btn btn-action btn-danger btn-trigger-active" disabled>攻撃開始 [F]</button>
+          <button id="btn-action-approach" class="btn btn-action">接近する [D]</button>
+        </div>
+
+        <!-- 聖獣召喚カットインオーバーレイ -->
+        <div class="seiju-cutin-overlay" id="seiju-cutin-overlay">
+          <div class="seiju-cutin-box">
+            <img id="seiju-cutin-img" src="" alt="聖獣召喚" />
+            <div class="seiju-cutin-flash"></div>
+          </div>
+        </div>
+
+        <!-- コマンドフェーズ(静) UI -->
+        <div class="command-overlay" id="command-overlay">
+          <div class="command-content">
+            <div class="command-header">
+              <h2 id="command-title-text">プレイヤーの攻撃チャンス！</h2>
+              <p>コマンドを選択してください</p>
+            </div>
+            
+            <!-- コマンドリスト -->
+            <div class="command-list" id="battle-command-list">
+              <!-- JSで動的生成（攻撃コマンド3種＋奥義2種、または防御コマンド2種＋奥義2種） -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= ⑧ バトルリザルト画面 ================= -->
+      <div id="result-screen" class="screen">
+        <div class="result-box">
+          <h1 id="result-outcome" class="text-win">VICTORY</h1>
+          <div class="result-details">
+            <div class="result-reward-item">
+              <span>試合報酬:</span>
+              <span class="text-accent">+1 JP</span>
+            </div>
+            <div class="result-drop-panel">
+              <h4>ドロップパーツ</h4>
+              <div class="drop-visual" id="drop-part-visual">
+                <!-- パツグラフィック -->
+              </div>
+              <div class="drop-text" id="drop-part-text">新パーツ アイアンブレード を獲得！</div>
+            </div>
+          </div>
+          <!-- 試合後の対戦相手セリフ -->
+          <div class="serifu-panel" id="result-serifu-panel">
+            <span class="serifu-speaker" id="result-serifu-speaker">たろう</span>
+            <p class="serifu-text" id="result-serifu-text">「くっ、つええな…！次こそは負けないぞ！」</p>
+          </div>
+          <button id="btn-result-ok" class="btn btn-primary btn-large">マップへ帰還</button>
+        </div>
+      </div>
+
+      <!-- ================= ⑨ ジャンクショップ画面 ================= -->
+      <div id="shop-screen" class="screen">
+        <div class="screen-header">
+          <h2>ジャンクショップ</h2>
+          <div class="jp-display">所持JP: <span id="shop-jp">0</span></div>
+        </div>
+        <div class="shop-content">
+          <div class="shop-keeper-panel">
+            <div class="shop-keeper-visual">
+              <!-- キャラクターポップアップ -->
+              <div class="character-avatar npc-avatar"></div>
+            </div>
+            <div class="serifu-panel">
+              <span class="serifu-speaker">店長</span>
+              <p class="serifu-text" id="shop-keeper-text">「いらっしゃい！貯まったJPでジャンクガチャを回せるよ。被りなしで未所持パーツが手に入る！」</p>
+            </div>
+          </div>
+          <div class="shop-actions">
+            <div class="gacha-box">
+              <h3>ジャンクガチャ</h3>
+              <div class="gacha-cost">1回: 10 JP</div>
+              <button id="btn-shop-gacha" class="btn btn-primary btn-large">ガチャを回す</button>
+              <div class="gacha-status" id="gacha-status-message"></div>
+            </div>
+          </div>
+        </div>
+        <div class="navigation-menu">
+          <button id="btn-shop-back" class="btn btn-secondary">戻る</button>
+        </div>
+      </div>
+
+      <!-- ガチャ演出用オーバーレイ (カプセル自販機風) -->
+      <div id="gacha-performance-overlay" class="gacha-perf-overlay">
+        <!-- 1. ガチャマシンハンドル -->
+        <div id="gacha-machine-container" class="gacha-machine-container">
+          <div class="gacha-machine-window">
+            <div class="gacha-capsules-pile">
+              <span class="capsule-deco deco-r"></span>
+              <span class="capsule-deco deco-b"></span>
+              <span class="capsule-deco deco-g"></span>
+              <span class="capsule-deco deco-y"></span>
+            </div>
+          </div>
+          <div id="gacha-perf-handle" class="gacha-perf-handle">
+            <div class="handle-bar"></div>
+          </div>
+          <div class="gacha-machine-exit"></div>
+        </div>
+
+        <!-- 2. 落下＆分裂するカプセル -->
+        <div id="gacha-capsule-fall" class="gacha-capsule-fall">
+          <div class="capsule-half capsule-top"></div>
+          <div class="capsule-half capsule-bottom"></div>
+        </div>
+
+        <div id="gacha-perf-flash" class="gacha-perf-flash"></div>
+
+        <!-- 3. 獲得したトイカード -->
+        <div id="gacha-perf-result-card" class="gacha-result-card">
+          <div class="gacha-result-header">NEW PARTS GET!!</div>
+          <div class="gacha-result-body">
+            <div id="gacha-result-part-visual" class="gacha-part-visual"></div>
+            <h3 id="gacha-result-part-name">アイアンブレード</h3>
+            <div id="gacha-result-part-stats" class="gacha-part-stats"></div>
+          </div>
+          <button id="btn-gacha-perf-confirm" class="btn btn-primary btn-large">ガレージへ追加</button>
+        </div>
+      </div>
+
+      <!-- ADV演出用ダイアログ（プロローグ、会話等で共通使用） -->
+      <div id="adv-dialog" class="adv-overlay">
+        <div class="adv-avatars-container">
+          <div id="adv-avatar-left" class="adv-avatar left"></div>
+          <div id="adv-avatar-right" class="adv-avatar right"></div>
+        </div>
+        <div class="adv-box">
+          <div class="adv-speaker" id="adv-speaker-name">ナビィ</div>
+          <p class="adv-text" id="adv-text-content">『Spinning Crushの世界へようこそ！』</p>
+          <div class="adv-next-hint">クリックまたはキー入力で進む</div>
+        </div>
+      </div>
+
+      <!-- セーブ通知・システムダイアログ -->
+      <div id="system-modal" class="modal-overlay">
+        <div class="modal-box">
+          <h3 id="modal-title">システム通知</h3>
+          <p id="modal-content">データをセーブしました。</p>
+          <button id="btn-modal-close" class="btn btn-primary">閉じる</button>
+        </div>
+      </div>
+
+      <!-- ステージクリア演出用オーバーレイ -->
+      <div id="stage-clear-overlay" class="stage-clear-overlay">
+        <div class="clear-glow-wrapper">
+          <div class="clear-title-large">STAGE CLEAR</div>
+          <div class="clear-subtitle">CONGRATULATIONS!</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  
+  <!-- サイバーシャッタートランジション用DOM -->
+  <div class="cyber-shutter" id="cyber-shutter">
+    <div class="shutter-pane pane-left"></div>
+    <div class="shutter-pane pane-right"></div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+Created At: 2026-06-30T12:12:22Z
+Completed At: 2026-06-30T12:12:22Z
+File Path: `file:///c:/Users/imai/workspace/Spinning-Crush/src/main.ts`
+Total Lines: 3235
+Total Bytes: 132727
+Showing lines 2630 to 2720
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2630: 
+2631:       let advDialogText = '';
+2632:       let isHit = true;
+2633:       let isCounterSuccess = false;
+2634: 
+2635:       // 2. 防御側のコマンド判定処理
+2636:       if (防御側コマンド === '防御') {
+2637:         // ダメージ 40% カット (0.6倍)
+2638:         const ウェイト相性 = 属性相性判定(防御側ギア.部位属性.ウェイト, 攻撃側ギア.部位属性.ウェイト);
+2639:         const ウェイト補正 = ウェイト相性 === 1 ? 0.9 : (ウェイト相性 === -1 ? 1.1 : 1.0);
+2640:         
+2641:         ダメージ = ダメージ * 0.6 * ウェイト補正;
+2642:         
+2643:         // SP(奥義)ゲージの確定獲得 (防御した側が獲得)
+2644:         if (攻撃側判定 === 'プレイヤー') {
+2645:           this.battleManager.エネミー奥義ゲージ = Math.min(100, this.battleManager.エネミー奥義ゲージ + 10);
+2646:         } else {
+2647:           this.battleManager.プレイヤー奥義ゲージ = Math.min(100, this.battleManager.プレイヤー奥義ゲージ + 10);
+2648:         }
+2649: 
+2650:         advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}は防御を固め、ダメージを軽減した！ (被ダメージ: ${Math.floor(ダメージ)})`;
+2651:       } 
+2652:       else if (防御側コマンド === '防御奥義' && 防御奥義) {
+2653:         // 防御奥義コスト消費 (防御した側が消費)
+2654:         if (攻撃側判定 === 'プレイヤー') {
+2655:           this.battleManager.エネミー奥義ゲージ -= Number(防御奥義.消費奥義ゲージ);
+2656:         } else {
+2657:           this.battleManager.プレイヤー奥義ゲージ -= Number(防御奥義.消費奥義ゲージ);
+2658:         }
+2659: 
+2660:         // ダメージ軽減率は奥義マスタの効果量 (例: 70%カット ➔ ダメージ0.3倍)
+2661:         const cutPct = Number(防御奥義.効果量 || 70);
+2662:         const cutRate = 1.0 - (cutPct / 100);
+2663:         const ウェイト相性 = 属性相性判定(防御側ギア.部位属性.ウェイト, 攻撃側ギア.部位属性.ウェイト);
+2664:         const ウェイト補正 = ウェイト相性 === 1 ? 0.9 : (ウェイト相性 === -1 ? 1.1 : 1.0);
+2665: 
+2666:         ダメージ = ダメージ * cutRate * ウェイト補正;
+2667: 
+2668:         advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}は防御奥義「${防御奥義.奥義名}」を展開！ダメージを極限まで抑え込んだ！ (被ダメージ: ${Math.floor(ダメージ)})`;
+2669:       }
+2670:       else if (防御側コマンド === '回避') {
+2671:         // 回避率の確率判定
+2672:         const ソール相性 = 属性相性判定(防御側ギア.部位属性.ソール, 攻撃側ギア.部位属性.ソール);
+2673:         const ソール属性補正 = ソール相性 === 1 ? 10 : (ソール相性 === -1 ? -10 : 0);
+2674: 
+2675:         const 最終回避率 = this.battleManager.get最終回避率(防御側ギア.ステータス.スピード, 攻撃側ギア.ステータス.スピード, ソール属性補正);
+2676:         const 乱数 = Math.random() * 100;
+2677:         
+2678:         // SP(奥義)ゲージは成否に関わらず+10
+2679:         if (攻撃側判定 === 'プレイヤー') {
+2680:           this.battleManager.エネミー奥義ゲージ = Math.min(100, this.battleManager.エネミー奥義ゲージ + 10);
+2681:         } else {
+2682:           this.battleManager.プレイヤー奥義ゲージ = Math.min(100, this.battleManager.プレイヤー奥義ゲージ + 10);
+2683:         }
+2684: 
+2685:         if (乱数 < 最終回避率) {
+2686:           isHit = false;
+2687:           ダメージ = 0;
+2688:           advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}はスピードを活かして完全回避した！ (成功率: ${最終回避率.toFixed(1)}%)`;
+2689:         } else {
+2690:           advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}は回避に失敗した！通常ダメージを受けた。 (被ダメージ: ${Math.floor(ダメージ)})`;
+2691:         }
+2692:       } 
+2693:       else if (防御側コマンド === '回避奥義' && 防御奥義) {
+2694:         // 回避奥義コスト消費
+2695:         if (攻撃側判定 === 'プレイヤー') {
+2696:           this.battleManager.エネミー奥義ゲージ -= Number(防御奥義.消費奥義ゲージ);
+2697:         } else {
+2698:           this.battleManager.プレイヤー奥義ゲージ -= Number(防御奥義.消費奥義ゲージ);
+2699:         }
+2700: 
+2701:         // 基礎回避率を奥義効果量 (例: 一律60) で計算
+2702:         const baseEvade = Number(防御奥義.効果量 || 60);
+2703:         const ソール相性 = 属性相性判定(防御側ギア.部位属性.ソール, 攻撃側ギア.部位属性.ソール);
+2704:         const ソール属性補正 = ソール相性 === 1 ? 10 : (ソール相性 === -1 ? -10 : 0);
+2705: 
+2706:         const 最終回避率 = baseEvade + (防御側ギア.ステータス.スピード - 攻撃側ギア.ステータス.スピード) / 20 + ソール属性補正;
+2707:         const 乱数 = Math.random() * 100;
+2708: 
+2709:         if (乱数 < 最終回避率) {
+2710:           isHit = false;
+2711:           ダメージ = 0;
+2712:           advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}は回避奥義「${防御奥義.奥義名}」を発動！幻影のごとく攻撃を受け流した！ (成功率: ${最終回避率.toFixed(1)}%)`;
+2713:         } else {
+2714:           advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}は回避奥義を狙ったが失敗！通常ダメージを受けた。 (被ダメージ: ${Math.floor(ダメージ)})`;
+2715:         }
+2716:       }
+2717:       else if (防御側コマンド === 'カウンター') {
+2718:         // カウンターコスト消費
+2719:         if (攻撃側判定 === 'プレイヤー') {
+2720:           this.battleManager.エネミー攻撃ゲージ -= 30;
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.
