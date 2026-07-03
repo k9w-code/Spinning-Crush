@@ -1743,6 +1743,10 @@ body, html {
 }
 
 /* ================== サイバーシャッタートランジション ================== */
+.cyber-shutter.hidden {
+  display: none !important;
+}
+
 .cyber-shutter {
   position: fixed;
   top: 0;

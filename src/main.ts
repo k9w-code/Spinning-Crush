@@ -345,16 +345,18 @@ class GameApp {
     for (const sheet of sheets) {
       let csvText = '';
       
-      // 1. Google Spreadsheets からのダイレクトロード試行 (CORS対策を念頭に)
-      try {
-        const directUrl = `https://docs.google.com/spreadsheets/d/1flC4ng6qE2tFSTa9tZNZ9Pao-cMHnhkCcLn0LxODbss/gviz/tq?tqx=out:csv&gid=${sheet.gid}`;
-        const response = await fetch(directUrl);
-        if (response.ok) {
-          csvText = await response.text();
-          console.log(`Successfully loaded ${sheet.name} from Google Sheets.`);
+      // gidが設定されている場合のみ Google Sheets からのダイレクトロードを試行 (空文字だと概要シートが返るのを防止)
+      if (sheet.gid !== '') {
+        try {
+          const directUrl = `https://docs.google.com/spreadsheets/d/1flC4ng6qE2tFSTa9tZNZ9Pao-cMHnhkCcLn0LxODbss/gviz/tq?tqx=out:csv&gid=${sheet.gid}`;
+          const response = await fetch(directUrl);
+          if (response.ok) {
+            csvText = await response.text();
+            console.log(`Successfully loaded ${sheet.name} from Google Sheets.`);
+          }
+        } catch (e) {
+          console.warn(`CORS/Network error loading ${sheet.name} from Google Sheets. Falling back to local...`, e);
         }
-      } catch (e) {
-        console.warn(`CORS/Network error loading ${sheet.name} from Google Sheets. Falling back to local...`, e);
       }
 
       // 2. 失敗した場合、ローカルの public/sheets/ にあるコピーからフェッチ
@@ -565,6 +567,7 @@ class GameApp {
     };
 
     if (shutter) {
+      shutter.classList.remove('hidden');
       shutter.classList.add('shutter-close');
       // 完全に画面が覆われたタイミングで切り替えを実行
       setTimeout(() => {
@@ -574,6 +577,10 @@ class GameApp {
       setTimeout(() => {
         shutter.classList.remove('shutter-close');
       }, 480);
+      // 完全に開ききったら、斜めの装飾が画面外にはみ出して見えないように非表示にする
+      setTimeout(() => {
+        shutter.classList.add('hidden');
+      }, 900);
     } else {
       performSwitch();
     }
