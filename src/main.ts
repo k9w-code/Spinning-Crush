@@ -716,6 +716,10 @@ class GameApp {
           }
         }
       ], () => {
+        const avatarRight = document.getElementById('adv-avatar-right');
+        if (avatarRight) {
+          avatarRight.className = 'adv-avatar right';
+        }
         this.startBattle();
       });
     });
@@ -1332,10 +1336,21 @@ class GameApp {
       const bossName = bossNpc ? bossNpc.エネミー名 : 'ボス';
 
       this.startADV([
-        { speaker: 'CC', text: '「マスター！通常ライバルの4人を全員撃破しました！」' },
-        { speaker: 'CC', text: `「これでついにこのエリアのボス『${bossName}』がアンロックされました！」` },
-        { speaker: 'CC', text: `「『${bossName}』は手強い強敵です。ガレージで万全のアセンブルを整えて挑みましょう！」` }
+        {
+          speaker: 'ナビィ',
+          text: '「マスター！通常ライバルの4人を全員撃破しました！」',
+          onComplete: () => {
+            const avatarLeft = document.getElementById('adv-avatar-left');
+            if (avatarLeft) {
+              avatarLeft.className = 'adv-avatar left active avatar-sn_001';
+            }
+          }
+        },
+        { speaker: 'ナビィ', text: `「これでついにこのエリアのボス『${bossName}』がアンロックされました！」` },
+        { speaker: 'ナビィ', text: `「『${bossName}』は手強い強敵です。ガレージで万全のアセンブルを整えて挑みましょう！」` }
       ], () => {
+        const avatarLeft = document.getElementById('adv-avatar-left');
+        if (avatarLeft) avatarLeft.className = 'adv-avatar left';
         this.initStageScreen(); // カードリストの再描画
       });
       return;
