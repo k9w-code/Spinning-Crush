@@ -1377,7 +1377,31 @@ class GameApp {
 
       card.addEventListener('click', () => {
         this.selectedNpc = npc;
-        this.changeScreen('vs-screen');
+        
+        // バトル前フリートークセリフをマスタから取得 (見つからない場合はフォールバック)
+        const textKey = `${npc.エネミーID}_btl`;
+        const foundSerifu = this.セリフマスタ.find(s => s.TEXT_ID === textKey);
+        const serifuContent = foundSerifu?.テキスト内容 || `「ふっ、予選第${npc.並び順}戦の相手はお前か。手加減はしないぞ！」`;
+
+        this.startADV([
+          {
+            speaker: npc.エネミー名,
+            text: serifuContent,
+            onComplete: () => {
+              const avatarRight = document.getElementById('adv-avatar-right');
+              if (avatarRight) {
+                // 右側にライバルキャラのホログラム立ち絵を表示
+                const isDefault = !['e005'].includes(npc.エネミーID);
+                avatarRight.className = `adv-avatar right active ${isDefault ? 'avatar-default' : 'avatar-' + npc.エネミーID}`;
+              }
+            }
+          }
+        ], () => {
+          // 終わったらアバターを片付けてVS画面へ
+          const avatarRight = document.getElementById('adv-avatar-right');
+          if (avatarRight) avatarRight.className = 'adv-avatar right';
+          this.changeScreen('vs-screen');
+        });
       });
 
       listEl.appendChild(card);
