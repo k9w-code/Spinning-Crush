@@ -1478,11 +1478,6 @@ body, html {
   height: 100vh;
   background: rgba(0, 0, 0, 0.45);
   z-index: 2500;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  align-items: center;
-  padding-bottom: 25px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease;
@@ -1498,14 +1493,17 @@ body, html {
   border: 1.5px solid var(--color-neon-blue);
   box-shadow: 0 0 25px rgba(0, 243, 255, 0.25);
   border-radius: 12px;
-  width: 800px;
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 800px;
   padding: 25px 40px;
   display: flex;
   flex-direction: column;
-  position: relative;
   animation: talk-pop 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   z-index: 2200;
-  flex-shrink: 0;
 }
 
 .adv-speaker {
@@ -2809,16 +2807,10 @@ body, html {
 
 /* ================== ADV立ち絵アバター・演出 ================== */
 .adv-overlay {
-  /* 会話中の背景フラッシュ演出 */
-  transition: background-color 0.15s ease;
-}
 .adv-overlay.flash-active {
   background-color: rgba(255, 255, 255, 0.8) !important;
 }
 
-.adv-box {
-  transition: transform 0.1s ease;
-}
 .adv-box.shake-active {
   animation: adv-shake 0.3s ease infinite;
 }
@@ -2833,27 +2825,28 @@ body, html {
 }
 
 .adv-avatars-container {
-  position: relative;
-  width: 100%;
+  position: absolute;
+  bottom: 175px; /* 会話ボックス(bottom: 20px + 高さ約150px)の直上に綺麗に乗る高さ */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
   max-width: 800px;
-  height: 150px;
+  height: 180px;
   display: flex;
   justify-content: space-between;
   padding: 0 50px;
   pointer-events: none;
   z-index: 2100;
-  margin-bottom: -15px; /* 会話ボックスの上に少し重ねる */
-  flex-shrink: 0;
 }
 
 .adv-avatar {
-  width: 120px;
-  height: 150px;
+  width: 135px;
+  height: 180px;
   background-size: contain;
   background-repeat: no-repeat;
   background-position: bottom;
   opacity: 0;
-  transform: translateY(20px);
+  transform: translateY(30px);
   transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease, filter 0.3s ease;
 }
 
