@@ -693,6 +693,33 @@ body, html {
   font-family: var(--font-hud);
 }
 
+.item-stats-summary.drawer-style {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px 10px;
+  font-size: 0.75rem;
+  font-family: var(--font-hud);
+  color: var(--color-text-sub);
+  margin-top: 8px;
+}
+
+.item-stats-summary.drawer-style .stat-val {
+  color: var(--color-text-main);
+  font-weight: 700;
+}
+
+.item-stats-summary.drawer-style .stat-diff.plus {
+  color: #39ff14; /* ネオングリーン */
+}
+
+.item-stats-summary.drawer-style .stat-diff.minus {
+  color: #ff3344; /* レッド */
+}
+
+.item-stats-summary.drawer-style .stat-diff.zero {
+  color: #888;
+}
+
 /* ================== ④ 全体マップ画面 ================== */
 .map-view-container {
   flex: 1;

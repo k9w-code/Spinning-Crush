@@ -1212,11 +1212,53 @@ class GameApp {
       const typeCode = type === 'ブレード' ? '1' : (type === 'ウェイト' ? '2' : '3');
       const list = this.パーツマスタ.filter(p => p.種別 === typeCode && this.saveData.インベントリ.includes(p.パーツID));
       
+      // 現在装備している同一部位のパーツ情報を取得
+      const currentEquippedId = type === 'ブレード' ? this.customGearSim.ブレード 
+                               : (type === 'ウェイト' ? this.customGearSim.ウェイト 
+                               : this.customGearSim.ソール);
+      const currentPart = this.パーツマスタ.find(p => p.パーツID === currentEquippedId);
+
+      // 差分テキスト生成ヘルパー
+      const getDiffSpan = (currValStr: string | undefined, newValStr: string) => {
+        const currVal = Number(currValStr || 0);
+        const newVal = Number(newValStr || 0);
+        const diff = newVal - currVal;
+        if (diff > 0) {
+          return `<span class="stat-val">${newVal} <span class="stat-diff plus">(+${diff})</span></span>`;
+        } else if (diff < 0) {
+          return `<span class="stat-val">${newVal} <span class="stat-diff minus">(${diff})</span></span>`;
+        } else {
+          return `<span class="stat-val">${newVal} <span class="stat-diff zero">(±0)</span></span>`;
+        }
+      };
+
       list.forEach(item => {
-        const currentEquippedId = type === 'ブレード' ? this.customGearSim.ブレード 
-                                 : (type === 'ウェイト' ? this.customGearSim.ウェイト 
-                                 : this.customGearSim.ソール);
         const isEquipped = currentEquippedId === item.パーツID;
+
+        // 各部位固有の4ステータスを抽出
+        let statsHtml = '';
+        if (type === 'ブレード') {
+          statsHtml = `
+            <span>ATK:${getDiffSpan(currentPart?.アタック, item.アタック)}</span>
+            <span>DEF:${getDiffSpan(currentPart?.ディフェンス, item.ディフェンス)}</span>
+            <span>RNG:${getDiffSpan(currentPart?.レンジ, item.レンジ)}</span>
+            <span>MOB:${getDiffSpan(currentPart?.モビリティ, item.モビリティ)}</span>
+          `;
+        } else if (type === 'ウェイト') {
+          statsHtml = `
+            <span>HP:${getDiffSpan(currentPart?.ライフ, item.ライフ)}</span>
+            <span>ATK:${getDiffSpan(currentPart?.アタック, item.アタック)}</span>
+            <span>DEF:${getDiffSpan(currentPart?.ディフェンス, item.ディフェンス)}</span>
+            <span>SPD:${getDiffSpan(currentPart?.スピード, item.スピード)}</span>
+          `;
+        } else { // ソール
+          statsHtml = `
+            <span>HP:${getDiffSpan(currentPart?.ライフ, item.ライフ)}</span>
+            <span>SPD:${getDiffSpan(currentPart?.スピード, item.スピード)}</span>
+            <span>RNG:${getDiffSpan(currentPart?.レンジ, item.レンジ)}</span>
+            <span>MOB:${getDiffSpan(currentPart?.モビリティ, item.モビリティ)}</span>
+          `;
+        }
 
         const card = document.createElement('div');
         card.className = `inventory-item ${isEquipped ? 'equipped' : ''}`;
@@ -1226,10 +1268,8 @@ class GameApp {
             <span class="attr-tag">${item.属性}属性</span>
             <span class="attr-tag">ランク${item.ランク}</span>
           </div>
-          <div class="item-stats-summary">
-            <span>HP:${item.ライフ}</span>
-            <span>ATK:${item.アタック}</span>
-            <span>DEF:${item.ディフェンス}</span>
+          <div class="item-stats-summary drawer-style">
+            ${statsHtml}
           </div>
         `;
         card.addEventListener('click', () => {
