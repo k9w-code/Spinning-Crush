@@ -29,7 +29,18 @@ export class SoundManager {
     }
   }
 
-  // UI選択音 (ピッ)
+  // 歪みエフェクト用カーブ生成
+  private makeDistortionCurve(amount = 50) {
+    const n_samples = 44100;
+    const curve = new Float32Array(n_samples);
+    for (let i = 0; i < n_samples; ++i) {
+      const x = (i * 2) / n_samples - 1;
+      curve[i] = ((3 + amount) * x * 20 * (Math.PI / 180)) / (Math.PI + amount * Math.abs(x));
+    }
+    return curve;
+  }
+
+  // UI選択音 (心地よく抜けるピコッ音)
   public playBleep() {
     this.initContext();
     this.resumeContext();
@@ -39,21 +50,21 @@ export class SoundManager {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(1000, time);
-    osc.frequency.exponentialRampToValueAtTime(1400, time + 0.05);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(800, time);
+    osc.frequency.exponentialRampToValueAtTime(1600, time + 0.04);
 
-    gain.gain.setValueAtTime(0.08, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+    gain.gain.setValueAtTime(0.06, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.045);
 
     osc.connect(gain);
     gain.connect(this.ctx.destination);
 
     osc.start(time);
-    osc.stop(time + 0.06);
+    osc.stop(time + 0.05);
   }
 
-  // UI決定音 / シャッター開閉音 (ピシィーン)
+  // UI決定音 / シャッター開閉音 (きらびやかなピシィーン音)
   public playClick() {
     this.initContext();
     this.resumeContext();
@@ -64,16 +75,17 @@ export class SoundManager {
     const osc2 = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
+    // 金属的響きを出すための高周波サイン波とマイルドな三角波
     osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(600, time);
-    osc1.frequency.exponentialRampToValueAtTime(1500, time + 0.12);
+    osc1.frequency.setValueAtTime(580, time);
+    osc1.frequency.exponentialRampToValueAtTime(2200, time + 0.12);
 
     osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(300, time);
-    osc2.frequency.exponentialRampToValueAtTime(900, time + 0.12);
+    osc2.frequency.setValueAtTime(290, time);
+    osc2.frequency.exponentialRampToValueAtTime(1100, time + 0.12);
 
-    gain.gain.setValueAtTime(0.12, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+    gain.gain.setValueAtTime(0.08, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.14);
 
     osc1.connect(gain);
     osc2.connect(gain);
@@ -85,83 +97,125 @@ export class SoundManager {
     osc2.stop(time + 0.15);
   }
 
-  // 通常ヒット音 / 被弾金属音 (キーン)
+  // 通常ヒット音 / 被弾金属音 (カキィィン！という硬質で迫力のあるリアルな金属打撃音)
   public playHit() {
     this.initContext();
     this.resumeContext();
     if (!this.ctx) return;
 
     const time = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
+    const duration = 0.18;
 
-    // わずかに金属質な高周波
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(1800, time);
-    osc.frequency.exponentialRampToValueAtTime(2400, time + 0.1);
+    // 1. 不協和音FM金属ベル合成 (複数の非倍音をブレンドして金属感を作る)
+    const freqs = [880, 1180, 1650, 2240];
+    const oscs: OscillatorNode[] = [];
+    const hitGain = this.ctx.createGain();
 
-    gain.gain.setValueAtTime(0.15, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+    hitGain.gain.setValueAtTime(0.14, time);
+    hitGain.gain.exponentialRampToValueAtTime(0.001, time + duration);
 
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    freqs.forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, time);
+      // ピッチを瞬時にスイープさせて衝突の硬さを出す
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.8, time + 0.05);
+      
+      osc.connect(hitGain);
+      oscs.push(osc);
+    });
 
-    osc.start(time);
-    osc.stop(time + 0.15);
+    hitGain.connect(this.ctx.destination);
+
+    // 2. 金属の擦れ合い・火花のハイパスノイズ (バシッというアタック音)
+    const bufferSize = this.ctx.sampleRate * 0.05; // 0.05秒の摩擦
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const hpFilter = this.ctx.createBiquadFilter();
+    hpFilter.type = 'highpass';
+    hpFilter.frequency.setValueAtTime(5500, time);
+
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.1, time);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.045);
+
+    noise.connect(hpFilter);
+    hpFilter.connect(noiseGain);
+    noiseGain.connect(this.ctx.destination);
+
+    // 同時再生開始
+    oscs.forEach(osc => osc.start(time));
+    noise.start(time);
+
+    oscs.forEach(osc => osc.stop(time + duration + 0.02));
+    noise.stop(time + 0.06);
   }
 
-  // 激突大爆発音 (ドゴォォン)
+  // 激突大爆発音 (サチュレートされた歪み ＆ 腹に響く45Hzサブベースによるドズゥゥン音)
   public playExplosion() {
     this.initContext();
     this.resumeContext();
     if (!this.ctx) return;
 
     const time = this.ctx.currentTime;
+    const duration = 0.5;
 
-    // 1. ホワイトノイズの生成
-    const bufferSize = this.ctx.sampleRate * 0.4; // 0.4秒
+    // 1. ノイズソースの作成 (爆風)
+    const bufferSize = this.ctx.sampleRate * duration;
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
       data[i] = Math.random() * 2 - 1;
     }
-
     const noise = this.ctx.createBufferSource();
     noise.buffer = buffer;
 
-    // 2. ローパスフィルターで低音に絞る (1000Hz ➔ 60Hzへ急減衰)
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(800, time);
-    filter.frequency.exponentialRampToValueAtTime(50, time + 0.35);
+    // 2. 音圧を強烈にサチュレートするディストーション (歪み)
+    const distortion = this.ctx.createWaveShaper();
+    distortion.curve = this.makeDistortionCurve(70);
+    distortion.oversample = '4x';
 
-    // 3. 超低音補強のオシレーター (鋸歯状波)
+    // 3. ローパスフィルター (2000Hzから40Hzへ急降下)
+    const lpFilter = this.ctx.createBiquadFilter();
+    lpFilter.type = 'lowpass';
+    lpFilter.frequency.setValueAtTime(1500, time);
+    lpFilter.frequency.exponentialRampToValueAtTime(40, time + 0.4);
+
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.15, time);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+    // ノイズのルーティング: Source ➔ 歪み ➔ フィルタ ➔ Gain ➔ 出力
+    noise.connect(distortion);
+    distortion.connect(lpFilter);
+    lpFilter.connect(noiseGain);
+    noiseGain.connect(this.ctx.destination);
+
+    // 4. 重低音を補強する 45Hz サブベースサイン波 (地響き)
     const subOsc = this.ctx.createOscillator();
-    subOsc.type = 'sawtooth';
-    subOsc.frequency.setValueAtTime(65, time);
-    subOsc.frequency.linearRampToValueAtTime(20, time + 0.3);
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(45, time);
+    subOsc.frequency.linearRampToValueAtTime(10, time + 0.35);
 
     const subGain = this.ctx.createGain();
-    subGain.gain.setValueAtTime(0.2, time);
-    subGain.gain.exponentialRampToValueAtTime(0.001, time + 0.3);
+    subGain.gain.setValueAtTime(0.45, time); // 強い重低音
+    subGain.gain.exponentialRampToValueAtTime(0.001, time + 0.38);
 
     subOsc.connect(subGain);
     subGain.connect(this.ctx.destination);
 
-    // ノイズ音量エンベロープ
-    const noiseGain = this.ctx.createGain();
-    noiseGain.gain.setValueAtTime(0.3, time);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.38);
-
-    noise.connect(filter);
-    filter.connect(noiseGain);
-    noiseGain.connect(this.ctx.destination);
-
-    // 再生開始
+    // 爆発開始
     noise.start(time);
     subOsc.start(time);
     
-    noise.stop(time + 0.4);
+    noise.stop(time + duration + 0.02);
     subOsc.stop(time + 0.4);
   }
 
