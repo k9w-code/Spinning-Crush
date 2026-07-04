@@ -310,6 +310,8 @@ body, html {
   justify-content: center;
   align-items: center;
   padding: 30px;
+  flex-shrink: 0;
+  min-height: 380px;
 }
 
 .gear-name-display {
@@ -328,6 +330,7 @@ body, html {
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 16px;
   padding: 30px;
+  flex-shrink: 0;
 }
 
 .stats-panel h3 {
@@ -400,6 +403,7 @@ body, html {
   padding: 20px;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 
 .slots-list-panel h3 {
@@ -457,6 +461,7 @@ body, html {
   padding: 30px;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 
 .assemble-header {
@@ -796,6 +801,7 @@ body, html {
   padding: 30px;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 
 .npc-list {
@@ -867,6 +873,7 @@ body, html {
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 16px;
   padding: 30px;
+  flex-shrink: 0;
 }
 
 .stage-clear-gauge-container {
@@ -914,6 +921,7 @@ body, html {
   text-align: center;
   max-width: 450px;
   height: 100%;
+  flex-shrink: 0;
 }
 
 .vs-player {
@@ -945,6 +953,7 @@ body, html {
   align-items: center;
   margin-bottom: 25px;
   position: relative;
+  flex-shrink: 0;
 }
 
 .vs-gear-visual::before {

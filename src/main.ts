@@ -771,6 +771,57 @@ class GameApp {
       const key = e.key.toLowerCase();
       this.keyState[key] = true;
 
+      // デバッグメニュー起動 (Dキー) -> バトル中以外で有効
+      if (key === 'd' && this.currentScreenId !== 'battle-screen') {
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+          return;
+        }
+
+        e.preventDefault();
+        const cmd = prompt(
+          "【Spinning Crush デバッグメニュー】\n" +
+          "1: JPを+10000する\n" +
+          "2: すべてのパーツ(全アイテム)を取得する\n" +
+          "3: 通常ライバルを全員撃破済みにする(ボス解放フラグ全開)\n" +
+          "番号を入力してください:"
+        );
+
+        if (cmd === '1') {
+          this.saveData.JP += 10000;
+          localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
+          this.showSystemModal('デバッグ完了', 'JPが10000追加されました！');
+          const mapJp = document.getElementById('map-jp');
+          if (mapJp) mapJp.textContent = this.saveData.JP.toString();
+          const customJp = document.getElementById('custom-jp');
+          if (customJp) customJp.textContent = this.saveData.JP.toString();
+          const shopJp = document.getElementById('shop-jp');
+          if (shopJp) shopJp.textContent = this.saveData.JP.toString();
+        } else if (cmd === '2') {
+          this.パーツマスタ.forEach(p => {
+            if (!this.saveData.所持パーツID.includes(p.パーツID)) {
+              this.saveData.所持パーツID.push(p.パーツID);
+            }
+          });
+          localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
+          this.showSystemModal('デバッグ完了', 'すべてのパーツを取得しました！カスタマイズ画面でご確認ください。');
+        } else if (cmd === '3') {
+          this.エネミーマスタ.forEach(enemy => {
+            if (enemy.ボスフラグ !== '1') {
+              this.saveData.クリア状況[enemy.エネミーID] = true;
+            }
+          });
+          for (let i = 1; i <= 6; i++) {
+            const stId = `st00${i}`;
+            this.saveData.ボス解放済みステージ[stId] = true;
+            this.saveData.ステージクリア状況[stId] = true;
+          }
+          localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
+          this.showSystemModal('デバッグ完了', '全ステージのボスを即時アンロックしました！');
+        }
+        return;
+      }
+
       // コマンドフェーズ選択のキー操作
       if (
         this.currentScreenId === 'battle-screen' &&
