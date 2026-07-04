@@ -3304,6 +3304,8 @@ class GameApp {
     if (!this.battleManager || this.isBattleFinished) return;
 
     // 激突アニメーション中、または結果会話テキスト表示中は遷移を保留する
+    const talkDialog = document.getElementById('talk-dialog');
+    const isTalkActive = talkDialog && talkDialog.classList.contains('active');
     if (this.isClashAnimationActive || isTalkActive) return;
 
     const pLife = this.battleManager.プレイヤーライフ;
