@@ -2010,6 +2010,16 @@ class GameApp {
   // ==========================================
   private setupCanvas() {
     this.battleCanvas = document.getElementById('main-battle-canvas') as HTMLCanvasElement;
+    if (this.battleCanvas) {
+      this.battleCanvas.addEventListener('click', () => {
+        if (this.battleManager && this.battleManager.現在フェーズ === 'ディスタンス') {
+          const range = this.battleManager.getレンジサークル半径(this.battleManager.プレイヤーギア.ステータス.レンジ);
+          if (Math.floor(this.battleManager.プレイヤー攻撃ゲージ) >= 100 && this.battleManager.get現在の間合い() <= range) {
+            this.keyState['f'] = true;
+          }
+        }
+      });
+    }
   }
 
   private startBattle() {
@@ -3447,10 +3457,15 @@ class GameApp {
       ctx.shadowBlur = 0;
 
       // 4. 巨大対決ギアの位置計算
-      let drawPX = 220;
-      let drawPY = 220;
-      let drawEX = 580;
-      let drawEY = 380;
+      let drawPX = 200;
+      let drawPY = 200; // コマンド選択中は下部メニューを避けるために上寄りに配置
+      let drawEX = 600;
+      let drawEY = 200;
+      let isCloseupSelecting = false;
+
+      if (this.battleManager.現在フェーズ === 'コマンド' && !this.isClashAnimationActive) {
+        isCloseupSelecting = true;
+      }
 
       if (this.isClashAnimationActive) {
         // 激突中のみ背景をクリアしてスピードライン背景を描画する (GBA対決アニメーション背景)
@@ -3507,21 +3522,41 @@ class GameApp {
         }
       }
 
-      // 5. 巨大化した対決ギアの描画 (半径75px)
-      this.drawGear(ctx, drawPX, drawPY, 75, this.battleManager.プレイヤーギア, this.playerRotation * 2.5);
-      this.drawGear(ctx, drawEX, drawEY, 75, this.battleManager.エネミーギア, this.enemyRotation * 2.5);
+      // コマンド選択中の「選択中ギア」周囲のオーラエフェクト演出
+      if (isCloseupSelecting) {
+        ctx.save();
+        ctx.strokeStyle = 'var(--color-neon-blue)';
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = 'var(--color-neon-blue)';
+        ctx.lineWidth = 3;
+        
+        // プレイヤーギアの周囲に光るネオンリングを明滅回転させる
+        ctx.beginPath();
+        const pulse = 100 + Math.sin(Date.now() * 0.008) * 8;
+        ctx.arc(drawPX, drawPY, pulse, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 5. 巨大化した対決ギアの描画 (コマンド選択中は少し大きめの半径85px)
+      const gearRadius = isCloseupSelecting ? 85 : 75;
+      this.drawGear(ctx, drawPX, drawPY, gearRadius, this.battleManager.プレイヤーギア, this.playerRotation * 2.5);
+      this.drawGear(ctx, drawEX, drawEY, gearRadius, this.battleManager.エネミーギア, this.enemyRotation * 2.5);
 
       // GBA風の太い斜め分割スプリット境界線を上に重ねて描画する (ハザードイエロー)
-      ctx.save();
-      ctx.strokeStyle = '#ffd800';
-      ctx.lineWidth = 12;
-      ctx.shadowBlur = 15;
-      ctx.shadowColor = '#ffd800';
-      ctx.beginPath();
-      ctx.moveTo(-50, 480);
-      ctx.lineTo(850, 120);
-      ctx.stroke();
-      ctx.restore();
+      // コマンド選択中（静止中）は非表示にし、激突演出中（スピードライン中）のみ描画して迫力を出す
+      if (this.isClashAnimationActive) {
+        ctx.save();
+        ctx.strokeStyle = '#ffd800';
+        ctx.lineWidth = 12;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#ffd800';
+        ctx.beginPath();
+        ctx.moveTo(-50, 480);
+        ctx.lineTo(850, 120);
+        ctx.stroke();
+        ctx.restore();
+      }
 
       // 6. 各種エフェクト（衝撃波・奥義必殺・火花）の描画
       this.particles.forEach(p => p.draw(ctx));
