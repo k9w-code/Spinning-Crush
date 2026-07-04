@@ -291,10 +291,10 @@ class GameApp {
   private playerRotation: number = 0;
   private enemyRotation: number = 0;
 
-  // ADV演出
-  private advQueue: { speaker: string; text: string; onComplete?: () => void }[] = [];
-  private currentAdvIndex: number = 0;
-  private advOnCompleteAll: (() => void) | null = null;
+  // 会話演出 (広告ブロック回避のためtalk表記)
+  private talkQueue: { speaker: string; text: string; onComplete?: () => void }[] = [];
+  private currentTalkIndex: number = 0;
+  private talkOnCompleteAll: (() => void) | null = null;
 
   // コマンドフェーズ選択用変数
   private selectedCommandIndex: number = 0;
@@ -715,23 +715,23 @@ class GameApp {
       const found = this.セリフマスタ.find(s => s.TEXT_ID === `${this.selectedNpc!.エネミーID}_before`);
       const beforeText = found ? found.テキスト内容 : "「いざ尋常に…勝負！」";
 
-      this.startADV([
+      this.startTalk([
         {
           speaker: this.selectedNpc.エネミー名,
           text: beforeText,
           onComplete: () => {
-            const avatarRight = document.getElementById('adv-avatar-right');
+            const avatarRight = document.getElementById('talk-avatar-right');
             if (avatarRight) {
               // 右側にライバルキャラのホログラム立ち絵を表示
               const isDefault = !['e005'].includes(this.selectedNpc!.エネミーID);
-              avatarRight.className = `adv-avatar right active ${isDefault ? 'avatar-default' : 'avatar-' + this.selectedNpc!.エネミーID}`;
+              avatarRight.className = `talk-avatar right active ${isDefault ? 'avatar-default' : 'avatar-' + this.selectedNpc!.エネミーID}`;
             }
           }
         }
       ], () => {
-        const avatarRight = document.getElementById('adv-avatar-right');
+        const avatarRight = document.getElementById('talk-avatar-right');
         if (avatarRight) {
-          avatarRight.className = 'adv-avatar right';
+          avatarRight.className = 'talk-avatar right';
         }
         this.startBattle();
       });
@@ -950,9 +950,9 @@ class GameApp {
       this.initShopScreen();
     });
 
-    // ADV・モーダルバインド
-    document.getElementById('adv-dialog')?.addEventListener('click', () => {
-      this.nextADV();
+    // 会話・モーダルバインド
+    document.getElementById('talk-dialog')?.addEventListener('click', () => {
+      this.nextTalk();
     });
 
     document.getElementById('btn-modal-close')?.addEventListener('click', () => {
@@ -1414,22 +1414,22 @@ class GameApp {
       const bossNpc = npcs.find(n => n.ボスフラグ === '1');
       const bossName = bossNpc ? bossNpc.エネミー名 : 'ボス';
 
-      this.startADV([
+      this.startTalk([
         {
           speaker: 'ナビィ',
           text: '「マスター！通常ライバルの4人を全員撃破しました！」',
           onComplete: () => {
-            const avatarLeft = document.getElementById('adv-avatar-left');
+            const avatarLeft = document.getElementById('talk-avatar-left');
             if (avatarLeft) {
-              avatarLeft.className = 'adv-avatar left active avatar-sn_001';
+              avatarLeft.className = 'talk-avatar left active avatar-sn_001';
             }
           }
         },
         { speaker: 'ナビィ', text: `「これでついにこのエリアのボス『${bossName}』がアンロックされました！」` },
         { speaker: 'ナビィ', text: `「『${bossName}』は手強い強敵です。ガレージで万全のアセンブルを整えて挑みましょう！」` }
       ], () => {
-        const avatarLeft = document.getElementById('adv-avatar-left');
-        if (avatarLeft) avatarLeft.className = 'adv-avatar left';
+        const avatarLeft = document.getElementById('talk-avatar-left');
+        if (avatarLeft) avatarLeft.className = 'talk-avatar left';
         this.initStageScreen(); // カードリストの再描画
       });
       return;
@@ -1481,23 +1481,23 @@ class GameApp {
         const foundSerifu = this.セリフマスタ.find(s => s.TEXT_ID === textKey);
         const serifuContent = foundSerifu?.テキスト内容 || `「ふっ、予選第${npc.並び順}戦の相手はお前か。手加減はしないぞ！」`;
 
-        this.startADV([
+        this.startTalk([
           {
             speaker: npc.エネミー名,
             text: serifuContent,
             onComplete: () => {
-              const avatarRight = document.getElementById('adv-avatar-right');
+              const avatarRight = document.getElementById('talk-avatar-right');
               if (avatarRight) {
                 // 右側にライバルキャラのホログラム立ち絵を表示
                 const isDefault = !['e005'].includes(npc.エネミーID);
-                avatarRight.className = `adv-avatar right active ${isDefault ? 'avatar-default' : 'avatar-' + npc.エネミーID}`;
+                avatarRight.className = `talk-avatar right active ${isDefault ? 'avatar-default' : 'avatar-' + npc.エネミーID}`;
               }
             }
           }
         ], () => {
           // 終わったらアバターを片付けてVS画面へ
-          const avatarRight = document.getElementById('adv-avatar-right');
-          if (avatarRight) avatarRight.className = 'adv-avatar right';
+          const avatarRight = document.getElementById('talk-avatar-right');
+          if (avatarRight) avatarRight.className = 'talk-avatar right';
           this.changeScreen('vs-screen');
         });
       });
@@ -3190,7 +3190,7 @@ class GameApp {
         }
 
         // もし防御側の奥義発動だった場合は、その奥義の聖獣カットイン演出もキック可能 (ここではシンプルにADVのみ展開)
-        this.startADV([
+        this.startTalk([
           { speaker: is攻撃奥義 ? 'システム' : (攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'), text: this.clashPendingDialogText }
         ], () => {
           if (this.battleManager) {
@@ -3616,8 +3616,8 @@ class GameApp {
         return;
       }
 
-      const avatarLeft = document.getElementById('adv-avatar-left');
-      const avatarRight = document.getElementById('adv-avatar-right');
+      const avatarLeft = document.getElementById('talk-avatar-left');
+      const avatarRight = document.getElementById('talk-avatar-right');
 
       const queue = steps.map(step => {
         return {
@@ -3626,14 +3626,14 @@ class GameApp {
           onComplete: () => {
             // 演出効果 (shake / flash)
             if (step.演出 === 'shake') {
-              const advBox = document.querySelector('.adv-box');
+              const advBox = document.querySelector('.talk-box');
               if (advBox) {
                 advBox.classList.add('shake-active');
                 setTimeout(() => advBox.classList.remove('shake-active'), 400);
               }
             }
             if (step.演出 === 'flash') {
-              const overlay = document.getElementById('adv-dialog');
+              const overlay = document.getElementById('talk-dialog');
               if (overlay) {
                 overlay.classList.add('flash-active');
                 setTimeout(() => overlay.classList.remove('flash-active'), 250);
@@ -3647,30 +3647,30 @@ class GameApp {
             if (illustId) {
               const avatarClass = `avatar-${illustId}`;
               if (pos === 'left' && avatarLeft) {
-                avatarLeft.className = `adv-avatar left active ${avatarClass}`;
+                avatarLeft.className = `talk-avatar left active ${avatarClass}`;
                 if (avatarRight) {
                   avatarRight.classList.remove('active');
                   avatarRight.classList.add('inactive');
                 }
               } else if (pos === 'right' && avatarRight) {
-                avatarRight.className = `adv-avatar right active ${avatarClass}`;
+                avatarRight.className = `talk-avatar right active ${avatarClass}`;
                 if (avatarLeft) {
                   avatarLeft.classList.remove('active');
                   avatarLeft.classList.add('inactive');
                 }
               }
             } else {
-              if (avatarLeft) avatarLeft.className = 'adv-avatar left';
-              if (avatarRight) avatarRight.className = 'adv-avatar right';
+              if (avatarLeft) avatarLeft.className = 'talk-avatar left';
+              if (avatarRight) avatarRight.className = 'talk-avatar right';
             }
           }
         };
       });
 
-      this.startADV(queue, () => {
+      this.startTalk(queue, () => {
         // 終了時の後片付け
-        if (avatarLeft) avatarLeft.className = 'adv-avatar left';
-        if (avatarRight) avatarRight.className = 'adv-avatar right';
+        if (avatarLeft) avatarLeft.className = 'talk-avatar left';
+        if (avatarRight) avatarRight.className = 'talk-avatar right';
         onComplete();
       });
     } catch (err: any) {
@@ -3680,31 +3680,31 @@ class GameApp {
     }
   }
 
-  public startADV(queue: { speaker: string; text: string; onComplete?: () => void }[], onCompleteAll?: () => void) {
-    this.advQueue = queue;
-    this.currentAdvIndex = 0;
-    this.advOnCompleteAll = onCompleteAll || null;
+  public startTalk(queue: { speaker: string; text: string; onComplete?: () => void }[], onCompleteAll?: () => void) {
+    this.talkQueue = queue;
+    this.currentTalkIndex = 0;
+    this.talkOnCompleteAll = onCompleteAll || null;
     
-    const dialog = document.getElementById('adv-dialog');
+    const dialog = document.getElementById('talk-dialog');
     if (dialog) dialog.classList.add('active');
 
-    this.renderCurrentADV();
+    this.renderCurrentTalk();
   }
 
-  private renderCurrentADV() {
-    if (this.currentAdvIndex >= this.advQueue.length) {
-      document.getElementById('adv-dialog')?.classList.remove('active');
-      if (this.advOnCompleteAll) {
-        this.advOnCompleteAll();
-        this.advOnCompleteAll = null;
+  private renderCurrentTalk() {
+    if (this.currentTalkIndex >= this.talkQueue.length) {
+      document.getElementById('talk-dialog')?.classList.remove('active');
+      if (this.talkOnCompleteAll) {
+        this.talkOnCompleteAll();
+        this.talkOnCompleteAll = null;
       }
       return;
     }
 
-    const current = this.advQueue[this.currentAdvIndex];
+    const current = this.talkQueue[this.currentTalkIndex];
     
-    const speakerEl = document.getElementById('adv-speaker-name');
-    const textEl = document.getElementById('adv-text-content');
+    const speakerEl = document.getElementById('talk-speaker-name');
+    const textEl = document.getElementById('talk-text-content');
     
     if (speakerEl) speakerEl.textContent = current.speaker;
     if (textEl) textEl.textContent = current.text;
@@ -3715,9 +3715,9 @@ class GameApp {
     }
   }
 
-  private nextADV() {
-    this.currentAdvIndex++;
-    this.renderCurrentADV();
+  private nextTalk() {
+    this.currentTalkIndex++;
+    this.renderCurrentTalk();
   }
 
   // ==========================================
