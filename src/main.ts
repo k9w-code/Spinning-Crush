@@ -784,6 +784,7 @@ class GameApp {
           "1: JPを+10000する\n" +
           "2: すべてのパーツ(全アイテム)を取得する\n" +
           "3: 通常ライバルを全員撃破済みにする(ボス解放フラグ全開)\n" +
+          "4: マスタデータのロード診断を行う\n" +
           "番号を入力してください:"
         );
 
@@ -818,6 +819,20 @@ class GameApp {
           }
           localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
           this.showSystemModal('デバッグ完了', '全ステージのボスを即時アンロックしました！');
+        } else if (cmd === '4') {
+          const diag = 
+            `【マスタデータ ロード状況】\n` +
+            `- チップマスタ: ${this.チップマスタ?.length || 0} 件\n` +
+            `- 奥義マスタ: ${this.奥義マスタ?.length || 0} 件\n` +
+            `- パーツマスタ: ${this.パーツマスタ?.length || 0} 件\n` +
+            `- エネミーマスタ: ${this.エネミーマスタ?.length || 0} 件\n` +
+            `- システムNPCマスタ: ${this.システムNPCマスタ?.length || 0} 件\n` +
+            `- セリフマスタ: ${this.セリフマスタ?.length || 0} 件\n` +
+            `- ステージマスタ: ${this.ステージマスタ?.length || 0} 件\n` +
+            `- シナリオマスタ: ${this.シナリオマスタ?.length || 0} 件\n` +
+            `\n【プロローグデータ詳細】\n` +
+            `ステップ数: ${this.シナリオマスタ?.filter(s => s.シナリオID === 'prologue').length || 0} 件`;
+          alert(diag);
         }
         return;
       }
@@ -3590,73 +3605,79 @@ class GameApp {
   // 8. ADV演出エンジン
   // ==========================================
   public playScenario(scenarioId: string, onComplete: () => void) {
-    const steps = this.シナリオマスタ
-      .filter(s => s.シナリオID === scenarioId)
-      .sort((a, b) => Number(a.ステップ) - Number(b.ステップ));
+    try {
+      const steps = this.シナリオマスタ
+        .filter(s => s.シナリオID === scenarioId)
+        .sort((a, b) => Number(a.ステップ) - Number(b.ステップ));
 
-    if (steps.length === 0) {
-      console.warn(`Scenario ${scenarioId} not found in master.`);
+      if (steps.length === 0) {
+        this.showSystemModal('シナリオ再生エラー', `シナリオ「${scenarioId}」のステップがマスタデータに見つかりません。マスタが空の可能性があります。`);
+        onComplete();
+        return;
+      }
+
+      const avatarLeft = document.getElementById('adv-avatar-left');
+      const avatarRight = document.getElementById('adv-avatar-right');
+
+      const queue = steps.map(step => {
+        return {
+          speaker: step.話者名,
+          text: step.テキスト,
+          onComplete: () => {
+            // 演出効果 (shake / flash)
+            if (step.演出 === 'shake') {
+              const advBox = document.querySelector('.adv-box');
+              if (advBox) {
+                advBox.classList.add('shake-active');
+                setTimeout(() => advBox.classList.remove('shake-active'), 400);
+              }
+            }
+            if (step.演出 === 'flash') {
+              const overlay = document.getElementById('adv-dialog');
+              if (overlay) {
+                overlay.classList.add('flash-active');
+                setTimeout(() => overlay.classList.remove('flash-active'), 250);
+              }
+            }
+
+            // 立ち絵アバター表示更新
+            const illustId = step.イラストID;
+            const pos = step.立ち位置; // "left" | "right" | "center"
+
+            if (illustId) {
+              const avatarClass = `avatar-${illustId}`;
+              if (pos === 'left' && avatarLeft) {
+                avatarLeft.className = `adv-avatar left active ${avatarClass}`;
+                if (avatarRight) {
+                  avatarRight.classList.remove('active');
+                  avatarRight.classList.add('inactive');
+                }
+              } else if (pos === 'right' && avatarRight) {
+                avatarRight.className = `adv-avatar right active ${avatarClass}`;
+                if (avatarLeft) {
+                  avatarLeft.classList.remove('active');
+                  avatarLeft.classList.add('inactive');
+                }
+              }
+            } else {
+              if (avatarLeft) avatarLeft.className = 'adv-avatar left';
+              if (avatarRight) avatarRight.className = 'adv-avatar right';
+            }
+          }
+        };
+      });
+
+      this.startADV(queue, () => {
+        // 終了時の後片付け
+        if (avatarLeft) avatarLeft.className = 'adv-avatar left';
+        if (avatarRight) avatarRight.className = 'adv-avatar right';
+        onComplete();
+      });
+    } catch (err: any) {
+      this.showSystemModal('エラー', `playScenario内で例外が発生しました: ${err.message}`);
+      console.error(err);
       onComplete();
-      return;
     }
-
-    const avatarLeft = document.getElementById('adv-avatar-left');
-    const avatarRight = document.getElementById('adv-avatar-right');
-
-    const queue = steps.map(step => {
-      return {
-        speaker: step.話者名,
-        text: step.テキスト,
-        onComplete: () => {
-          // 演出効果 (shake / flash)
-          if (step.演出 === 'shake') {
-            const advBox = document.querySelector('.adv-box');
-            if (advBox) {
-              advBox.classList.add('shake-active');
-              setTimeout(() => advBox.classList.remove('shake-active'), 400);
-            }
-          }
-          if (step.演出 === 'flash') {
-            const overlay = document.getElementById('adv-dialog');
-            if (overlay) {
-              overlay.classList.add('flash-active');
-              setTimeout(() => overlay.classList.remove('flash-active'), 250);
-            }
-          }
-
-          // 立ち絵アバター表示更新
-          const illustId = step.イラストID;
-          const pos = step.立ち位置; // "left" | "right" | "center"
-
-          if (illustId) {
-            const avatarClass = `avatar-${illustId}`;
-            if (pos === 'left' && avatarLeft) {
-              avatarLeft.className = `adv-avatar left active ${avatarClass}`;
-              if (avatarRight) {
-                avatarRight.classList.remove('active');
-                avatarRight.classList.add('inactive');
-              }
-            } else if (pos === 'right' && avatarRight) {
-              avatarRight.className = `adv-avatar right active ${avatarClass}`;
-              if (avatarLeft) {
-                avatarLeft.classList.remove('active');
-                avatarLeft.classList.add('inactive');
-              }
-            }
-          } else {
-            if (avatarLeft) avatarLeft.className = 'adv-avatar left';
-            if (avatarRight) avatarRight.className = 'adv-avatar right';
-          }
-        }
-      };
-    });
-
-    this.startADV(queue, () => {
-      // 終了時の後片付け
-      if (avatarLeft) avatarLeft.className = 'adv-avatar left';
-      if (avatarRight) avatarRight.className = 'adv-avatar right';
-      onComplete();
-    });
   }
 
   public startADV(queue: { speaker: string; text: string; onComplete?: () => void }[], onCompleteAll?: () => void) {
