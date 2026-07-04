@@ -246,6 +246,7 @@ class GameApp {
   private clashPendingCounterDamage: number = 0;
   private clashPendingSide: 'プレイヤー' | 'エネミー' = 'プレイヤー';
   private clashPendingDialogText: string = "";
+  private clashResultType: 'hit' | 'guard' | 'evade' | 'counter' = 'hit';
   private isPinchBgmActive: boolean = false;
   
   // 敵NPCがゲージ100%かつレンジ内になった時の攻撃移行ディレイフレーム
@@ -2147,13 +2148,19 @@ class GameApp {
       this.playerRotation += rotSpeed;
       this.enemyRotation -= rotSpeed;
 
-      // 25〜45F：せめぎ合いガリガリ摩擦期間中に火花を連続生成
-      if (this.clashAnimFrame >= 25 && this.clashAnimFrame < 45) {
-        this.particles.push(new SparkParticle(400 + (Math.random() - 0.5) * 30, 300 + (Math.random() - 0.5) * 30, '#ff5500'));
-        this.particles.push(new SparkParticle(400 + (Math.random() - 0.5) * 30, 300 + (Math.random() - 0.5) * 30, '#ffd800'));
+      // 25〜45F：せめぎ合いガリガリ摩擦期間中に火花を連続生成 (回避時は摩擦なし)
+      if (this.clashAnimFrame >= 25 && this.clashAnimFrame < 45 && this.clashResultType !== 'evade') {
+        if (this.clashResultType === 'guard') {
+          // ガード時は青白い摩擦火花
+          this.particles.push(new SparkParticle(400 + (Math.random() - 0.5) * 30, 300 + (Math.random() - 0.5) * 30, '#00f3ff'));
+          this.particles.push(new SparkParticle(400 + (Math.random() - 0.5) * 30, 300 + (Math.random() - 0.5) * 30, '#ffffff'));
+        } else {
+          this.particles.push(new SparkParticle(400 + (Math.random() - 0.5) * 30, 300 + (Math.random() - 0.5) * 30, '#ff5500'));
+          this.particles.push(new SparkParticle(400 + (Math.random() - 0.5) * 30, 300 + (Math.random() - 0.5) * 30, '#ffd800'));
+        }
       }
 
-      // 45フレーム目：決着（大爆発と吹っ飛び）
+      // 45フレーム目：決着（爆発と吹っ飛び）
       if (this.clashAnimFrame === 45) {
         // 1. 計算しておいたダメージの実際の適用
         const dmg = Math.floor(this.clashPendingDamage);
@@ -2175,27 +2182,41 @@ class GameApp {
           }
         }
 
-        // 2. 超巨大な衝撃波＆大爆発パーティクルの発生
-        this.shockwaves.push(new Shockwave(400, 300));
-        
-        const bigShock = new Shockwave(400, 300);
-        (bigShock as any).maxRadius = 150;
-        (bigShock as any).speed = 4.5;
-        this.shockwaves.push(bigShock);
+        // 2. 超巨大な衝撃波＆大爆発パーティクルの発生 (回避成功時は発生させない)
+        if (this.clashResultType !== 'evade') {
+          this.shockwaves.push(new Shockwave(400, 300));
+          
+          const bigShock = new Shockwave(400, 300);
+          (bigShock as any).maxRadius = 150;
+          (bigShock as any).speed = 4.5;
+          this.shockwaves.push(bigShock);
 
-        // 火花パーティクルを大量生成
-        for (let i = 0; i < 30; i++) {
-          this.particles.push(new SparkParticle(400, 300, '#ff5500'));
-          this.particles.push(new SparkParticle(400, 300, '#ffd800'));
-          this.particles.push(new SparkParticle(400, 300, '#ffffff'));
+          // 火花パーティクルを大量生成
+          const sparkCount = this.clashResultType === 'guard' ? 12 : 30; // ガード時は火花少なめ
+          const color1 = this.clashResultType === 'guard' ? '#00f3ff' : '#ff5500';
+          const color2 = this.clashResultType === 'guard' ? '#ffffff' : '#ffd800';
+
+          for (let i = 0; i < sparkCount; i++) {
+            this.particles.push(new SparkParticle(400, 300, color1));
+            this.particles.push(new SparkParticle(400, 300, color2));
+            if (Math.random() < 0.5) {
+              this.particles.push(new SparkParticle(400, 300, '#ffffff'));
+            }
+          }
         }
 
-        // コミック擬音「CLASH!!」の生成とポップアップ
+        // コミック擬音の生成とポップアップ
         const btlScreen = document.getElementById('battle-screen');
         if (btlScreen) {
           const clashWord = document.createElement('div');
           clashWord.className = 'comic-word-overlay';
-          clashWord.textContent = this.clashPendingIsCounter ? 'COUNTER!!' : 'CLASH!!';
+          
+          // clashResultType に応じた擬音テキスト
+          if (this.clashResultType === 'counter') clashWord.textContent = 'COUNTER!!';
+          else if (this.clashResultType === 'guard') clashWord.textContent = 'GUARD!!';
+          else if (this.clashResultType === 'evade') clashWord.textContent = 'EVADE!!';
+          else clashWord.textContent = 'CLASH!!';
+
           clashWord.style.left = '50%';
           clashWord.style.top = '50%';
           btlScreen.appendChild(clashWord);
@@ -2206,11 +2227,16 @@ class GameApp {
         }
 
         // 3. ヒットストップ ＆ スクリーンシェイク適用
-        if (this.clashPendingIsHit || this.clashPendingIsCounter) {
-          this.battleHitStopFrames = 15; // 15フレーム停止
-          this.battleShakeFrames = 25;  // 激しく揺らす
+        if (this.clashResultType === 'evade') {
+          this.battleHitStopFrames = 0;
+          this.battleShakeFrames = 0;
+        } else if (this.clashResultType === 'guard') {
+          this.battleHitStopFrames = 5; // ガード成功時はヒットストップも軽微
+          this.battleShakeFrames = 8;  // シェイクも微小
         } else {
-          this.battleShakeFrames = 10;
+          // 通常ヒット・カウンター成功時は大きなシェイク
+          this.battleHitStopFrames = 15;
+          this.battleShakeFrames = 25;
         }
 
         // HUDを即時更新
@@ -3197,7 +3223,18 @@ class GameApp {
       this.clashPendingSide = 攻撃側判定;
       this.clashPendingDialogText = advDialogText;
 
-      // 左右激突突進アニメーションを開始し、大爆発音を再生
+      // clashResultType の決定 ('hit' | 'guard' | 'evade' | 'counter')
+      if (isCounterSuccess) {
+        this.clashResultType = 'counter';
+      } else if (!isHit && ダメージ === 0) {
+        this.clashResultType = 'evade';
+      } else if (isHit && (防御側コマンド === '防御' || 防御側コマンド === '防御奥義')) {
+        this.clashResultType = 'guard';
+      } else {
+        this.clashResultType = 'hit';
+      }
+
+      // 左右激突突進アニメーションを開始し、大爆発音を再生 (回避時は風切り音を代わりに鳴らすのも手だが一旦爆発で)
       this.isClashAnimationActive = true;
       this.clashAnimFrame = 0;
       this.snd.playExplosion();
@@ -3496,38 +3533,136 @@ class GameApp {
 
         if (this.clashAnimFrame < 25) {
           // 突進 (0〜25F)
-          const t = this.clashAnimFrame / 25;
-          const easeIn = t * t * t;
-          drawPX = 220 + (400 - 55 - 220) * easeIn;
-          drawPY = 220 + (300 - 41 - 220) * easeIn;
-          drawEX = 580 - (580 - (400 + 55)) * easeIn;
-          drawEY = 380 - (380 - (300 + 41)) * easeIn;
+          if (this.clashResultType === 'evade') {
+            // 回避成功時は、回避側が斜めに避ける残像軌道を描く
+            const t = this.clashAnimFrame / 25;
+            const easeIn = t * t * t;
+            
+            if (this.clashPendingSide === 'プレイヤー') {
+              // プレイヤーが回避 (左下へ避ける) / エネミーが突撃
+              drawPX = 200 + (100 - 200) * easeIn;
+              drawPY = 200 + (360 - 200) * easeIn;
+              drawEX = 600 + (300 - 600) * easeIn;
+              drawEY = 200 + (220 - 200) * easeIn;
+            } else {
+              // エネミーが回避 (右上へ避ける) / プレイヤーが突撃
+              drawPX = 200 + (500 - 200) * easeIn;
+              drawPY = 200 + (380 - 200) * easeIn;
+              drawEX = 600 + (700 - 600) * easeIn;
+              drawEY = 200 + (200 - 200) * easeIn;
+            }
+          } else {
+            // 通常突進
+            const t = this.clashAnimFrame / 25;
+            const easeIn = t * t * t;
+            drawPX = 200 + (400 - 55 - 200) * easeIn;
+            drawPY = 200 + (300 - 41 - 200) * easeIn;
+            drawEX = 600 - (600 - (400 + 55)) * easeIn;
+            drawEY = 200 + (300 + 41 - 200) * easeIn;
+          }
 
-          // 突進風エナジーラインの描画
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-          ctx.lineWidth = 4;
-          ctx.beginPath();
-          ctx.moveTo(drawPX - 80, drawPY - 60);
-          ctx.lineTo(drawPX - 20, drawPY - 15);
-          ctx.moveTo(drawEX + 80, drawEY + 60);
-          ctx.lineTo(drawEX + 20, drawEY + 15);
-          ctx.stroke();
+          // 突進風エナジーラインの描画 (回避時はなし)
+          if (this.clashResultType !== 'evade') {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(drawPX - 80, drawPY - 60);
+            ctx.lineTo(drawPX - 20, drawPY - 15);
+            ctx.moveTo(drawEX + 80, drawEY + 60);
+            ctx.lineTo(drawEX + 20, drawEY + 15);
+            ctx.stroke();
+          }
         } else if (this.clashAnimFrame >= 25 && this.clashAnimFrame < 45) {
-          // せめぎ合い (25〜45F) - ガリガリ摩擦振動
-          const shakeX = (Math.random() - 0.5) * 8;
-          const shakeY = (Math.random() - 0.5) * 8;
-          drawPX = 400 - 55 + shakeX;
-          drawPY = 300 - 41 + shakeY;
-          drawEX = 400 + 55 + shakeX;
-          drawEY = 300 + 41 + shakeY;
+          if (this.clashResultType === 'evade') {
+            // すれ違いのままスライド進行（25Fでの到達地点から、じわじわ離れていく）
+            const t = (this.clashAnimFrame - 25) / 20;
+            if (this.clashPendingSide === 'プレイヤー') {
+              drawPX = 100 + (80 - 100) * t;
+              drawPY = 360 + (380 - 360) * t;
+              drawEX = 300 + (240 - 300) * t;
+              drawEY = 220 + (190 - 220) * t;
+            } else {
+              drawPX = 500 + (560 - 500) * t;
+              drawPY = 380 + (410 - 380) * t;
+              drawEX = 700 + (720 - 700) * t;
+              drawEY = 200 + (180 - 200) * t;
+            }
+          } else {
+            // せめぎ合い (25〜45F) - ガリガリ摩擦振動
+            const shakeX = (Math.random() - 0.5) * 8;
+            const shakeY = (Math.random() - 0.5) * 8;
+            drawPX = 400 - 55 + shakeX;
+            drawPY = 300 - 41 + shakeY;
+            drawEX = 400 + 55 + shakeX;
+            drawEY = 300 + 41 + shakeY;
+          }
         } else {
           // 激突後ノックバック (45〜60F)
-          const t = (this.clashAnimFrame - 45) / 15;
-          const kb = Math.sin(t * Math.PI * 0.5) * 160;
-          drawPX = 400 - 55 - kb * 0.85;
-          drawPY = 300 - 41 - kb * 0.5;
-          drawEX = 400 + 55 + kb * 0.85;
-          drawEY = 300 + 41 + kb * 0.5;
+          if (this.clashResultType === 'evade') {
+            // 回避成功 ➔ 元の位置（プレイヤー: 200, 200、エネミー: 600, 200）へスムーズに戻る
+            const t = (this.clashAnimFrame - 45) / 15;
+            const easeOut = Math.sin(t * Math.PI * 0.5);
+            if (this.clashPendingSide === 'プレイヤー') {
+              drawPX = 80 + (200 - 80) * easeOut;
+              drawPY = 380 + (200 - 380) * easeOut;
+              drawEX = 240 + (600 - 240) * easeOut;
+              drawEY = 190 + (200 - 190) * easeOut;
+            } else {
+              drawPX = 560 + (200 - 560) * easeOut;
+              drawPY = 410 + (200 - 410) * easeOut;
+              drawEX = 720 + (600 - 720) * easeOut;
+              drawEY = 180 + (200 - 180) * easeOut;
+            }
+          } else if (this.clashResultType === 'guard') {
+            // 防御成功 ➔ 被ダメージ側のノックバックを極小にし、攻撃側を大きく弾く
+            const t = (this.clashAnimFrame - 45) / 15;
+            const kb = Math.sin(t * Math.PI * 0.5) * 160;
+            if (this.clashPendingSide === 'プレイヤー') {
+              // プレイヤーがガード ➔ プレイヤーは耐えて、エネミーが弾き飛ぶ
+              drawPX = 400 - 55 - kb * 0.25;
+              drawPY = 300 - 41 - kb * 0.15;
+              drawEX = 400 + 55 + kb * 1.0;
+              drawEY = 300 + 41 + kb * 0.6;
+            } else {
+              // エネミーがガード ➔ エネミーは耐えて、プレイヤーが弾き飛ぶ
+              drawPX = 400 - 55 - kb * 1.0;
+              drawPY = 300 - 41 - kb * 0.6;
+              drawEX = 400 + 55 + kb * 0.25;
+              drawEY = 300 + 41 + kb * 0.15;
+            }
+          } else if (this.clashResultType === 'counter') {
+            // カウンター成功 ➔ 攻撃した側が猛烈に吹き飛ぶ
+            const t = (this.clashAnimFrame - 45) / 15;
+            const kb = Math.sin(t * Math.PI * 0.5) * 200; // 吹き飛び大
+            if (this.clashPendingSide === 'プレイヤー') {
+              // プレイヤーがカウンター ➔ エネミー（攻撃側）が爆速で吹き飛ぶ
+              drawPX = 400 - 55 - kb * 0.15; // プレイヤーは耐える
+              drawPY = 300 - 41 - kb * 0.1;
+              drawEX = 400 + 55 + kb * 1.4;  // エネミーが吹き飛ぶ
+              drawEY = 300 + 41 + kb * 0.9;
+            } else {
+              // エネミーがカウンター ➔ プレイヤー（攻撃側）が爆速で吹き飛ぶ
+              drawPX = 400 - 55 - kb * 1.4;  // プレイヤーが吹き飛ぶ
+              drawPY = 300 - 41 - kb * 0.9;
+              drawEX = 400 + 55 + kb * 0.15; // エネミーは耐える
+              drawEY = 300 + 41 + kb * 0.1;
+            }
+          } else {
+            // 通常被弾
+            const t = (this.clashAnimFrame - 45) / 15;
+            const kb = Math.sin(t * Math.PI * 0.5) * 160;
+            if (this.clashPendingSide === 'プレイヤー') {
+              drawPX = 400 - 55 - kb * 1.1;
+              drawPY = 300 - 41 - kb * 0.65;
+              drawEX = 400 + 55 + kb * 0.45;
+              drawEY = 300 + 41 + kb * 0.25;
+            } else {
+              drawPX = 400 - 55 - kb * 0.45;
+              drawPY = 300 - 41 - kb * 0.25;
+              drawEX = 400 + 55 + kb * 1.1;
+              drawEY = 300 + 41 + kb * 0.65;
+            }
+          }
         }
       }
 
@@ -3549,8 +3684,54 @@ class GameApp {
 
       // 5. 巨大化した対決ギアの描画 (コマンド選択中は少し大きめの半径85px)
       const gearRadius = isCloseupSelecting ? 85 : 75;
+
+      // 回避成功時の残像描画 (突進中: 5〜25F のみ)
+      if (this.isClashAnimationActive && this.clashResultType === 'evade' && this.clashAnimFrame >= 5 && this.clashAnimFrame < 25) {
+        ctx.save();
+        ctx.globalAlpha = 0.35;
+        const tPrev = Math.max(0, (this.clashAnimFrame - 4) / 25);
+        const easeInPrev = tPrev * tPrev * tPrev;
+        if (this.clashPendingSide === 'プレイヤー') {
+          const ghostPX = 200 + (100 - 200) * easeInPrev;
+          const ghostPY = 200 + (360 - 200) * easeInPrev;
+          this.drawGear(ctx, ghostPX, ghostPY, gearRadius, this.battleManager.プレイヤーギア, this.playerRotation * 2.5);
+        } else {
+          const ghostEX = 600 + (700 - 600) * easeInPrev;
+          const ghostEY = 200 + (200 - 200) * easeInPrev;
+          this.drawGear(ctx, ghostEX, ghostEY, gearRadius, this.battleManager.エネミーギア, this.enemyRotation * 2.5);
+        }
+        ctx.restore();
+      }
+
       this.drawGear(ctx, drawPX, drawPY, gearRadius, this.battleManager.プレイヤーギア, this.playerRotation * 2.5);
       this.drawGear(ctx, drawEX, drawEY, gearRadius, this.battleManager.エネミーギア, this.enemyRotation * 2.5);
+
+      // 防御成功時のネオンヘキサゴンシールド描画 (25〜55Fの間)
+      if (this.isClashAnimationActive && this.clashResultType === 'guard' && this.clashAnimFrame >= 25 && this.clashAnimFrame <= 55) {
+        const shieldX = this.clashPendingSide === 'プレイヤー' ? drawPX : drawEX;
+        const shieldY = this.clashPendingSide === 'プレイヤー' ? drawPY : drawEY;
+        
+        ctx.save();
+        ctx.strokeStyle = 'rgba(0, 243, 255, 0.85)';
+        ctx.fillStyle = 'rgba(0, 243, 255, 0.08)';
+        ctx.lineWidth = 4;
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = '#00f3ff';
+        
+        ctx.beginPath();
+        const shieldRadius = gearRadius + 15; // ギアより一回り大きく
+        for (let i = 0; i < 6; i++) {
+          const angle = (i * Math.PI) / 3 + (this.clashAnimFrame * 0.03); // 回転させる
+          const sx = shieldX + Math.cos(angle) * shieldRadius;
+          const sy = shieldY + Math.sin(angle) * shieldRadius;
+          if (i === 0) ctx.moveTo(sx, sy);
+          else ctx.lineTo(sx, sy);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
 
       // GBA風の太い斜め分割スプリット境界線を上に重ねて描画する (ハザードイエロー)
       // コマンド選択中（静止中）は非表示にし、激突演出中（スピードライン中）のみ描画して迫力を出す
