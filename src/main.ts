@@ -2277,7 +2277,16 @@ class GameApp {
     this.updateBattleHUD();
 
     // 100ゲージ移行での静フェーズ (overlayがまだactiveでない場合のみ展開する)
-    if (this.battleManager.現在フェーズ === 'コマンド' && this.battleManager.攻撃側 === 'プレイヤー') {
+    // 激突アニメーション中や結果ダイアログ会話表示中の多重暴発を防ぐガードを適用
+    const talkDialog = document.getElementById('talk-dialog');
+    const isTalkActive = talkDialog && talkDialog.classList.contains('active');
+
+    if (
+      this.battleManager.現在フェーズ === 'コマンド' &&
+      this.battleManager.攻撃側 === 'プレイヤー' &&
+      !this.isClashAnimationActive &&
+      !isTalkActive
+    ) {
       const overlay = document.getElementById('command-overlay');
       if (overlay && !overlay.classList.contains('active')) {
         this.openCommandSelection();
