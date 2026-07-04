@@ -3533,11 +3533,11 @@ class GameApp {
 
         if (this.clashAnimFrame < 25) {
           // 突進 (0〜25F)
+          const t = this.clashAnimFrame / 25;
+          const easeIn = t * t * t;
+
           if (this.clashResultType === 'evade') {
             // 回避成功時は、回避側が斜めに避ける残像軌道を描く
-            const t = this.clashAnimFrame / 25;
-            const easeIn = t * t * t;
-            
             if (this.clashPendingSide === 'プレイヤー') {
               // プレイヤーが回避 (左下へ避ける) / エネミーが突撃
               drawPX = 200 + (100 - 200) * easeIn;
@@ -3551,25 +3551,46 @@ class GameApp {
               drawEX = 600 + (700 - 600) * easeIn;
               drawEY = 200 + (200 - 200) * easeIn;
             }
-          } else {
-            // 通常突進
-            const t = this.clashAnimFrame / 25;
-            const easeIn = t * t * t;
+          } else if (this.clashResultType === 'counter') {
+            // カウンター成功時：両者が同時に中央へ向かって激突突進！(「相手も突っ込んできた！」の演出)
             drawPX = 200 + (400 - 55 - 200) * easeIn;
             drawPY = 200 + (300 - 41 - 200) * easeIn;
             drawEX = 600 - (600 - (400 + 55)) * easeIn;
             drawEY = 200 + (300 + 41 - 200) * easeIn;
+          } else {
+            // 通常被弾 (hit) または ガード (guard) 時：
+            // 攻撃側のみが中央へ突進し、防御側は中央でじっと身構えて待ち受ける
+            if (this.clashPendingSide === 'プレイヤー') {
+              // プレイヤーが防御側（中央待機）、エネミーが攻撃側（突撃）
+              drawPX = 400 - 55;
+              drawPY = 300 - 41;
+              drawEX = 600 - (600 - (400 + 55)) * easeIn;
+              drawEY = 200 + (300 + 41 - 200) * easeIn;
+            } else {
+              // エネミーが防御側（中央待機）、プレイヤーが攻撃側（突撃）
+              drawPX = 200 + (400 - 55 - 200) * easeIn;
+              drawPY = 200 + (300 - 41 - 200) * easeIn;
+              drawEX = 400 + 55;
+              drawEY = 300 + 41;
+            }
           }
 
           // 突進風エナジーラインの描画 (回避時はなし)
           if (this.clashResultType !== 'evade') {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
             ctx.lineWidth = 4;
             ctx.beginPath();
-            ctx.moveTo(drawPX - 80, drawPY - 60);
-            ctx.lineTo(drawPX - 20, drawPY - 15);
-            ctx.moveTo(drawEX + 80, drawEY + 60);
-            ctx.lineTo(drawEX + 20, drawEY + 15);
+            
+            // カウンターの時、またはプレイヤーが攻撃する時に、プレイヤー側にラインを引く
+            if (this.clashResultType === 'counter' || this.clashPendingSide === 'エネミー') {
+              ctx.moveTo(drawPX - 80, drawPY - 60);
+              ctx.lineTo(drawPX - 20, drawPY - 15);
+            }
+            // カウンターの時、またはエネミーが攻撃する時に、エネミー側にラインを引く
+            if (this.clashResultType === 'counter' || this.clashPendingSide === 'プレイヤー') {
+              ctx.moveTo(drawEX + 80, drawEY + 60);
+              ctx.lineTo(drawEX + 20, drawEY + 15);
+            }
             ctx.stroke();
           }
         } else if (this.clashAnimFrame >= 25 && this.clashAnimFrame < 45) {
