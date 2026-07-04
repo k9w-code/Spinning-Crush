@@ -267,6 +267,7 @@ class GameApp {
 
   // カスタマイズ画面用ステータス
   private editingSlotId: string = '1';
+  private customOriginScreen: string = 'garage-screen'; // 戻り先画面不具合修正用
   private customGearSim: SlotData = { チップ: 'c001', ブレード: 'b001_n', ウェイト: 'w001_n', ソール: 's001_n', レベル: 1, EXP: 0 };
 
   // マップ画面
@@ -642,6 +643,7 @@ class GameApp {
     // ② ガレージ画面
     document.getElementById('btn-goto-custom')?.addEventListener('click', () => {
       this.editingSlotId = this.saveData.最後使用スロット.toString();
+      this.customOriginScreen = 'garage-screen'; // 戻り先を記録
       this.changeScreen('custom-screen');
     });
 
@@ -655,12 +657,8 @@ class GameApp {
 
     // ③ カスタマイズ画面
     document.getElementById('btn-custom-cancel')?.addEventListener('click', () => {
-      // 最後にいた画面へ（通常はガレージかVS準備）
-      if (this.selectedNpc) {
-        this.changeScreen('vs-screen');
-      } else {
-        this.changeScreen('garage-screen');
-      }
+      // 最後にいた元の画面へ正確に戻る
+      this.changeScreen(this.customOriginScreen);
     });
 
     document.getElementById('btn-custom-confirm')?.addEventListener('click', () => {
@@ -671,11 +669,8 @@ class GameApp {
       // セーブデータを自動セーブ
       localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
       
-      if (this.selectedNpc) {
-        this.changeScreen('vs-screen');
-      } else {
-        this.changeScreen('garage-screen');
-      }
+      // 最後にいた元の画面へ正確に戻る
+      this.changeScreen(this.customOriginScreen);
     });
 
     // パーツスロット選択ボタンのバインド
@@ -707,6 +702,7 @@ class GameApp {
 
     document.getElementById('btn-vs-custom')?.addEventListener('click', () => {
       this.editingSlotId = this.vsSlotIndex.toString();
+      this.customOriginScreen = 'vs-screen'; // 戻り先を記録
       this.changeScreen('custom-screen');
     });
 
@@ -1149,10 +1145,11 @@ class GameApp {
 
       const diffText = diff > 0 ? `+${diff}` : (diff < 0 ? `${diff}` : '±0');
 
-      // 液晶セグメントバーの作成 (最大15ブロック)
-      const maxBlocks = 15;
-      const blockVal = 12; // 1ブロックあたり12点
-      const nextBlocks = Math.min(maxBlocks, Math.round(next / blockVal));
+      // 液晶セグメントバーの作成 (最大20ブロック)
+      const maxBlocks = 20;
+      // MAXの基準値を600とし、初期値でも見栄えがするよう最小3ブロックを保証するマイルドなスケーリング
+      const pct = Math.min(1.0, next / 600);
+      const nextBlocks = Math.max(3, Math.round(pct * maxBlocks));
       
       let barStr = '';
       for (let i = 0; i < maxBlocks; i++) {
