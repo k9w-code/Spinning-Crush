@@ -788,19 +788,19 @@ class GameApp {
         );
 
         if (cmd === '1') {
-          this.saveData.JP += 10000;
+          this.saveData.所持JP += 10000;
           localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
           this.showSystemModal('デバッグ完了', 'JPが10000追加されました！');
           const mapJp = document.getElementById('map-jp');
-          if (mapJp) mapJp.textContent = this.saveData.JP.toString();
+          if (mapJp) mapJp.textContent = this.saveData.所持JP.toString();
           const customJp = document.getElementById('custom-jp');
-          if (customJp) customJp.textContent = this.saveData.JP.toString();
+          if (customJp) customJp.textContent = this.saveData.所持JP.toString();
           const shopJp = document.getElementById('shop-jp');
-          if (shopJp) shopJp.textContent = this.saveData.JP.toString();
+          if (shopJp) shopJp.textContent = this.saveData.所持JP.toString();
         } else if (cmd === '2') {
           this.パーツマスタ.forEach(p => {
-            if (!this.saveData.所持パーツID.includes(p.パーツID)) {
-              this.saveData.所持パーツID.push(p.パーツID);
+            if (!this.saveData.インベントリ.includes(p.パーツID)) {
+              this.saveData.インベントリ.push(p.パーツID);
             }
           });
           localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
