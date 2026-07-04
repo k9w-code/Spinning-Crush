@@ -114,7 +114,7 @@ export class SoundManager {
     hitGain.gain.setValueAtTime(0.14, time);
     hitGain.gain.exponentialRampToValueAtTime(0.001, time + duration);
 
-    freqs.forEach((freq, idx) => {
+    freqs.forEach((freq) => {
       if (!this.ctx) return;
       const osc = this.ctx.createOscillator();
       osc.type = 'sine';
