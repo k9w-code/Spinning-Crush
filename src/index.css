@@ -2806,7 +2806,6 @@ body, html {
 }
 
 /* ================== ADV立ち絵アバター・演出 ================== */
-.adv-overlay {
 .adv-overlay.flash-active {
   background-color: rgba(255, 255, 255, 0.8) !important;
 }
