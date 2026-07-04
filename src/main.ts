@@ -3289,6 +3289,8 @@ class GameApp {
           if (this.battleManager) {
             this.battleManager.実行反動クラッシュ();
           }
+          // ADV結果会話をプレイヤーが読み終えたこのタイミングで勝敗判定を実行
+          this.checkBattleEndConditions();
         });
       };
     } catch (e: any) {
@@ -3300,6 +3302,9 @@ class GameApp {
   // バトルの勝敗判定
   private checkBattleEndConditions() {
     if (!this.battleManager || this.isBattleFinished) return;
+
+    // 激突アニメーション中、または結果会話テキスト表示中は遷移を保留する
+    if (this.isClashAnimationActive || isTalkActive) return;
 
     const pLife = this.battleManager.プレイヤーライフ;
     const eLife = this.battleManager.エネミーライフ;
@@ -3347,6 +3352,8 @@ class GameApp {
     const speakerEl = document.getElementById('result-serifu-speaker');
     const textEl = document.getElementById('result-serifu-text');
 
+    let acquiredPartId: string | null = null;
+
     if (winner === 'player') {
       if (outcomeEl) {
         outcomeEl.textContent = 'VICTORY';
@@ -3381,6 +3388,10 @@ class GameApp {
       this.saveData.ドロップカウンタ = dropRes.更新ドロップカウンタ;
       this.saveData.所持JP = dropRes.更新所持JP;
       this.saveData.インベントリ = dropRes.更新インベントリ;
+      
+      if (dropRes.獲得パーツID) {
+        acquiredPartId = dropRes.獲得パーツID;
+      }
 
       // 報酬演出の描画
       const dropTextEl = document.getElementById('drop-part-text');
@@ -3432,8 +3443,14 @@ class GameApp {
     // セーブ保存
     localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
 
-    // リザルト画面に遷移
-    this.changeScreen('result-screen');
+    // 新パーツを獲得していた場合、ド派手な全画面獲得演出を挟む
+    if (acquiredPartId) {
+      this.startPartGetPerformance(acquiredPartId, () => {
+        this.changeScreen('result-screen');
+      });
+    } else {
+      this.changeScreen('result-screen');
+    }
   }
 
   // チップの経験値獲得ロジック (勝敗問わず1EXP、3EXPごとにレベルアップ)
@@ -3451,6 +3468,108 @@ class GameApp {
         activeSlot.EXP = 3; // カンスト
       }
     }
+  }
+
+  // ド派手なパーツ獲得全画面演出
+  private partGetAnimFrameId: number | null = null;
+  private startPartGetPerformance(partId: string, onConfirm: () => void) {
+    const overlay = document.getElementById('part-get-overlay');
+    if (!overlay) {
+      onConfirm();
+      return;
+    }
+
+    const nameEl = document.getElementById('part-get-name');
+    const typeAttrEl = document.getElementById('part-get-type-attr');
+    const descEl = document.getElementById('part-get-description');
+    const statsGrid = document.getElementById('part-get-stats-grid');
+    const canvas = document.getElementById('part-get-canvas') as HTMLCanvasElement;
+
+    const part = this.パーツマスタ.find(p => p.パーツID === partId);
+    if (!part) {
+      onConfirm();
+      return;
+    }
+
+    if (nameEl) nameEl.textContent = part.パーツ名;
+    
+    let typeName = 'ブレード';
+    if (part.種別 === '2') typeName = 'ウェイト';
+    else if (part.種別 === '3') typeName = 'ソール';
+
+    if (typeAttrEl) typeAttrEl.textContent = `${typeName} | ${part.属性}属性 | ランク${part.ランク}`;
+    if (descEl) descEl.textContent = part.フレーバー || '強力な性能を持つカスタムパーツ。';
+
+    if (statsGrid) {
+      statsGrid.innerHTML = '';
+      
+      // 有効なステータスのみ表示
+      const stats = [
+        { label: 'HP', val: Number(part.ライフ) },
+        { label: 'ATK', val: Number(part.アタック) },
+        { label: 'DEF', val: Number(part.ディフェンス) },
+        { label: 'SPD', val: Number(part.スピード) },
+        { label: 'RNG', val: Number(part.レンジ) },
+        { label: 'MOB', val: Number(part.モビリティ) }
+      ];
+
+      stats.forEach(s => {
+        if (s.val > 0) {
+          const item = document.createElement('span');
+          item.textContent = `・${s.label}: ${s.val}`;
+          statsGrid.appendChild(item);
+        }
+      });
+    }
+
+    // Canvasでの超巨大ギア回転描画 (光彩を背にホログラフィックに回る)
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      let angle = 0;
+
+      const dummyAssemble = アセンブル実行(
+        'c001', 
+        part.種別 === '1' ? part.パーツID : 'b101_n', 
+        part.種別 === '2' ? part.パーツID : 'w101_n', 
+        part.種別 === '3' ? part.パーツID : 's101_n', 
+        1, 
+        this.パーツマスタ, 
+        this.チップマスタ, 
+        this.奥義マスタ
+      );
+
+      const renderLoop = () => {
+        if (ctx) {
+          ctx.clearRect(0, 0, 300, 300);
+          
+          // ギアを中央に超巨大サイズで描画 (半径90px)
+          this.drawGear(ctx, 150, 150, 90, dummyAssemble, angle);
+          angle += 0.035;
+        }
+        this.partGetAnimFrameId = requestAnimationFrame(renderLoop);
+      };
+
+      if (this.partGetAnimFrameId) cancelAnimationFrame(this.partGetAnimFrameId);
+      renderLoop();
+    }
+
+    // お祝いファンファーレ
+    this.snd.playClearJingle();
+
+    overlay.classList.add('active');
+
+    // ボタンイベントの設定
+    const confirmBtn = document.getElementById('btn-part-get-confirm');
+    const handleConfirm = () => {
+      if (this.partGetAnimFrameId) {
+        cancelAnimationFrame(this.partGetAnimFrameId);
+        this.partGetAnimFrameId = null;
+      }
+      overlay.classList.remove('active');
+      confirmBtn?.removeEventListener('click', handleConfirm);
+      onConfirm();
+    };
+    confirmBtn?.addEventListener('click', handleConfirm);
   }
 
   // --- ⑧ バトル描画処理 ---

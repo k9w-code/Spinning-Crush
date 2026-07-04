@@ -2928,3 +2928,135 @@ body, html {
   background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="150" height="200" viewBox="0 0 150 200"><circle cx="75" cy="80" r="32" fill="%23ff0055" opacity="0.8"/><ellipse cx="75" cy="145" rx="48" ry="30" fill="%23ff0055" opacity="0.6"/><path d="M58,78 Q75,90 92,78" stroke="%23fff" stroke-width="3" fill="none"/></svg>');
 }
 
+
+/* ================== ⑩ 新パーツ獲得ド派手演出オーバーレイ ================== */
+.part-get-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(5, 7, 12, 0.95);
+  z-index: 3000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.part-get-overlay.active {
+  display: flex;
+  opacity: 1;
+}
+
+.part-get-content {
+  text-align: center;
+  position: relative;
+  max-width: 500px;
+  width: 90%;
+  animation: part-get-bounce 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes part-get-bounce {
+  0% { transform: scale(0.7); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.neon-title-gold {
+  font-family: var(--font-hud);
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: #ffdf00;
+  text-shadow: 0 0 10px rgba(255, 223, 0, 0.6), 0 0 30px rgba(255, 140, 0, 0.8);
+  margin-bottom: 20px;
+  letter-spacing: 2px;
+  animation: gold-text-glow 1.5s infinite alternate;
+}
+
+@keyframes gold-text-glow {
+  0% { text-shadow: 0 0 10px rgba(255, 223, 0, 0.6), 0 0 20px rgba(255, 140, 0, 0.8); }
+  100% { text-shadow: 0 0 20px rgba(255, 223, 0, 0.9), 0 0 40px rgba(255, 140, 0, 1), 0 0 60px rgba(255, 69, 0, 0.8); }
+}
+
+.part-get-visual-container {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 223, 0, 0.15) 0%, rgba(255, 223, 0, 0) 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 金色の回転光彩エフェクト */
+.part-get-light-shaft {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 380px;
+  height: 380px;
+  margin-top: -190px;
+  margin-left: -190px;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(255, 223, 0, 0.08) 0deg 15deg,
+    rgba(255, 223, 0, 0) 15deg 30deg
+  );
+  border-radius: 50%;
+  pointer-events: none;
+  animation: spin-clockwise 25s linear infinite;
+  z-index: -1;
+}
+
+/* ステータス説明ボックス */
+.part-get-info-box {
+  background: #15221b; /* 液晶グリーン調の裏板 */
+  border: 3px solid #555;
+  border-radius: 12px;
+  padding: 15px 20px;
+  margin-bottom: 25px;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
+  color: #39ff14;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.part-get-name {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(255,255,255,0.4);
+  margin-bottom: 5px;
+}
+
+.part-get-type-attr {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 12px;
+  font-family: var(--font-hud);
+}
+
+.part-get-description {
+  font-size: 0.85rem;
+  color: #a5ffa5;
+  line-height: 1.4;
+  margin-bottom: 15px;
+  font-family: sans-serif;
+  text-align: left;
+}
+
+.part-get-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 20px;
+  text-align: left;
+  border-top: 1px dashed rgba(57, 255, 20, 0.3);
+  padding-top: 12px;
+}
+
+.part-get-stats-grid span {
+  font-size: 0.8rem;
+  font-weight: bold;
+}
