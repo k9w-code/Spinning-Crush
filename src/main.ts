@@ -1983,7 +1983,6 @@ class GameApp {
     const weightRank = getPartRank(weightId);
 
     const soleType = getPartType(soleId);
-    const soleRank = getPartRank(soleId);
 
     const chipType = getPartType(chipId);
 
