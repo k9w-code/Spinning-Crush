@@ -709,29 +709,41 @@ class GameApp {
     document.getElementById('btn-vs-start')?.addEventListener('click', () => {
       if (!this.selectedNpc) return;
       
-      const found = this.セリフマスタ.find(s => s.TEXT_ID === `${this.selectedNpc!.エネミーID}_before`);
-      const beforeText = found ? found.テキスト内容 : "「いざ尋常に…勝負！」";
+      const enemyId = this.selectedNpc.エネミーID;
+      const scenarioId = `${enemyId}_before`;
+      const hasScenario = this.シナリオマスタ.some(s => s.シナリオID === scenarioId);
 
-      this.startTalk([
-        {
-          speaker: this.selectedNpc.エネミー名,
-          text: beforeText,
-          onComplete: () => {
-            const avatarRight = document.getElementById('talk-avatar-right');
-            if (avatarRight) {
-              // 右側にライバルキャラのホログラム立ち絵を表示
-              const isDefault = !['e005'].includes(this.selectedNpc!.エネミーID);
-              avatarRight.className = `talk-avatar right active ${isDefault ? 'avatar-default' : 'avatar-' + this.selectedNpc!.エネミーID}`;
+      if (hasScenario) {
+        // 対戦前シナリオがある場合は掛け合い劇を再生してからバトル開始
+        this.playScenario(scenarioId, () => {
+          this.startBattle();
+        });
+      } else {
+        // シナリオがない場合は従来の1行会話
+        const found = this.セリフマスタ.find(s => s.TEXT_ID === `${enemyId}_before`);
+        const beforeText = found ? found.テキスト内容 : "「いざ尋常に…勝負！」";
+
+        this.startTalk([
+          {
+            speaker: this.selectedNpc.エネミー名,
+            text: beforeText,
+            onComplete: () => {
+              const avatarRight = document.getElementById('talk-avatar-right');
+              if (avatarRight) {
+                // 右側にライバルキャラのホログラム立ち絵を表示
+                const isDefault = !['e005', 'e010', 'e015', 'e020', 'e025', 'e030'].includes(enemyId);
+                avatarRight.className = `talk-avatar right active ${isDefault ? 'avatar-default' : 'avatar-' + enemyId}`;
+              }
             }
           }
-        }
-      ], () => {
-        const avatarRight = document.getElementById('talk-avatar-right');
-        if (avatarRight) {
-          avatarRight.className = 'talk-avatar right';
-        }
-        this.startBattle();
-      });
+        ], () => {
+          const avatarRight = document.getElementById('talk-avatar-right');
+          if (avatarRight) {
+            avatarRight.className = 'talk-avatar right';
+          }
+          this.startBattle();
+        });
+      }
     });
 
     document.getElementById('btn-vs-slot-prev')?.addEventListener('click', () => {
@@ -3448,10 +3460,30 @@ class GameApp {
     // 新パーツを獲得していた場合、ド派手な全画面獲得演出を挟む
     if (acquiredPartId) {
       this.startPartGetPerformance(acquiredPartId, () => {
-        this.changeScreen('result-screen');
+        this.showResultScreenAndPlayAfterScenario(winner);
       });
     } else {
-      this.changeScreen('result-screen');
+      this.showResultScreenAndPlayAfterScenario(winner);
+    }
+  }
+
+  // リザルト画面への遷移 ＆ 事後会話シナリオの再生
+  private showResultScreenAndPlayAfterScenario(winner: 'player' | 'enemy' | 'draw') {
+    this.changeScreen('result-screen');
+    
+    if (!this.selectedNpc) return;
+    const enemyId = this.selectedNpc.エネミーID;
+    const suffix = winner === 'player' ? 'win' : 'lose';
+    const scenarioId = `${enemyId}_after_${suffix}`;
+    const hasScenario = this.シナリオマスタ.some(s => s.シナリオID === scenarioId);
+
+    if (hasScenario) {
+      // 画面切り替え（シャッター）が落ち着くのを少し待ってからシナリオ再生
+      setTimeout(() => {
+        this.playScenario(scenarioId, () => {
+          // シナリオ終了
+        });
+      }, 550);
     }
   }
 
