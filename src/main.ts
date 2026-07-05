@@ -2380,7 +2380,7 @@ class GameApp {
     ) {
       if (this.enemyTransitionDelayFrames === 0) {
         const lvl = this.battleManager.エネミーAI難易度;
-        if (lvl === 1) this.enemyTransitionDelayFrames = 120; // 2.0秒
+        if (lvl === 1) this.enemyTransitionDelayFrames = 75; // 1.25秒
         else if (lvl === 2) this.enemyTransitionDelayFrames = 60;  // 1.0秒
         else if (lvl === 3) this.enemyTransitionDelayFrames = 24;  // 0.4秒
         else if (lvl === 4) this.enemyTransitionDelayFrames = 12;  // 0.2秒
@@ -2695,11 +2695,13 @@ class GameApp {
       }
       else if (personality === '回避') {
         // 回避型：回避奥義 ➔ 通常回避 ➔ 通常防御
+        // レベル1の敵は回避率が壊滅的なため、通常回避を選ぶ確率を25%に抑えて通常防御(ガード)を多用させる
+        const selectChance = lvl === 1 ? 0.25 : 0.70;
         const evadeAllowed = (lvl < 3 || evadeChance >= 30);
         if (canEvadeOsugi && evadeAllowed && Math.random() < 0.70) {
           enemyDefChoice = '回避奥義';
           selectedDefOsugi = enemyEvadeOsugi;
-        } else if (evadeAllowed && Math.random() < 0.70) {
+        } else if (evadeAllowed && Math.random() < selectChance) {
           enemyDefChoice = '回避';
         } else {
           enemyDefChoice = '防御';
@@ -2707,11 +2709,13 @@ class GameApp {
       }
       else if (personality === '逆転') {
         // 逆転型：カウンター奥義 ➔ 通常カウンター ➔ 通常防御
+        // レベル1の敵はカウンター成功率が低いため、通常カウンターを選ぶ確率を25%に抑えて通常防御(ガード)を多用させる
+        const selectChance = lvl === 1 ? 0.25 : 0.70;
         const counterAllowed = (lvl < 3 || counterChance >= 25);
         if (canCounterOsugi && counterAllowed && Math.random() < 0.75) {
           enemyDefChoice = 'カウンター奥義';
           selectedDefOsugi = enemyCounterOsugi;
-        } else if (canNormalCounter && counterAllowed && Math.random() < 0.70) {
+        } else if (canNormalCounter && counterAllowed && Math.random() < selectChance) {
           enemyDefChoice = 'カウンター';
         } else {
           enemyDefChoice = '防御';
@@ -3457,18 +3461,12 @@ class GameApp {
     // セーブ保存
     localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
 
-    // 新パーツを獲得していた場合、ド派手な全画面獲得演出を挟む
-    if (acquiredPartId) {
-      this.startPartGetPerformance(acquiredPartId, () => {
-        this.showResultScreenAndPlayAfterScenario(winner);
-      });
-    } else {
-      this.showResultScreenAndPlayAfterScenario(winner);
-    }
+    // 直接、リザルト画面表示 ＆ 事後シナリオ再生処理へ移行する（獲得したパーツIDを引数で渡す）
+    this.showResultScreenAndPlayAfterScenario(winner, acquiredPartId);
   }
 
-  // リザルト画面への遷移 ＆ 事後会話シナリオの再生
-  private showResultScreenAndPlayAfterScenario(winner: 'player' | 'enemy' | 'draw') {
+  // リザルト画面への遷移 ＆ 事後会話シナリオの再生 ＆ パーツ獲得演出のポップアップ
+  private showResultScreenAndPlayAfterScenario(winner: 'player' | 'enemy' | 'draw', acquiredPartId: string | null) {
     this.changeScreen('result-screen');
     
     if (!this.selectedNpc) return;
@@ -3478,12 +3476,24 @@ class GameApp {
     const hasScenario = this.シナリオマスタ.some(s => s.シナリオID === scenarioId);
 
     if (hasScenario) {
-      // 画面切り替え（シャッター）が落ち着くのを少し待ってからシナリオ再生
+      // 画面切り替え（シャッター）が落ち着くのを少し待ってから事後会話シナリオを再生
       setTimeout(() => {
         this.playScenario(scenarioId, () => {
-          // シナリオ終了
+          // 事後会話シナリオをプレイヤーが読み終えた「その瞬間」に、ド派手なパーツ獲得演出を起動する！！！
+          if (acquiredPartId) {
+            this.startPartGetPerformance(acquiredPartId, () => {
+              // 獲得演出完了
+            });
+          }
         });
       }, 550);
+    } else {
+      // 事後シナリオがない通常NPCなどの場合：リザルト画面に入った直後（少し待って）にパーツ獲得演出を起動
+      if (acquiredPartId) {
+        setTimeout(() => {
+          this.startPartGetPerformance(acquiredPartId, () => {});
+        }, 600);
+      }
     }
   }
 
