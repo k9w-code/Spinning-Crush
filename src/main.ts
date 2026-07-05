@@ -2695,13 +2695,11 @@ class GameApp {
       }
       else if (personality === '回避') {
         // 回避型：回避奥義 ➔ 通常回避 ➔ 通常防御
-        // レベル1の敵は回避率が壊滅的なため、通常回避を選ぶ確率を25%に抑えて通常防御(ガード)を多用させる
-        const selectChance = lvl === 1 ? 0.25 : 0.70;
         const evadeAllowed = (lvl < 3 || evadeChance >= 30);
         if (canEvadeOsugi && evadeAllowed && Math.random() < 0.70) {
           enemyDefChoice = '回避奥義';
           selectedDefOsugi = enemyEvadeOsugi;
-        } else if (evadeAllowed && Math.random() < selectChance) {
+        } else if (evadeAllowed && Math.random() < 0.70) {
           enemyDefChoice = '回避';
         } else {
           enemyDefChoice = '防御';
@@ -2709,13 +2707,11 @@ class GameApp {
       }
       else if (personality === '逆転') {
         // 逆転型：カウンター奥義 ➔ 通常カウンター ➔ 通常防御
-        // レベル1の敵はカウンター成功率が低いため、通常カウンターを選ぶ確率を25%に抑えて通常防御(ガード)を多用させる
-        const selectChance = lvl === 1 ? 0.25 : 0.70;
         const counterAllowed = (lvl < 3 || counterChance >= 25);
         if (canCounterOsugi && counterAllowed && Math.random() < 0.75) {
           enemyDefChoice = 'カウンター奥義';
           selectedDefOsugi = enemyCounterOsugi;
-        } else if (canNormalCounter && counterAllowed && Math.random() < selectChance) {
+        } else if (canNormalCounter && counterAllowed && Math.random() < 0.70) {
           enemyDefChoice = 'カウンター';
         } else {
           enemyDefChoice = '防御';
