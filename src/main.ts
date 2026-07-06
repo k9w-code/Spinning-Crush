@@ -251,6 +251,10 @@ class GameApp {
   private clashResultType: 'hit' | 'guard' | 'evade' | 'counter' = 'hit';
   private isPinchBgmActive: boolean = false;
   
+  // ギアの残像トレイル(Ghost Trail)用の履歴バッファ
+  private playerHistory: { x: number; y: number; rot: number }[] = [];
+  private enemyHistory: { x: number; y: number; rot: number }[] = [];
+  
   // 敵NPCがゲージ100%かつレンジ内になった時の攻撃移行ディレイフレーム
   private enemyTransitionDelayFrames: number = 0;
 
@@ -2296,6 +2300,47 @@ class GameApp {
 
     const chipType = getPartType(chipId);
 
+    // 【ホログラム台座演出】バトル画面以外でのプレビュー用 (パッケージ3)
+    if (this.currentScreenId !== 'battle-screen') {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(0, 243, 255, 0.28)';
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = '#00f3ff';
+      ctx.lineWidth = 1;
+      
+      // ギアの回転と逆方向にゆっくり回転
+      ctx.rotate(-rotation * 0.4);
+
+      // 同心円ベース
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 1.55, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // 内側の点線サークル
+      ctx.save();
+      ctx.strokeStyle = 'rgba(0, 243, 255, 0.18)';
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 1.4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // 12方向のデジタル目盛りライン
+      ctx.beginPath();
+      for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        const x1 = radius * 1.45 * Math.cos(angle);
+        const y1 = radius * 1.45 * Math.sin(angle);
+        const x2 = radius * 1.6 * Math.cos(angle);
+        const y2 = radius * 1.6 * Math.sin(angle);
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+      }
+      ctx.stroke();
+      
+      ctx.restore();
+    }
+
     // 0. 超高速スピン気流（ネオントレイルライン）
     ctx.save();
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
@@ -2888,6 +2933,16 @@ class GameApp {
     if ((hpPctP <= 30 || hpPctE <= 30) && !this.isPinchBgmActive) {
       this.isPinchBgmActive = true;
       this.snd.startPinchBGM();
+    }
+
+    // プレイヤーのHPピンチ状態のビジュアル警告トグル (パッケージ2)
+    const pPanel = document.querySelector('.hud-player');
+    if (pPanel) {
+      if (hpPctP <= 30 && hpPctP > 0) {
+        pPanel.classList.add('hud-pinch');
+      } else {
+        pPanel.classList.remove('hud-pinch');
+      }
     }
 
     const pHPBar = document.getElementById('battle-player-hp-bar');
@@ -4203,6 +4258,21 @@ class GameApp {
       }
       ctx.stroke();
 
+      // 突進中 (clashAnimFrame < 25) のスピードライン演出 (パッケージ1)
+      if (this.isClashAnimationActive && this.clashAnimFrame < 25) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < 15; i++) {
+          const sy = (i * 43 + Date.now() * 0.7) % 600;
+          ctx.moveTo(0, sy);
+          ctx.lineTo(800, sy + (Math.random() - 0.5) * 20);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
       // 2. 透過属性バックグラウンド (プレイヤー＝左、敵＝右)
       const pAttr = this.battleManager.プレイヤーギア.部位属性.ブレード;
       const eAttr = this.battleManager.エネミーギア.部位属性.ブレード;
@@ -4607,18 +4677,49 @@ class GameApp {
     
     this.battleCamera.scale = this.battleCamera.scale * 0.9 + targetScale * 0.1;
 
+    // 位置履歴の保存 (パッケージ1 残像用)
+    this.playerHistory.unshift({ x: pX, y: pY, rot: this.playerRotation });
+    this.enemyHistory.unshift({ x: eX, y: eY, rot: this.enemyRotation });
+    if (this.playerHistory.length > 5) this.playerHistory.pop();
+    if (this.enemyHistory.length > 5) this.enemyHistory.pop();
+
     ctx.translate(400, 300);
     ctx.scale(this.battleCamera.scale, this.battleCamera.scale);
     ctx.translate(-this.battleCamera.x, -this.battleCamera.y);
 
-    // スタジアムの描画
-    ctx.strokeStyle = 'rgba(0, 243, 255, 0.15)';
+    // スタジアム内全体に電脳ネオングリッドを配置
+    ctx.strokeStyle = 'rgba(0, 243, 255, 0.03)';
+    ctx.lineWidth = 1;
+    for (let x = -200; x < 1000; x += 45) {
+      ctx.beginPath(); ctx.moveTo(x, -300); ctx.lineTo(x, 900); ctx.stroke();
+    }
+    for (let y = -300; y < 900; y += 45) {
+      ctx.beginPath(); ctx.moveTo(-200, y); ctx.lineTo(1000, y); ctx.stroke();
+    }
+
+    // スタジアムの外枠の描画
+    ctx.strokeStyle = 'rgba(0, 243, 255, 0.18)';
     ctx.lineWidth = 8;
     ctx.beginPath();
     ctx.arc(400, 300, 250, 0, Math.PI * 2);
     ctx.stroke();
 
-    ctx.strokeStyle = 'rgba(0, 243, 255, 0.05)';
+    // 周回発光ネオンスレッド (パッケージ1)
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0, 243, 255, 0.75)';
+    ctx.lineWidth = 3.5;
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#00f3ff';
+    const angleOffset = (Date.now() * 0.0018) % (Math.PI * 2);
+    ctx.beginPath();
+    ctx.arc(400, 300, 250, angleOffset, angleOffset + Math.PI * 0.35);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(400, 300, 250, angleOffset + Math.PI, angleOffset + Math.PI + Math.PI * 0.35);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.strokeStyle = 'rgba(0, 243, 255, 0.06)';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(400, 300, 150, 0, Math.PI * 2);
@@ -4643,6 +4744,20 @@ class GameApp {
     this.particles.forEach(p => p.draw(ctx));
     this.shockwaves.forEach(s => s.draw(ctx));
     this.skillParticles.forEach(sp => sp.draw(ctx));
+
+    // ギアの残像（Ghost Trail）描画 (パッケージ1)
+    ctx.save();
+    for (let i = 1; i < this.playerHistory.length; i++) {
+      const p = this.playerHistory[i];
+      ctx.globalAlpha = 0.25 / i; // 遠い履歴ほど薄く
+      this.drawGear(ctx, p.x, p.y, 25, this.battleManager.プレイヤーギア, p.rot);
+    }
+    for (let i = 1; i < this.enemyHistory.length; i++) {
+      const e = this.enemyHistory[i];
+      ctx.globalAlpha = 0.25 / i;
+      this.drawGear(ctx, e.x, e.y, 25, this.battleManager.エネミーギア, e.rot);
+    }
+    ctx.restore();
 
     // ギアの描画
     this.drawGear(ctx, pX, pY, 25, this.battleManager.プレイヤーギア, this.playerRotation);

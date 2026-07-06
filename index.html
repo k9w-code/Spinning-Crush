@@ -480,8 +480,12 @@
   
   <!-- サイバーシャッタートランジション用DOM -->
   <div class="cyber-shutter hidden" id="cyber-shutter">
-    <div class="shutter-pane pane-left"></div>
-    <div class="shutter-pane pane-right"></div>
+    <div class="shutter-pane pane-left">
+      <div class="shutter-label left-label">SYSTEM LOADING...</div>
+    </div>
+    <div class="shutter-pane pane-right">
+      <div class="shutter-label right-label">ACCESSING DATABASE...</div>
+    </div>
   </div>
 
   <script type="module" src="/src/main.ts"></script>

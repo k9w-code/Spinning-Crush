@@ -1854,6 +1854,28 @@ body, html {
   z-index: 2;
 }
 
+/* 低HP(30%以下)時のHUD全体赤警告パルス (パッケージ2) */
+.hud-panel.hud-pinch {
+  border: 1.5px solid rgba(255, 0, 85, 0.8) !important;
+  box-shadow: 0 0 15px rgba(255, 0, 85, 0.45), inset 0 0 8px rgba(255, 0, 85, 0.2);
+  animation: hud-pinch-pulse 1.2s infinite ease-in-out;
+}
+
+@keyframes hud-pinch-pulse {
+  0% {
+    border-color: rgba(255, 0, 85, 0.45);
+    box-shadow: 0 0 6px rgba(255, 0, 85, 0.2);
+  }
+  50% {
+    border-color: rgba(255, 0, 85, 1.0);
+    box-shadow: 0 0 20px rgba(255, 0, 85, 0.65), inset 0 0 10px rgba(255, 0, 85, 0.35);
+  }
+  100% {
+    border-color: rgba(255, 0, 85, 0.45);
+    box-shadow: 0 0 6px rgba(255, 0, 85, 0.2);
+  }
+}
+
 /* ================== サイバーシャッタートランジション ================== */
 .cyber-shutter.hidden {
   display: none !important;
@@ -1875,11 +1897,26 @@ body, html {
   position: absolute;
   width: 120vw;
   height: 100vh;
-  background: #06080e;
+  background: 
+    repeating-linear-gradient(45deg, rgba(255, 216, 0, 0.03) 0px, rgba(255, 216, 0, 0.03) 20px, transparent 20px, transparent 40px),
+    #05070c;
   border: 4px solid var(--color-neon-blue);
   box-shadow: 0 0 30px rgba(0, 243, 255, 0.4);
   pointer-events: auto;
   transition: transform 0.4s cubic-bezier(0.85, 0, 0.15, 1);
+  display: flex;
+  align-items: center;
+}
+
+.shutter-label {
+  font-family: var(--font-hud);
+  font-size: 1.8rem;
+  font-weight: 900;
+  letter-spacing: 4px;
+  color: #ffd800;
+  text-shadow: 0 0 12px rgba(255, 216, 0, 0.65);
+  transform: skewX(30deg); /* 親の傾斜を相殺 */
+  animation: flicker 1s infinite alternate;
 }
 
 /* 斜めにスライドインさせるための変形 */
@@ -1887,12 +1924,16 @@ body, html {
   top: 0;
   left: -120vw;
   transform: skewX(-30deg) translateX(0);
+  justify-content: flex-end;
+  padding-right: 15%;
 }
 
 .pane-right {
   top: 0;
   right: -120vw;
   transform: skewX(-30deg) translateX(0);
+  justify-content: flex-start;
+  padding-left: 15%;
 }
 
 /* アクティブ（閉じる）状態のスタイル */
