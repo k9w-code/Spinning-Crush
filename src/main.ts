@@ -247,6 +247,7 @@ class GameApp {
   private clashPendingCounterDamage: number = 0;
   private clashPendingSide: 'プレイヤー' | 'エネミー' = 'プレイヤー';
   private clashPendingDialogText: string = "";
+  private clashPendingChoice: string = ""; // 攻撃側が選択したコマンド・スキル名
   private clashResultType: 'hit' | 'guard' | 'evade' | 'counter' = 'hit';
   private isPinchBgmActive: boolean = false;
   
@@ -3746,6 +3747,7 @@ class GameApp {
       this.clashPendingIsCounter = isCounterSuccess;
       this.clashPendingSide = 攻撃側判定;
       this.clashPendingDialogText = advDialogText;
+      this.clashPendingChoice = スキル名;
 
       // clashResultType の決定 ('hit' | 'guard' | 'evade' | 'counter')
       if (isCounterSuccess) {
