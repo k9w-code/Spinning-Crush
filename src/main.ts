@@ -226,6 +226,7 @@ class GameApp {
   private snd = SoundManager.getInstance();
   // セーブデータ
   public saveData: SaveData = JSON.parse(JSON.stringify(INITIAL_SAVE_DATA));
+  private prevJp: number = 0; // バトル前のJP記憶用
   private particles: SparkParticle[] = [];
   private shockwaves: Shockwave[] = [];
   private skillParticles: SkillParticle[] = [];
@@ -532,6 +533,9 @@ class GameApp {
     this.snd.playClick(); // シャッター閉と同時に決定/閉音
 
     const performSwitch = () => {
+      // タイトル背景デモを一旦停止
+      this.stopTitleDemo();
+
       const screens = document.querySelectorAll('.screen');
       screens.forEach(s => s.classList.remove('active'));
 
@@ -543,7 +547,9 @@ class GameApp {
       this.currentScreenId = screenId;
 
       // 遷移先の初期化処理
-      if (screenId === 'garage-screen') {
+      if (screenId === 'title-screen') {
+        this.initTitleDemo();
+      } else if (screenId === 'garage-screen') {
         this.initGarageScreen();
       } else if (screenId === 'custom-screen') {
         this.initCustomScreen();
@@ -846,7 +852,7 @@ class GameApp {
         return;
       }
 
-      // コマンドフェーズ選択のキー操作
+      // コマンドフェーズ選択のキー操作 (キーボード・ショートカット)
       if (
         this.currentScreenId === 'battle-screen' &&
         this.battleManager &&
@@ -862,6 +868,30 @@ class GameApp {
         } else if (key === 'f' || e.key === 'Enter') {
           e.preventDefault();
           this.confirmCommandSelection();
+        } 
+        // 数字キー 1〜4 による直接コマンド実行
+        else if (['1', '2', '3', '4'].includes(key)) {
+          e.preventDefault();
+          const idx = Number(key) - 1;
+          if (idx >= 0 && idx < this.activeCommandButtons.length) {
+            this.selectedCommandIndex = idx;
+            this.confirmCommandSelection();
+          }
+        }
+        // アルファベットキーによる連想直接コマンド実行
+        // A/D (1番目), E (2番目), C (3番目), Q/S (4番目)
+        else if (['a', 'd', 'e', 'c', 'q'].includes(key)) {
+          e.preventDefault();
+          let idx = -1;
+          if (key === 'a' || key === 'd') idx = 0; // 攻撃(Attack) / 防御(Defense)
+          else if (key === 'e') idx = 1;           // 回避(Evade)
+          else if (key === 'c') idx = 2;           // カウンター(Counter)
+          else if (key === 'q') idx = 3;           // 奥義(Quest-Ultimate)
+
+          if (idx >= 0 && idx < this.activeCommandButtons.length) {
+            this.selectedCommandIndex = idx;
+            this.confirmCommandSelection();
+          }
         }
       }
     });
@@ -1088,9 +1118,32 @@ class GameApp {
     }
   }
 
+  private prevCustomGearSim: any = null;
   private updateCustomAssembleArea() {
     const nameEl = document.getElementById('custom-active-slot-name');
     if (nameEl) nameEl.textContent = `スロット ${this.editingSlotId} の編集 (レベル: ${this.customGearSim.レベル})`;
+
+    // パーツ換装の変更検知
+    const isChanged = this.prevCustomGearSim && (
+      this.prevCustomGearSim.チップ !== this.customGearSim.チップ ||
+      this.prevCustomGearSim.ブレード !== this.customGearSim.ブレード ||
+      this.prevCustomGearSim.ウェイト !== this.customGearSim.ウェイト ||
+      this.prevCustomGearSim.ソール !== this.customGearSim.ソール
+    );
+
+    if (isChanged) {
+      // フラッシュアニメーションのトリガー
+      const canvas = document.getElementById('custom-gear-canvas');
+      if (canvas) {
+        canvas.classList.remove('equip-flash-active');
+        void (canvas as any).offsetWidth; // リフロー
+        canvas.classList.add('equip-flash-active');
+      }
+      // ガシャコン換装SEの再生
+      this.playEquipSound();
+    }
+
+    this.prevCustomGearSim = JSON.parse(JSON.stringify(this.customGearSim));
 
     // 各部位の装備名更新
     const setEquippedName = (elId: string, partId: string, defaultName: string) => {
@@ -1120,8 +1173,66 @@ class GameApp {
     setEquippedName('equipped-weight-name', this.customGearSim.ウェイト, 'ウェイト未装備');
     setEquippedName('equipped-sole-name', this.customGearSim.ソール, 'ソール未装備');
 
+    // プレビューの描画 (未編成ならダミーアセンブル)
+    const assembledSim = アセンブル実行(
+      this.customGearSim.チップ,
+      this.customGearSim.ブレード || 'b101_n',
+      this.customGearSim.ウェイト || 'w101_n',
+      this.customGearSim.ソール || 's101_n',
+      this.customGearSim.レベル,
+      this.パーツマスタ,
+      this.チップマスタ,
+      this.奥義マスタ
+    );
+    this.renderGearPreview('custom-gear-canvas', assembledSim);
+
     // シミュレーション計算
     this.renderAssembleSimStats();
+  }
+
+  // 換装用のガシャコン金属音
+  private playEquipSound() {
+    const snd = SoundManager.getInstance();
+    snd.initContext();
+    const ctx = (snd as any).ctx;
+    if (!ctx) return;
+
+    const time = ctx.currentTime;
+    
+    // 1段目: 高めの金属打撃
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'triangle';
+    osc1.frequency.setValueAtTime(600, time);
+    osc1.frequency.linearRampToValueAtTime(150, time + 0.12);
+    gain1.gain.setValueAtTime(0.04, time);
+    gain1.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(time);
+    osc1.stop(time + 0.18);
+
+    // 2段目: 低いラッチ（少し遅らせて重なりを演出）
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sawtooth';
+    osc2.frequency.setValueAtTime(200, time + 0.05);
+    osc2.frequency.linearRampToValueAtTime(80, time + 0.18);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(350, time + 0.05);
+
+    gain2.gain.setValueAtTime(0.001, time + 0.05);
+    gain2.gain.linearRampToValueAtTime(0.06, time + 0.07);
+    gain2.gain.exponentialRampToValueAtTime(0.001, time + 0.22);
+
+    osc2.connect(filter);
+    filter.connect(gain2);
+    gain2.connect(ctx.destination);
+    
+    osc2.start(time + 0.05);
+    osc2.stop(time + 0.25);
   }
 
   private renderAssembleSimStats() {
@@ -1328,9 +1439,11 @@ class GameApp {
       if (stage.解放条件) {
         isLocked = !this.saveData.ステージクリア状況[stage.解放条件];
       }
+      const isCleared = !!this.saveData.ステージクリア状況[stage.ステージID];
+      const isCurrent = !isLocked && !isCleared;
 
       const pin = document.createElement('div');
-      pin.className = `map-pin ${isLocked ? 'locked' : ''}`;
+      pin.className = `map-pin ${isLocked ? 'locked' : ''} ${isCleared ? 'cleared' : ''} ${isCurrent ? 'current' : ''}`;
       pin.style.left = `${pos.x - 24}px`;
       pin.style.top = `${pos.y - 48}px`;
 
@@ -1338,6 +1451,14 @@ class GameApp {
       inner.className = 'map-pin-inner';
       inner.textContent = stage.ステージID.replace('st', ''); // "001"などの数字を表示
       pin.appendChild(inner);
+
+      // クリア済みのステージにCLEAREDバッジを付与
+      if (isCleared) {
+        const badge = document.createElement('span');
+        badge.className = 'pin-cleared-badge';
+        badge.textContent = 'CLEARED';
+        pin.appendChild(badge);
+      }
 
       if (!isLocked) {
         pin.addEventListener('click', () => {
@@ -1382,9 +1503,20 @@ class GameApp {
 
     ctx.clearRect(0, 0, 800, 400);
 
-    // 街の簡易2D Canvas描画
-    ctx.fillStyle = '#0f111a';
+    // 1. 背景（サイバーブラック）
+    ctx.fillStyle = '#06070c';
     ctx.fillRect(0, 0, 800, 400);
+
+    // 2. 電脳グリッドの描画 (SFビジュアル)
+    ctx.strokeStyle = 'rgba(0, 243, 255, 0.04)';
+    ctx.lineWidth = 1;
+    const gridSize = 40;
+    for (let x = 0; x < 800; x += gridSize) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 400); ctx.stroke();
+    }
+    for (let y = 0; y < 400; y += gridSize) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(800, y); ctx.stroke();
+    }
 
     const pinPositions: { [key: string]: { x: number; y: number } } = {
       'st001': { x: 150, y: 250 },
@@ -1395,21 +1527,59 @@ class GameApp {
       'st006': { x: 680, y: 90 }
     };
 
-    // 道の描画
-    ctx.strokeStyle = 'rgba(0, 243, 255, 0.25)';
-    ctx.lineWidth = 4;
-    ctx.setLineDash([5, 10]);
-    ctx.beginPath();
-    ctx.moveTo(150, 250);
-    ctx.lineTo(300, 150);
-    ctx.lineTo(450, 250);
-    ctx.lineTo(600, 150);
-    ctx.lineTo(720, 250);
-    ctx.lineTo(680, 90);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    const connections = [
+      { from: 'st001', to: 'st002' },
+      { from: 'st002', to: 'st003' },
+      { from: 'st003', to: 'st004' },
+      { from: 'st004', to: 'st005' },
+      { from: 'st005', to: 'st006' }
+    ];
 
-    // ロックされているエリアの霧の描画
+    // 3. 道の動的色分け描画 (進行度連動)
+    connections.forEach(conn => {
+      const fromPos = pinPositions[conn.from];
+      const toPos = pinPositions[conn.to];
+      if (!fromPos || !toPos) return;
+
+      const fromCleared = !!this.saveData.ステージクリア状況[conn.from];
+      
+      const toStage = this.ステージマスタ.find(s => s.ステージID === conn.to);
+      let toLocked = false;
+      if (toStage && toStage.解放条件) {
+        toLocked = !this.saveData.ステージクリア状況[toStage.解放条件];
+      }
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(fromPos.x, fromPos.y);
+      ctx.lineTo(toPos.x, toPos.y);
+
+      if (fromCleared) {
+        // クリア済み接続線：太いネオングリーン実線
+        ctx.strokeStyle = '#39ff14';
+        ctx.lineWidth = 4.5;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#39ff14';
+        ctx.stroke();
+      } else if (!toLocked) {
+        // 現在進行中の接続線：ネオンオレンジ点滅風の破線
+        ctx.strokeStyle = '#ffaa00';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([6, 6]);
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = '#ffaa00';
+        ctx.stroke();
+      } else {
+        // ロック中の接続線：細いダークグレーの破線
+        ctx.strokeStyle = '#2d313d';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 6]);
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+
+    // 4. ロックされているエリアの霧および電脳警告ラインの描画
     const stages = ['st001', 'st002', 'st003', 'st004', 'st005', 'st006'];
     let firstLockedIdx = -1;
     for (let i = 0; i < stages.length; i++) {
@@ -1425,12 +1595,28 @@ class GameApp {
 
     if (firstLockedIdx !== -1) {
       const lockX = pinPositions[stages[firstLockedIdx]].x - 50;
+      
+      // 暗黒の電脳シールド
+      ctx.save();
       ctx.fillStyle = 'rgba(10, 11, 16, 0.75)';
       ctx.fillRect(lockX, 0, 800 - lockX, 400);
-      
-      ctx.fillStyle = 'rgba(255, 85, 0, 0.5)';
-      ctx.font = "italic bold 16px 'Orbitron'";
-      ctx.fillText("LOCKED AREA", lockX + 30, 200);
+
+      // 境界線ネオンレッド警告線
+      ctx.strokeStyle = '#ff0055';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(lockX, 0);
+      ctx.lineTo(lockX, 400);
+      ctx.stroke();
+
+      // 警告文字
+      ctx.fillStyle = '#ff0055';
+      ctx.font = 'bold 15px "Impact", "Outfit", sans-serif';
+      ctx.letterSpacing = '2px';
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#ff0055';
+      ctx.fillText("LOCKED AREA", lockX + 25, 30);
+      ctx.restore();
     }
   }
 
@@ -1917,19 +2103,142 @@ class GameApp {
   // ==========================================
   // 6. 2D Canvas によるギアプレビュー描画
   // ==========================================
+  private previewAnimIds: { [canvasId: string]: number } = {};
+  private previewAngles: { [canvasId: string]: number } = {};
+  private previewHovers: { [canvasId: string]: boolean } = {};
+  private previewSparks: { [canvasId: string]: { x: number, y: number, vx: number, vy: number, life: number, maxLife: number, color: string }[] } = {};
+
   private renderGearPreview(canvasId: string, assembled: アセンブルデータ) {
     const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const w = canvas.width;
-    const h = canvas.height;
-    ctx.clearRect(0, 0, w, h);
+    // 既存のループがあればキャンセル
+    if (this.previewAnimIds[canvasId]) {
+      cancelAnimationFrame(this.previewAnimIds[canvasId]);
+    }
 
-    // プレビュー用にギアを回転させて描画するための簡易タイマー/アニメーション
-    // 通常のプレビューは静的または簡易回転
-    this.drawGear(ctx, w / 2, h / 2, 70, assembled, 0.05);
+    this.previewAngles[canvasId] = this.previewAngles[canvasId] || 0;
+    this.previewHovers[canvasId] = false;
+    this.previewSparks[canvasId] = [];
+
+    // ホバー音・フラグのイベントリスナー設定 (重複回避のため data 属性でチェック)
+    if (canvas.getAttribute('data-hover-bound') !== '1') {
+      canvas.setAttribute('data-hover-bound', '1');
+      
+      canvas.addEventListener('mouseenter', () => {
+        this.previewHovers[canvasId] = true;
+        this.playGearRevSound();
+      });
+      canvas.addEventListener('mouseleave', () => {
+        this.previewHovers[canvasId] = false;
+      });
+    }
+
+    const attr = assembled.部位属性.ブレード;
+    let neonColor = '#00f3ff';
+    if (attr === '火') neonColor = '#ff0055';
+    else if (attr === '水') neonColor = '#00f3ff';
+    else if (attr === '風') neonColor = '#39ff14';
+    else if (attr === '土') neonColor = '#ffaa00';
+    else if (attr === '無') neonColor = '#f0f3fa';
+
+    const loop = () => {
+      // 画面からCanvasが消えていたらループを終了
+      const currentCanvas = document.getElementById(canvasId);
+      if (!currentCanvas || !ctx) return;
+
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      const isHovered = this.previewHovers[canvasId];
+      const speed = isHovered ? 0.16 : 0.015;
+      this.previewAngles[canvasId] += speed;
+
+      const sparks = this.previewSparks[canvasId] || [];
+
+      // ホバー時は火花パーティクルを生成
+      if (isHovered && sparks) {
+        // 毎フレーム 1〜2 個の火花を外周に生成
+        const r = 50; // プレビューのギア半径
+        const theta = Math.random() * Math.PI * 2;
+        sparks.push({
+          x: w / 2 + r * Math.cos(theta),
+          y: h / 2 + r * Math.sin(theta),
+          vx: (Math.random() - 0.5) * 5 + Math.cos(theta) * 2,
+          vy: (Math.random() - 0.5) * 5 + Math.sin(theta) * 2 - 2, // 上方向へ
+          life: 0,
+          maxLife: 15 + Math.random() * 10,
+          color: neonColor
+        });
+      }
+
+      // 火花の更新と描画
+      if (sparks) {
+        for (let i = sparks.length - 1; i >= 0; i--) {
+          const p = sparks[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.15; // 重力
+          p.life++;
+          if (p.life >= p.maxLife) {
+            sparks.splice(i, 1);
+          } else {
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = 1.0 - (p.life / p.maxLife);
+            ctx.shadowBlur = 6;
+            ctx.shadowColor = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 1.5 + Math.random() * 1.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+            ctx.shadowBlur = 0;
+          }
+        }
+      }
+
+      // ギアの描画 (半径50pxでプレビュー表示)
+      this.drawGear(ctx, w / 2, h / 2, 50, assembled, this.previewAngles[canvasId]);
+
+      this.previewAnimIds[canvasId] = requestAnimationFrame(loop);
+    };
+
+    loop();
+  }
+
+  // ギア急回転起動音の動的シンセサイズ (ギュイィィン)
+  private playGearRevSound() {
+    const snd = SoundManager.getInstance();
+    snd.initContext();
+    const ctx = (snd as any).ctx;
+    if (!ctx) return;
+
+    const time = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(100, time);
+    osc.frequency.exponentialRampToValueAtTime(880, time + 0.35);
+
+    // ハイパスフィルタを通して、キュイィンという高域成分に絞る
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.setValueAtTime(400, time);
+    filter.frequency.exponentialRampToValueAtTime(1200, time + 0.35);
+
+    gain.gain.setValueAtTime(0.001, time);
+    gain.gain.linearRampToValueAtTime(0.03, time + 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.4);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(time);
+    osc.stop(time + 0.45);
   }
 
   private drawGear(
@@ -2224,6 +2533,7 @@ class GameApp {
   private startBattle() {
     if (!this.selectedNpc) return;
 
+    this.prevJp = this.saveData.所持JP; // バトル前のJPを記録
     this.changeScreen('battle-screen');
     
     // バトル初期化
@@ -2361,12 +2671,14 @@ class GameApp {
       // 45フレーム目：決着（爆発と吹っ飛び）
       if (this.clashAnimFrame === 45) {
         // 1. 計算しておいたダメージの実際の適用
+        let playerTookDamage = false;
         const dmg = Math.floor(this.clashPendingDamage);
         if (this.clashPendingIsHit && dmg > 0) {
           if (this.clashPendingSide === 'プレイヤー') {
             this.battleManager.エネミーライフ = Math.max(0, this.battleManager.エネミーライフ - dmg);
           } else {
             this.battleManager.プレイヤーライフ = Math.max(0, this.battleManager.プレイヤーライフ - dmg);
+            playerTookDamage = true;
           }
         }
 
@@ -2375,8 +2687,22 @@ class GameApp {
           const counterDmg = Math.floor(this.clashPendingCounterDamage);
           if (this.clashPendingSide === 'プレイヤー') {
             this.battleManager.プレイヤーライフ = Math.max(0, this.battleManager.プレイヤーライフ - counterDmg);
+            if (counterDmg > 0) playerTookDamage = true;
           } else {
             this.battleManager.エネミーライフ = Math.max(0, this.battleManager.エネミーライフ - counterDmg);
+          }
+        }
+
+        // プレイヤー被弾時のダメージフラッシュ演出 (パッケージ4)
+        if (playerTookDamage) {
+          const uiContainer = document.getElementById('ui-container');
+          if (uiContainer) {
+            uiContainer.classList.remove('damage-flash-active');
+            void (uiContainer as any).offsetWidth; // リフロー
+            uiContainer.classList.add('damage-flash-active');
+            setTimeout(() => {
+              uiContainer.classList.remove('damage-flash-active');
+            }, 360);
           }
         }
 
@@ -3615,6 +3941,41 @@ class GameApp {
     this.changeScreen('result-screen');
     
     if (!this.selectedNpc) return;
+
+    // 初期化：ポップアップを一旦非表示に (パッケージ5)
+    const dropPanel = document.querySelector('.result-drop-panel');
+    if (dropPanel) dropPanel.classList.remove('pop-active');
+
+    const rewardJpEl = document.getElementById('result-reward-jp');
+    if (rewardJpEl) rewardJpEl.textContent = `+0 JP`;
+
+    const diff = Math.max(0, this.saveData.所持JP - this.prevJp);
+
+    // リザルト演出タイムライン
+    setTimeout(() => {
+      // 1. JP獲得カウントアップ (パッケージ5)
+      if (rewardJpEl && diff > 0) {
+        let current = 0;
+        const timer = setInterval(() => {
+          current++;
+          rewardJpEl.textContent = `+${current} JP`;
+          this.snd.playBleep(); // カチカチ音
+          if (current >= diff) {
+            clearInterval(timer);
+          }
+        }, 120);
+      }
+
+      // 2. ドロップパネルのバウンス出現 (パッケージ5)
+      setTimeout(() => {
+        if (dropPanel) {
+          dropPanel.classList.add('pop-active');
+          this.playRewardGetSound(); // ピピピピロン！SE
+        }
+      }, Math.max(200, diff * 120 + 50));
+
+    }, 600); // 画面シャッターが開ききった頃
+
     const enemyId = this.selectedNpc.エネミーID;
     const suffix = winner === 'player' ? 'win' : 'lose';
     const scenarioId = `${enemyId}_after_${suffix}`;
@@ -3637,9 +3998,47 @@ class GameApp {
       if (acquiredPartId) {
         setTimeout(() => {
           this.startPartGetPerformance(acquiredPartId, () => {});
-        }, 600);
+        }, 1500); // カウントアップとポップアップ出現が終わった後に起動
       }
     }
+  }
+
+  // 報酬獲得のアルペジオSE (ピピピピロン✨)
+  private playRewardGetSound() {
+    const snd = SoundManager.getInstance();
+    snd.initContext();
+    const ctx = (snd as any).ctx;
+    if (!ctx) return;
+
+    const time = ctx.currentTime;
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(523.25, time); // C5
+    osc1.frequency.setValueAtTime(659.25, time + 0.07); // E5
+    osc1.frequency.setValueAtTime(783.99, time + 0.14); // G5
+    osc1.frequency.setValueAtTime(1046.50, time + 0.21); // C6
+
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(523.25, time);
+    osc2.frequency.setValueAtTime(659.25, time + 0.07);
+    osc2.frequency.setValueAtTime(783.99, time + 0.14);
+    osc2.frequency.setValueAtTime(1046.50, time + 0.21);
+
+    gain.gain.setValueAtTime(0.001, time);
+    gain.gain.linearRampToValueAtTime(0.04, time + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.4);
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc1.start(time);
+    osc2.start(time);
+    osc1.stop(time + 0.45);
+    osc2.stop(time + 0.45);
   }
 
   // チップの経験値獲得ロジック (勝敗問わず1EXP、3EXPごとにレベルアップ)
@@ -4126,6 +4525,64 @@ class GameApp {
         ctx.fillRect(0, 0, 800, 600);
       }
 
+      // 7.5. バトル結果判定「デカ文字ネオンスライド」演出 (45〜75Fの間) (パッケージ4)
+      if (this.isClashAnimationActive && this.clashAnimFrame >= 45 && this.clashAnimFrame <= 75) {
+        let text = 'HIT!!';
+        let color = '#ff0055'; // 赤 (デフォルト)
+
+        if (this.clashResultType === 'evade') {
+          text = 'EVADE!!';
+          color = '#39ff14'; // 緑
+        } else if (this.clashResultType === 'counter') {
+          text = 'COUNTER!!';
+          color = '#ffaa00'; // オレンジ
+        } else if (this.clashResultType === 'guard') {
+          text = 'DEFENDED!!';
+          color = '#00f3ff'; // 水色
+        } else {
+          // 通常ヒット時：奥義かどうかで変化
+          const isOsugi = this.clashPendingChoice && this.clashPendingChoice.includes('奥義');
+          text = isOsugi ? 'SPECIAL!!' : 'HIT!!';
+          color = isOsugi ? '#ff007f' : '#ff0055';
+        }
+
+        ctx.save();
+        ctx.font = 'italic 900 72px "Impact", "Outfit", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const frame = this.clashAnimFrame;
+        let x = 400;
+        let alpha = 1.0;
+
+        if (frame < 52) {
+          // 爆速スライドイン (45Fから52Fで中央へ)
+          const t = (frame - 45) / 7;
+          x = 850 - 450 * t;
+        } else if (frame > 70) {
+          // 左へフェードアウト (70Fから75Fでスライド退場)
+          const t = (frame - 70) / 5;
+          x = 400 - 150 * t;
+          alpha = 1.0 - t;
+        }
+
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 10;
+        ctx.lineJoin = 'miter';
+        ctx.miterLimit = 2;
+
+        ctx.shadowBlur = 25;
+        ctx.shadowColor = color;
+        ctx.fillStyle = color;
+
+        // 白い光る縁取りとネオンの塗りを重ねて立体感を出す
+        ctx.strokeText(text, x, 300);
+        ctx.fillText(text, x, 300);
+
+        ctx.restore();
+      }
+
       ctx.restore();
       return;
     }
@@ -4323,6 +4780,148 @@ class GameApp {
     if (contentEl) contentEl.textContent = content;
 
     modal?.classList.add('active');
+  }
+
+  // ==========================================
+  // 10. タイトルデモ背景衝突演出 (パッケージ1)
+  // ==========================================
+  private titleDemoAnimId: number | null = null;
+  private initTitleDemo() {
+    const canvas = document.getElementById('title-bg-canvas') as HTMLCanvasElement;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const resize = () => {
+      canvas.width = canvas.parentElement?.clientWidth || window.innerWidth;
+      canvas.height = canvas.parentElement?.clientHeight || window.innerHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    this.stopTitleDemo(); // 重複防止
+
+    // ダミーのギアアセンブルデータを作成 (アタック型赤ブレードと、スピード型緑ブレード)
+    const dummy1 = アセンブル実行('c001', 'b104_f', 'w108_a', 's106_a', 1, this.パーツマスタ, this.チップマスタ, this.奥義マスタ);
+    const dummy2 = アセンブル実行('c001', 'b108_a', 'w106_n', 's102_w', 1, this.パーツマスタ, this.チップマスタ, this.奥義マスタ);
+
+    let angle1 = 0;
+    let angle2 = 0;
+    
+    // 2枚のギアがぶつかるアニメーションパラメータ
+    let time = 0;
+    
+    // 火花パーティクル
+    interface Particle {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      life: number;
+      maxLife: number;
+      color: string;
+    }
+    const particles: Particle[] = [];
+
+    const spawnSpark = (x: number, y: number, color: string) => {
+      for (let i = 0; i < 8; i++) {
+        particles.push({
+          x,
+          y,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6 - 2, // 上方向へ
+          life: 0,
+          maxLife: 20 + Math.random() * 15,
+          color
+        });
+      }
+    };
+
+    const loop = () => {
+      if (!ctx || this.currentScreenId !== 'title-screen') return;
+
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // 濃いサイバー系の背景
+      ctx.fillStyle = '#06070d';
+      ctx.fillRect(0, 0, w, h);
+
+      // グリッド線の描画 (SF感)
+      ctx.strokeStyle = 'rgba(0, 243, 255, 0.04)';
+      ctx.lineWidth = 1;
+      const gridSize = 40;
+      for (let lx = 0; lx < w; lx += gridSize) {
+        ctx.beginPath(); ctx.moveTo(lx, 0); ctx.lineTo(lx, h); ctx.stroke();
+      }
+      for (let ly = 0; ly < h; ly += gridSize) {
+        ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(w, ly); ctx.stroke();
+      }
+
+      // 2台のギアの位置計算 (サイン波で往復接近させる)
+      const centerX = w / 2;
+      const centerY = h / 2;
+      
+      // レスポンシブに最大オフセットを計算
+      const maxOffset = Math.min(w, h) * 0.28;
+      
+      // オフセット計算 (ぶつかる距離)
+      const cycle = Math.sin(time) * maxOffset;
+      const g1X = centerX - Math.abs(cycle) - 30;
+      const g2X = centerX + Math.abs(cycle) + 30;
+
+      // 回転角
+      angle1 += 0.08;
+      angle2 -= 0.08;
+      time += 0.015;
+
+      // 衝突判定 (距離が100px以下になった瞬間)
+      const dist = g2X - g1X;
+      const collisionDistance = 100; // ギア半径50px * 2
+      if (dist <= collisionDistance && Math.sin(time) > 0 && Math.cos(time) > 0.9) {
+        // 衝突の瞬間に火花を散らす
+        spawnSpark(centerX, centerY, '#ff0055'); // ギア1の火花
+        spawnSpark(centerX, centerY, '#39ff14'); // ギア2の火花
+      }
+
+      // パーティクルの更新と描画
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.12; // 重力
+        p.life++;
+        if (p.life >= p.maxLife) {
+          particles.splice(i, 1);
+        } else {
+          ctx.fillStyle = p.color;
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = p.color;
+          ctx.globalAlpha = 1.0 - (p.life / p.maxLife);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 2 + Math.random() * 2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1.0;
+          ctx.shadowBlur = 0;
+        }
+      }
+
+      // ギアの描画 (直径100px)
+      this.drawGear(ctx, g1X, centerY, 50, dummy1, angle1);
+      this.drawGear(ctx, g2X, centerY, 50, dummy2, angle2);
+
+      this.titleDemoAnimId = requestAnimationFrame(loop);
+    };
+
+    loop();
+  }
+
+  private stopTitleDemo() {
+    if (this.titleDemoAnimId) {
+      cancelAnimationFrame(this.titleDemoAnimId);
+      this.titleDemoAnimId = null;
+    }
   }
 }
 

@@ -93,6 +93,21 @@ body, html {
   100% { transform: translate(100px, 50px) scale(1.2); }
 }
 
+@keyframes equip-flash {
+  0% {
+    filter: brightness(2.5) contrast(1.2);
+    transform: scale(1.05);
+  }
+  100% {
+    filter: brightness(1) contrast(1);
+    transform: scale(1);
+  }
+}
+
+.equip-flash-active {
+  animation: equip-flash 0.25s ease-out;
+}
+
 /* ================== UIコンテナ ================== */
 #ui-container {
   position: absolute;
@@ -225,12 +240,27 @@ body, html {
 
 /* ================== ① タイトル画面 ================== */
 #title-screen {
+  position: relative;
+  overflow: hidden;
   justify-content: center;
   align-items: center;
   text-align: center;
 }
 
+#title-bg-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.45;
+}
+
 .title-logo {
+  position: relative;
+  z-index: 2;
   margin-bottom: 60px;
 }
 
@@ -259,6 +289,8 @@ body, html {
 }
 
 .menu-buttons {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -266,6 +298,8 @@ body, html {
 }
 
 .press-any-key {
+  position: relative;
+  z-index: 2;
   margin-top: 50px;
   font-family: var(--font-hud);
   font-size: 1rem;
@@ -474,6 +508,21 @@ body, html {
   font-family: var(--font-hud);
   font-size: 1.4rem;
   font-weight: 700;
+}
+
+.custom-preview-area {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+  background: radial-gradient(circle, rgba(0, 243, 255, 0.05) 0%, transparent 70%);
+}
+
+#custom-gear-canvas {
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  transition: transform 0.15s ease-out;
 }
 
 .parts-slots-grid {
@@ -1397,6 +1446,14 @@ body, html {
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   padding: 20px;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.result-drop-panel.pop-active {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .result-drop-panel h4 {
@@ -2832,11 +2889,64 @@ body, html {
   text-shadow: 1px 1px 0 #000;
 }
 
+.map-pin.cleared {
+  background: #39ff14 !important;
+  border-color: #fff !important;
+  box-shadow: 0 0 15px rgba(57, 255, 20, 0.6);
+}
+
+.map-pin.cleared:hover {
+  box-shadow: 0 0 25px rgba(57, 255, 20, 0.9);
+}
+
+.map-pin.current {
+  background: #ff0055 !important;
+  border-color: #fff !important;
+  box-shadow: 0 0 20px rgba(255, 0, 85, 0.7);
+  animation: pin-pulse 1.5s infinite alternate ease-in-out;
+}
+
+@keyframes pin-pulse {
+  0% {
+    transform: rotate(-45deg) scale(0.95);
+    box-shadow: 0 0 10px rgba(255, 0, 85, 0.5);
+  }
+  100% {
+    transform: rotate(-45deg) scale(1.08);
+    box-shadow: 0 0 25px rgba(255, 0, 85, 0.95);
+  }
+}
+
+.map-pin.current:hover {
+  animation: none;
+  transform: rotate(-45deg) scale(1.15);
+  box-shadow: 0 0 30px rgba(255, 0, 85, 1.0);
+}
+
+.pin-cleared-badge {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg); /* 親の反転を打ち消す */
+  background: #39ff14;
+  color: #000;
+  font-family: var(--font-hud);
+  font-size: 0.55rem;
+  font-weight: 900;
+  padding: 2px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
 .map-pin.locked {
-  background: #555 !important;
-  border-color: #888 !important;
-  opacity: 0.7;
+  background: #252830 !important;
+  border-color: #4a5060 !important;
+  opacity: 0.65;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .map-pin.locked::after {
@@ -2845,7 +2955,7 @@ body, html {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) rotate(45deg);
-  font-size: 1.2rem;
+  font-size: 1.1rem;
 }
 
 .map-pin.locked .map-pin-inner {
@@ -3059,4 +3169,23 @@ body, html {
 .part-get-stats-grid span {
   font-size: 0.8rem;
   font-weight: bold;
+}
+
+/* 被弾ダメージの画面外周赤フラッシュ (パッケージ4) */
+.damage-flash-active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  box-shadow: inset 0 0 55px rgba(255, 0, 85, 0.85);
+  pointer-events: none;
+  z-index: 9999;
+  animation: damage-flash-fade 0.35s ease-out forwards;
+}
+
+@keyframes damage-flash-fade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
 }

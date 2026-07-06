@@ -22,6 +22,8 @@
       
       <!-- ================= ① タイトル画面 ================= -->
       <div id="title-screen" class="screen active">
+        <!-- タイトル背景の動的ギア衝突デモ用 Canvas -->
+        <canvas id="title-bg-canvas"></canvas>
         <div class="title-logo">
           <span class="logo-sub">2D格闘ホビーRPG</span>
           <h1 class="logo-main">Spinning Crush</h1>
@@ -79,6 +81,11 @@
           <div class="assemble-panel">
             <div class="assemble-header">
               <span class="current-slot-title" id="custom-active-slot-name">スロット1の編集</span>
+            </div>
+            
+            <!-- カスタマイズプレビュー用 Canvas -->
+            <div class="custom-preview-area">
+              <canvas id="custom-gear-canvas" width="220" height="220"></canvas>
             </div>
             
             <div class="parts-slots-grid">
@@ -327,7 +334,7 @@
           <div class="result-details">
             <div class="result-reward-item">
               <span>試合報酬:</span>
-              <span class="text-accent">+1 JP</span>
+              <span class="text-accent" id="result-reward-jp">+0 JP</span>
             </div>
             <div class="result-drop-panel">
               <h4>ドロップパーツ</h4>
