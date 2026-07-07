@@ -640,16 +640,16 @@ body, html {
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 380px;
+  height: 420px; /* 380pxから420pxへ拡張して視認性アップ */
   background: rgba(10, 11, 16, 0.98);
   border-top: 2px solid var(--color-neon-blue);
   z-index: 100;
-  padding: 25px 40px;
+  padding: 20px 30px;
   display: flex;
   flex-direction: column;
   transform: translateY(100%);
   transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 -10px 35px rgba(0, 0, 0, 0.85);
 }
 
 .inventory-drawer.active {
@@ -660,7 +660,7 @@ body, html {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 .drawer-header h4 {
@@ -671,11 +671,11 @@ body, html {
 
 .inventory-items-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); /* 自動折り返しでカード幅をゆったり確保 */
   gap: 15px;
+  height: 310px; /* 高さを明示的に固定し、Flexboxバグによるカード潰れを100%防止 */
   overflow-y: auto;
-  flex: 1;
-  padding-bottom: 10px;
+  padding: 4px 4px 15px;
 }
 
 .inventory-card {
@@ -2139,19 +2139,23 @@ body, html {
   100% { opacity: 1.0; box-shadow: 0 0 12px rgba(255, 0, 85, 0.9); }
 }
 
-/* 2. インベントリドロワーのサイバーカード化 */
+/* 2. インベントリドロワーのサイバーカード化 (文字潰れ解消 ＆ UI/UX向上パッケージ) */
 .inventory-drawer {
-  background: rgba(8, 14, 28, 0.92) !important;
-  border-top: 2px solid var(--color-neon-blue) !important;
-  box-shadow: 0 -10px 30px rgba(0, 243, 255, 0.15) !important;
-  backdrop-filter: blur(20px) !important;
+  background: rgba(6, 10, 20, 0.96) !important;
+  border-top: 3px solid var(--color-neon-blue) !important;
+  box-shadow: 0 -10px 35px rgba(0, 243, 255, 0.25) !important;
+  backdrop-filter: blur(25px) !important;
 }
 
 .inventory-item {
-  background: rgba(255, 255, 255, 0.02) !important;
-  border: 1px solid rgba(255, 255, 255, 0.05) !important;
-  border-radius: 8px;
-  padding: 12px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(0, 243, 255, 0.18) !important;
+  border-radius: 10px !important;
+  padding: 14px !important;
+  min-height: 125px !important; /* 高さを明示的に確保し、縦潰れを100%防止 */
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
   transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
   cursor: pointer;
   position: relative;
@@ -2159,23 +2163,50 @@ body, html {
   clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
 }
 
+.inventory-item .item-name {
+  font-family: var(--font-hud) !important;
+  font-size: 0.95rem !important;
+  font-weight: 800 !important;
+  color: #fff !important;
+  text-shadow: 0 0 6px rgba(255,255,255,0.15) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.inventory-item .item-attributes {
+  display: flex !important;
+  gap: 8px !important;
+  margin-top: 2px !important;
+  margin-bottom: 6px !important;
+}
+
+.inventory-item .item-attributes .attr-tag {
+  font-size: 0.7rem !important;
+  padding: 1px 6px !important;
+  border-radius: 4px !important;
+  background: rgba(0, 243, 255, 0.1) !important;
+  color: #00f3ff !important;
+  border: 1px solid rgba(0, 243, 255, 0.15) !important;
+}
+
 .inventory-item:hover {
-  background: rgba(0, 243, 255, 0.05) !important;
-  border-color: rgba(0, 243, 255, 0.4) !important;
-  box-shadow: 0 0 12px rgba(0, 243, 255, 0.2);
-  transform: translateY(-2px);
+  background: rgba(0, 243, 255, 0.08) !important;
+  border-color: rgba(0, 243, 255, 0.6) !important;
+  box-shadow: 0 0 18px rgba(0, 243, 255, 0.3) !important;
+  transform: translateY(-3px) !important;
 }
 
 .inventory-item.equipped {
-  background: rgba(57, 255, 20, 0.05) !important;
-  border-color: var(--color-neon-green) !important;
-  box-shadow: 0 0 15px rgba(57, 255, 20, 0.25) !important;
-  animation: neon-card-pulse 2s infinite alternate;
+  background: rgba(57, 255, 20, 0.04) !important;
+  border-color: rgba(57, 255, 20, 0.7) !important;
+  box-shadow: 0 0 20px rgba(57, 255, 20, 0.35) !important;
+  animation: neon-card-pulse 2s infinite alternate !important;
 }
 
 @keyframes neon-card-pulse {
   0% { border-color: rgba(57, 255, 20, 0.4); box-shadow: 0 0 8px rgba(57, 255, 20, 0.15); }
-  100% { border-color: var(--color-neon-green); box-shadow: 0 0 16px rgba(57, 255, 20, 0.35); }
+  100% { border-color: rgba(57, 255, 20, 0.8); box-shadow: 0 0 18px rgba(57, 255, 20, 0.4); }
 }
 
 /* 3. ショップ背景の動的グリッド & ホログラムアバター */
