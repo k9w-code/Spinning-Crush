@@ -783,40 +783,5 @@ export class SoundManager {
       osc.stop(startTime + duration + 0.1);
     });
   }
-
-    chord.forEach((freq, idx) => {
-      const startTime = time + idx * 0.08;
-      const duration = 1.0;
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(freq, startTime);
-
-      const vibrato = ctx.createOscillator();
-      vibrato.frequency.setValueAtTime(8, startTime);
-      const vibGain = ctx.createGain();
-      vibGain.gain.setValueAtTime(10, startTime);
-      vibrato.connect(vibGain);
-      vibGain.connect(osc.frequency);
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(1800, startTime);
-
-      gain.gain.setValueAtTime(0.04, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-
-      vibrato.start(startTime);
-      osc.start(startTime);
-
-      vibrato.stop(startTime + duration + 0.1);
-      osc.stop(startTime + duration + 0.1);
-    });
   }
 }
