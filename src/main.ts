@@ -1323,8 +1323,7 @@ class GameApp {
     const wrapper = document.createElement('div');
     wrapper.className = 'lcd-meter-container';
 
-    // トリガーするトランジションのための遅延書き換え用配列
-    const animTargets: Array<{ el: HTMLElement, width: string, left?: string }> = [];
+
 
     keys.forEach(key => {
       const curr = (currentStats as any)[key] || 0;

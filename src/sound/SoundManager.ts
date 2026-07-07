@@ -333,7 +333,6 @@ export class SoundManager {
   // 外部音楽ファイル再生 ＆ フェードイン/アウト接続エンジン (パッケージ3)
   // =================================================================
   private currentAudio: HTMLAudioElement | null = null;
-  private isAudioMode: boolean = false;
 
   private playExternalBGM(filename: string, loop: boolean = true): Promise<boolean> {
     return new Promise((resolve) => {
@@ -354,7 +353,6 @@ export class SoundManager {
         this.stopExternalAudio();
         this.currentAudio = audio;
         audio.play().then(() => {
-          this.isAudioMode = true;
           resolve(true);
         }).catch(err => {
           console.warn("[SoundManager] Autoplay blocked or failed:", err);
@@ -371,7 +369,6 @@ export class SoundManager {
       } catch (e) {}
       this.currentAudio = null;
     }
-    this.isAudioMode = false;
   }
 
   // なめらかなBGMフェードアウト遷移
@@ -786,21 +783,6 @@ export class SoundManager {
       osc.stop(startTime + duration + 0.1);
     });
   }
-  
-  // 予備ジングルハンドラダミー (クリア時にシンセ実行)
-  private playClearJingle_SynthBackup() {
-    this.playClearJingle_Synth();
-  }
-
-  // ステージクリア大お祝いジングル
-  public playClearJingle() {
-    this.initContext();
-    this.resumeContext();
-    const ctx = this.ctx;
-    if (!ctx) return;
-
-    const time = ctx.currentTime;
-    const chord = [523.3, 784.0, 1046.5, 1318.5, 1568.0];
 
     chord.forEach((freq, idx) => {
       const startTime = time + idx * 0.08;
