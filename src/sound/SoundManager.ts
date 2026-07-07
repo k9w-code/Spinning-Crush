@@ -3,7 +3,6 @@ export class SoundManager {
   private ctx: AudioContext | null = null;
   private bgmIntervalId: any = null;
   private bgmStep: number = 0;
-  private targetBgmFilename: string = "";
 
   private constructor() {}
 
