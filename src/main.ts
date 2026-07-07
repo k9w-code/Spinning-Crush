@@ -788,11 +788,13 @@ class GameApp {
 
     // キーボード操作のバインド
     window.addEventListener('keydown', (e) => {
+      if (e.repeat) return; // キーの押しっぱなしリピートによる意図しない連打決定を防止 (UX改善)
+
       const key = e.key.toLowerCase();
       this.keyState[key] = true;
 
-      // デバッグメニュー起動 (Dキー) -> バトル中以外で有効
-      if (key === 'd' && this.currentScreenId !== 'battle-screen') {
+      // デバッグメニュー起動 (Vキー) -> バトル中以外で有効
+      if (key === 'v' && this.currentScreenId !== 'battle-screen') {
         const activeEl = document.activeElement;
         if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
           return;
@@ -864,6 +866,12 @@ class GameApp {
         this.battleManager.現在フェーズ === 'コマンド' &&
         document.getElementById('command-overlay')?.classList.contains('active')
       ) {
+        // トランジション等のクールダウン中はキーボード操作での決定も完全にガードする (誤爆連打防止)
+        if (this.commandPhaseCooldownFrames > 0) {
+          e.preventDefault();
+          return;
+        }
+
         if (key === 'w' || e.key === 'ArrowUp') {
           e.preventDefault();
           this.moveCommandSelection(-1);
