@@ -131,6 +131,7 @@ body, html {
   pointer-events: none;
   transition: opacity 0.5s ease;
   z-index: 5;
+  overflow-y: auto;
 }
 
 .screen.active {
@@ -1176,6 +1177,7 @@ body, html {
   left: 0;
   width: 100%;
   height: 100%;
+  object-fit: contain;
   display: block;
   z-index: 1;
 }
@@ -3371,4 +3373,112 @@ body, html {
 @keyframes damage-flash-fade {
   0% { opacity: 1; }
   100% { opacity: 0; }
+}
+
+/* ================== レスポンシブ対応 (画面幅崩れ・Viewport縮小対策) ================== */
+@media (max-width: 1024px) {
+  .screen {
+    padding: 20px;
+  }
+
+  .screen-header {
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+  }
+
+  /* 自宅ガレージ画面 */
+  .garage-content {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .gear-preview-panel {
+    width: 100%;
+    min-height: auto;
+    padding: 20px;
+  }
+
+  .stats-panel {
+    width: 100%;
+    padding: 20px;
+  }
+
+  /* カスタマイズ画面 */
+  .custom-layout {
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .slots-list-panel {
+    width: 100%;
+    padding: 15px;
+  }
+
+  .assemble-panel {
+    width: 100%;
+    padding: 20px;
+  }
+
+  /* ショップ画面 */
+  .shop-content {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .shop-keeper-panel {
+    max-width: 100%;
+    height: auto;
+    gap: 15px;
+    padding: 20px;
+  }
+
+  .shop-actions {
+    width: 100%;
+    padding: 20px;
+  }
+
+  /* VS準備画面 */
+  .vs-layout {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .vs-gear-panel {
+    max-width: 100%;
+    width: 100%;
+    padding: 20px;
+    height: auto;
+  }
+
+  .vs-divider {
+    font-size: 1.5rem;
+    margin: 10px 0;
+  }
+
+  /* バトル画面 HUD */
+  .battle-hud {
+    padding: 0 10px;
+    top: 10px;
+  }
+
+  .hud-panel {
+    width: 220px;
+    padding: 10px 15px;
+  }
+
+  .hud-name {
+    font-size: 1.1rem;
+    margin-bottom: 5px;
+  }
+
+  .hud-center {
+    padding: 5px 15px;
+  }
+
+  .distance-value {
+    font-size: 1rem;
+  }
 }

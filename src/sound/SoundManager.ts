@@ -3,6 +3,7 @@ export class SoundManager {
   private ctx: AudioContext | null = null;
   private bgmIntervalId: any = null;
   private bgmStep: number = 0;
+  private targetBgmFilename: string = "";
 
   private constructor() {}
 
@@ -333,8 +334,10 @@ export class SoundManager {
   // 外部音楽ファイル再生 ＆ フェードイン/アウト接続エンジン (パッケージ3)
   // =================================================================
   private currentAudio: HTMLAudioElement | null = null;
+  private targetBgmFilename: string = "";
 
   private playExternalBGM(filename: string, loop: boolean = true): Promise<boolean> {
+    this.targetBgmFilename = filename;
     return new Promise((resolve) => {
       this.stopBGM(); // 既存のシンセBGMを停止
 
@@ -344,12 +347,23 @@ export class SoundManager {
 
       // エラー発生時のハンドラ (アセット未配置の場合はシンセ自動演奏に流す)
       audio.onerror = () => {
-        console.warn(`[SoundManager] BGM '/sounds/${filename}' not found. Fallback to Synth.`);
-        this.stopExternalAudio();
-        resolve(false);
+        if (this.targetBgmFilename === filename) {
+          console.warn(`[SoundManager] BGM '/sounds/${filename}' not found. Fallback to Synth.`);
+          this.stopExternalAudio();
+          resolve(false);
+        } else {
+          resolve(false);
+        }
       };
 
       audio.oncanplaythrough = () => {
+        if (this.targetBgmFilename !== filename) {
+          try {
+            audio.pause();
+          } catch (e) {}
+          resolve(false);
+          return;
+        }
         this.stopExternalAudio();
         this.currentAudio = audio;
         audio.play().then(() => {
@@ -386,7 +400,12 @@ export class SoundManager {
 
           if (pct <= 0) {
             clearInterval(timer);
-            this.stopExternalAudio();
+            try {
+              audio.pause();
+            } catch (e) {}
+            if (this.currentAudio === audio) {
+              this.currentAudio = null;
+            }
             resolve();
           }
         }, 30);
@@ -429,6 +448,7 @@ export class SoundManager {
   }
 
   public stopAllBGM() {
+    this.targetBgmFilename = "";
     this.stopBGM();
     this.stopExternalAudio();
   }

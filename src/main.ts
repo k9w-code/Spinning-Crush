@@ -313,6 +313,8 @@ class GameApp {
 
   // 画面遷移管理
   private currentScreenId: string = 'title-screen';
+  private isTransitioning: boolean = false;
+  private resultJpIntervalId: any = null;
 
   // カスタマイズ画面用ステータス
   private editingSlotId: string = '1';
@@ -576,13 +578,34 @@ class GameApp {
   // ==========================================
   // 4. 画面遷移 & UI制御
   // ==========================================
+  private stopAllPreviewAnimations() {
+    Object.keys(this.previewAnimIds).forEach(canvasId => {
+      if (this.previewAnimIds[canvasId]) {
+        cancelAnimationFrame(this.previewAnimIds[canvasId]);
+        this.previewAnimIds[canvasId] = 0;
+      }
+    });
+  }
+
   private changeScreen(screenId: string) {
+    if (this.isTransitioning) return;
+    this.isTransitioning = true;
+
+    // 前画面のカウントアップ効果音タイマーが走っていれば強制クリーンアップ (Finding 4)
+    if (this.resultJpIntervalId) {
+      clearInterval(this.resultJpIntervalId);
+      this.resultJpIntervalId = null;
+    }
+
     const shutter = document.getElementById('cyber-shutter');
     this.snd.playClick(); // シャッター閉と同時に決定/閉音
 
     const performSwitch = () => {
       // タイトル背景デモを一旦停止
       this.stopTitleDemo();
+
+      // 他の画面に遷移する際、アクティブなプレビューCanvasの描画アニメーションループを完全停止 (Finding 2)
+      this.stopAllPreviewAnimations();
 
       const screens = document.querySelectorAll('.screen');
       screens.forEach(s => s.classList.remove('active'));
@@ -642,9 +665,11 @@ class GameApp {
       // 完全に開ききったら、斜めの装飾が画面外にはみ出して見えないように非表示にする
       setTimeout(() => {
         shutter.classList.add('hidden');
+        this.isTransitioning = false; // 遷移ロックの解除 (Finding 2)
       }, 900);
     } else {
       performSwitch();
+      this.isTransitioning = false;
     }
   }
 
@@ -2095,6 +2120,9 @@ class GameApp {
       this.showSystemModal('JP不足', 'ガチャを回すには 10 JP 必要です。ライバルとバトルしてJPを獲得しましょう！');
       return;
     }
+
+    const btn = document.getElementById('btn-shop-gacha') as HTMLButtonElement;
+    if (btn) btn.disabled = true;
 
     const maxRank = this.getGachaMaxRank();
     const targetParts = this.パーツマスタ.filter(p => {
@@ -4167,12 +4195,13 @@ class GameApp {
       // 1. JP獲得カウントアップ (パッケージ5)
       if (rewardJpEl && diff > 0) {
         let current = 0;
-        const timer = setInterval(() => {
+        this.resultJpIntervalId = setInterval(() => {
           current++;
           rewardJpEl.textContent = `+${current} JP`;
           this.snd.playBleep(); // カチカチ音
           if (current >= diff) {
-            clearInterval(timer);
+            clearInterval(this.resultJpIntervalId);
+            this.resultJpIntervalId = null;
           }
         }, 120);
       }
