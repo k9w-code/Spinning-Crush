@@ -110,6 +110,49 @@ class SparkParticle {
   }
 }
 
+class SmokeParticle {
+  public x: number;
+  public y: number;
+  private vx: number;
+  private vy: number;
+  private life: number;
+  private maxLife: number;
+  private size: number;
+
+  constructor(x: number, y: number) {
+    this.x = x + (Math.random() - 0.5) * 15;
+    this.y = y + (Math.random() - 0.5) * 15;
+    // 煙はゆっくり上に昇る
+    this.vx = (Math.random() - 0.5) * 1.2;
+    this.vy = -0.8 - Math.random() * 1.2;
+    this.life = 1.0;
+    this.maxLife = 25 + Math.random() * 25; // 25〜50フレーム
+    this.size = 3 + Math.random() * 4;
+  }
+
+  public update(): boolean {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.vx *= 0.96;
+    this.vy *= 0.96;
+    this.size += 0.15; // 煙が広がる
+    this.life -= 1 / this.maxLife;
+    return this.life > 0;
+  }
+
+  public draw(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    ctx.fillStyle = '#22252a';
+    ctx.shadowBlur = 4;
+    ctx.shadowColor = '#444c56';
+    ctx.globalAlpha = this.life * 0.45; // 煙なので透明度は低め
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
 class Shockwave {
   public x: number;
   public y: number;
@@ -227,7 +270,7 @@ class GameApp {
   // セーブデータ
   public saveData: SaveData = JSON.parse(JSON.stringify(INITIAL_SAVE_DATA));
   private prevJp: number = 0; // バトル前のJP記憶用
-  private particles: SparkParticle[] = [];
+  private particles: (SparkParticle | SmokeParticle)[] = [];
   private shockwaves: Shockwave[] = [];
   private skillParticles: SkillParticle[] = [];
   private isOsugiCutinActive: boolean = false;
@@ -568,12 +611,18 @@ class GameApp {
         this.initShopScreen();
       }
 
-      // バトル画面移行時にBGMを開始、それ以外では停止
-      if (screenId === 'battle-screen') {
+      // 各画面の切り替え時にBGMをフェード切り替え (パッケージ3)
+      if (screenId === 'title-screen') {
+        this.snd.startOpeningBGM();
+      } else if (screenId === 'map-screen' || screenId === 'garage-screen' || screenId === 'custom-screen' || screenId === 'stage-screen' || screenId === 'vs-screen') {
+        this.snd.startLobbyBGM();
+      } else if (screenId === 'shop-screen') {
+        this.snd.startShopBGM();
+      } else if (screenId === 'battle-screen') {
         this.isPinchBgmActive = false;
         this.snd.startBattleBGM();
       } else {
-        this.snd.stopBGM();
+        this.snd.stopAllBGM();
       }
 
       this.bindButtonHoverSound();
@@ -1274,6 +1323,9 @@ class GameApp {
     const wrapper = document.createElement('div');
     wrapper.className = 'lcd-meter-container';
 
+    // トリガーするトランジションのための遅延書き換え用配列
+    const animTargets: Array<{ el: HTMLElement, width: string, left?: string }> = [];
+
     keys.forEach(key => {
       const curr = (currentStats as any)[key] || 0;
       const next = (nextStats as any)[key] || 0;
@@ -1281,18 +1333,13 @@ class GameApp {
 
       const diffText = diff > 0 ? `+${diff}` : (diff < 0 ? `${diff}` : '±0');
 
-      // 液晶セグメントバーの作成 (最大20ブロック)
-      const maxBlocks = 20;
-      // MAXの基準値を600とし、初期値でも見栄えがするよう最小3ブロックを保証するマイルドなスケーリング
-      const pct = Math.min(1.0, next / 600);
-      const nextBlocks = Math.max(3, Math.round(pct * maxBlocks));
-      
-      let barStr = '';
-      for (let i = 0; i < maxBlocks; i++) {
-        barStr += i < nextBlocks ? '■' : '□';
-      }
+      // 最大値600を基準に割合を計算
+      const maxVal = 600;
+      const currPct = Math.min(100, (curr / maxVal) * 100);
+      const nextPct = Math.min(100, (next / maxVal) * 100);
+      const diffPct = Math.abs(nextPct - currPct);
 
-      // 液晶用の短縮ラベル
+      // 短縮ラベル名
       let shortLabel = 'HP';
       if (key === 'アタック') shortLabel = 'ATK';
       else if (key === 'ディフェンス') shortLabel = 'DEF';
@@ -1300,16 +1347,60 @@ class GameApp {
       else if (key === 'レンジ') shortLabel = 'RNG';
       else if (key === 'モビリティ') shortLabel = 'MOB';
 
-      const item = document.createElement('div');
-      item.className = 'lcd-meter-item';
-      item.innerHTML = `
-        <span class="lcd-label">${shortLabel}</span>
-        <span class="lcd-bar">${barStr}</span>
-        <span style="font-size:0.8rem; font-family:monospace; min-width:105px; text-align:right;">
-          ${curr}➔${next} <span style="font-weight:bold; color:${diff > 0 ? '#39ff14' : (diff < 0 ? '#ff3344' : '#888')};">${diffText}</span>
+      const row = document.createElement('div');
+      row.className = 'sim-stats-row';
+
+      // メーターコンテナの構築
+      let barHtml = '';
+      const fillId = `sim-fill-${shortLabel}`;
+      const gainId = `sim-gain-${shortLabel}`;
+      const lossId = `sim-loss-${shortLabel}`;
+
+      if (diff > 0) {
+        // パラメータ上昇：ベースバーはcurrPct、増大分はcurrPctからdiffPct分伸びる
+        barHtml = `
+          <div class="sim-bar-fill" id="${fillId}" style="width: 0%"></div>
+          <div class="sim-bar-gain" id="${gainId}" style="left: ${currPct}%; width: 0%"></div>
+        `;
+      } else if (diff < 0) {
+        // パラメータ減少：ベースバーはnextPct（減少後）、喪失分はnextPctからdiffPct分重なる
+        barHtml = `
+          <div class="sim-bar-fill" id="${fillId}" style="width: 0%"></div>
+          <div class="sim-bar-loss" id="${lossId}" style="left: ${nextPct}%; width: 0%"></div>
+        `;
+      } else {
+        // 変化なし
+        barHtml = `
+          <div class="sim-bar-fill" id="${fillId}" style="width: 0%"></div>
+        `;
+      }
+
+      row.innerHTML = `
+        <span class="sim-label">${shortLabel}</span>
+        <div class="sim-bar-container">
+          ${barHtml}
+        </div>
+        <span class="sim-value-diff">
+          ${curr} ➔ ${next} <span style="font-weight:bold; color:${diff > 0 ? '#39ff14' : (diff < 0 ? '#ff3344' : '#888')};">${diffText}</span>
         </span>
       `;
-      wrapper.appendChild(item);
+      wrapper.appendChild(row);
+
+      // 初期値0%からぬるっと伸ばすためのアニメーション予約
+      // レンダリング後にDOMに挿入されたのち、値を書き換える
+      setTimeout(() => {
+        const fillEl = document.getElementById(fillId);
+        if (fillEl) {
+          fillEl.style.width = `${diff > 0 ? currPct : nextPct}%`;
+        }
+        if (diff > 0) {
+          const gainEl = document.getElementById(gainId);
+          if (gainEl) gainEl.style.width = `${diffPct}%`;
+        } else if (diff < 0) {
+          const lossEl = document.getElementById(lossId);
+          if (lossEl) lossEl.style.width = `${diffPct}%`;
+        }
+      }, 50);
     });
 
     grid.appendChild(wrapper);
@@ -2260,10 +2351,20 @@ class GameApp {
     y: number,
     radius: number,
     assembled: アセンブルデータ,
-    rotation: number
+    rotation: number,
+    isPinch: boolean = false
   ) {
     ctx.save();
-    ctx.translate(x, y);
+
+    // ピンチ時のガタガタ回転軸ブレ演出 (パッケージ2)
+    let offsetX = 0;
+    let offsetY = 0;
+    if (isPinch) {
+      offsetX = (Math.random() - 0.5) * 3;
+      offsetY = (Math.random() - 0.5) * 3;
+    }
+
+    ctx.translate(x + offsetX, y + offsetY);
 
     // 1. 属性に応じたネオンカラーの決定 (色分け)
     let neonColor = 'var(--color-neon-blue)';
@@ -3585,22 +3686,68 @@ class GameApp {
     const gear = side === 'プレイヤー' ? this.battleManager.プレイヤーギア : this.battleManager.エネミーギア;
     const attr = gear.部位属性.ブレード || '無';
 
-    // 聖獣画像のマッピング
+    // 聖獣画像のマッピング ＆ フォールバック情報の設定 (パッケージ3)
     let imgUrl = "";
-    if (attr === '火') imgUrl = './images/seiju_dranzer.png';
-    else if (attr === '水') imgUrl = './images/seiju_draciel.png';
-    else if (attr === '風') imgUrl = './images/seiju_dragoon.png';
-    else if (attr === '土' || attr === '雷') imgUrl = './images/seiju_driger.png';
+    let seijuName = "";
+    let neonColor = "#ffffff";
+    if (attr === '火') {
+      imgUrl = './images/seiju_dranzer.png';
+      seijuName = '火聖獣 朱雀 (DRANZER) 召喚！！';
+      neonColor = '#ff0055';
+    } else if (attr === '水') {
+      imgUrl = './images/seiju_draciel.png';
+      seijuName = '水聖獣 玄武 (DRACIEL) 召喚！！';
+      neonColor = '#00f3ff';
+    } else if (attr === '風') {
+      imgUrl = './images/seiju_dragoon.png';
+      seijuName = '風聖獣 青龍 (DRAGOON) 召喚！！';
+      neonColor = '#39ff14';
+    } else if (attr === '土' || attr === '雷') {
+      imgUrl = './images/seiju_driger.png';
+      seijuName = '地聖獣 白虎 (DRIGER) 召喚！！';
+      neonColor = '#ffaa00';
+    } else {
+      seijuName = '聖獣召喚 (ULTIMATE ATTACK) ！！';
+      neonColor = '#ffffff';
+    }
 
     const cutinImg = document.getElementById('seiju-cutin-img') as HTMLImageElement;
+    const cutinText = document.getElementById('seiju-cutin-fallback-text') as HTMLElement;
     const cutinOverlay = document.getElementById('seiju-cutin-overlay');
 
-    if (cutinImg && cutinOverlay) {
+    if (cutinOverlay) {
       if (imgUrl) {
-        cutinImg.src = imgUrl;
-        cutinImg.style.display = 'block';
+        // 画像アセットの非同期ロードチェック (404エラー防止 ➔ テキストフォールバック)
+        const testImg = new Image();
+        testImg.src = imgUrl;
+
+        testImg.onload = () => {
+          if (cutinImg) {
+            cutinImg.src = imgUrl;
+            cutinImg.style.display = 'block';
+          }
+          if (cutinText) {
+            cutinText.style.display = 'none';
+          }
+        };
+
+        testImg.onerror = () => {
+          if (cutinImg) {
+            cutinImg.style.display = 'none';
+          }
+          if (cutinText) {
+            cutinText.textContent = seijuName;
+            cutinText.style.display = 'block';
+            cutinText.style.textShadow = `0 0 10px ${neonColor}, 0 0 25px ${neonColor}, 0 0 50px ${neonColor}`;
+          }
+        };
       } else {
-        cutinImg.style.display = 'none'; // 無属性は画像なし（暗転＆フラッシュのみ）
+        if (cutinImg) cutinImg.style.display = 'none';
+        if (cutinText) {
+          cutinText.textContent = seijuName;
+          cutinText.style.display = 'block';
+          cutinText.style.textShadow = `0 0 10px ${neonColor}, 0 0 25px ${neonColor}, 0 0 50px ${neonColor}`;
+        }
       }
       cutinOverlay.classList.add('active');
     }
@@ -4247,6 +4394,10 @@ class GameApp {
     const eX = this.battleManager.エネミー位置X;
     const eY = this.battleManager.エネミー位置Y;
 
+    // プレイヤーおよびエネミーのHPピンチ判定 (30%以下) (パッケージ2)
+    const isPlayerPinch = this.battleManager.プレイヤーライフ / this.battleManager.プレイヤーギア.ステータス.ライフ <= 0.3;
+    const isEnemyPinch = this.battleManager.エネミーライフ / this.battleManager.エネミーギア.ステータス.ライフ <= 0.3;
+
     // GBA風「左右スプリット対面＆激突突進シーン」の描画判定
     if (this.battleManager.現在フェーズ === 'コマンド' || this.isClashAnimationActive || this.isOsugiCutinActive) {
       // 1. 背景のクリアとネオングリッド線の描画
@@ -4539,17 +4690,17 @@ class GameApp {
         if (this.clashPendingSide === 'プレイヤー') {
           const ghostPX = 200 + (100 - 200) * easeInPrev;
           const ghostPY = 200 + (360 - 200) * easeInPrev;
-          this.drawGear(ctx, ghostPX, ghostPY, gearRadius, this.battleManager.プレイヤーギア, this.playerRotation * 2.5);
+          this.drawGear(ctx, ghostPX, ghostPY, gearRadius, this.battleManager.プレイヤーギア, this.playerRotation * 2.5, isPlayerPinch);
         } else {
           const ghostEX = 600 + (700 - 600) * easeInPrev;
           const ghostEY = 200 + (200 - 200) * easeInPrev;
-          this.drawGear(ctx, ghostEX, ghostEY, gearRadius, this.battleManager.エネミーギア, this.enemyRotation * 2.5);
+          this.drawGear(ctx, ghostEX, ghostEY, gearRadius, this.battleManager.エネミーギア, this.enemyRotation * 2.5, isEnemyPinch);
         }
         ctx.restore();
       }
 
-      this.drawGear(ctx, drawPX, drawPY, gearRadius, this.battleManager.プレイヤーギア, this.playerRotation * 2.5);
-      this.drawGear(ctx, drawEX, drawEY, gearRadius, this.battleManager.エネミーギア, this.enemyRotation * 2.5);
+      this.drawGear(ctx, drawPX, drawPY, gearRadius, this.battleManager.プレイヤーギア, this.playerRotation * 2.5, isPlayerPinch);
+      this.drawGear(ctx, drawEX, drawEY, gearRadius, this.battleManager.エネミーギア, this.enemyRotation * 2.5, isEnemyPinch);
 
       // 防御成功時のネオンヘキサゴンシールド描画 (25〜55Fの間)
       if (this.isClashAnimationActive && this.clashResultType === 'guard' && this.clashAnimFrame >= 25 && this.clashAnimFrame <= 55) {
@@ -4753,23 +4904,31 @@ class GameApp {
     this.shockwaves.forEach(s => s.draw(ctx));
     this.skillParticles.forEach(sp => sp.draw(ctx));
 
-    // ギアの残像（Ghost Trail）描画 (パッケージ1)
+    // ピンチ状態のギアから黒煙パーティクルを噴き出させる処理 (パッケージ2)
+    if (isPlayerPinch && Math.random() < 0.22) {
+      this.particles.push(new SmokeParticle(pX, pY));
+    }
+    if (isEnemyPinch && Math.random() < 0.22) {
+      this.particles.push(new SmokeParticle(eX, eY));
+    }
+
+    // ギアの残像（Ghost Trail）描画 (パッケージ1、パッケージ2のpinch引数対応)
     ctx.save();
     for (let i = 1; i < this.playerHistory.length; i++) {
       const p = this.playerHistory[i];
       ctx.globalAlpha = 0.25 / i; // 遠い履歴ほど薄く
-      this.drawGear(ctx, p.x, p.y, 25, this.battleManager.プレイヤーギア, p.rot);
+      this.drawGear(ctx, p.x, p.y, 25, this.battleManager.プレイヤーギア, p.rot, isPlayerPinch);
     }
     for (let i = 1; i < this.enemyHistory.length; i++) {
       const e = this.enemyHistory[i];
       ctx.globalAlpha = 0.25 / i;
-      this.drawGear(ctx, e.x, e.y, 25, this.battleManager.エネミーギア, e.rot);
+      this.drawGear(ctx, e.x, e.y, 25, this.battleManager.エネミーギア, e.rot, isEnemyPinch);
     }
     ctx.restore();
 
     // ギアの描画
-    this.drawGear(ctx, pX, pY, 25, this.battleManager.プレイヤーギア, this.playerRotation);
-    this.drawGear(ctx, eX, eY, 25, this.battleManager.エネミーギア, this.enemyRotation);
+    this.drawGear(ctx, pX, pY, 25, this.battleManager.プレイヤーギア, this.playerRotation, isPlayerPinch);
+    this.drawGear(ctx, eX, eY, 25, this.battleManager.エネミーギア, this.enemyRotation, isEnemyPinch);
 
     ctx.restore();
   }

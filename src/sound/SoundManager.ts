@@ -329,8 +329,117 @@ export class SoundManager {
     oscOpen.stop(openTime + 0.12);
   }
 
-  // バトル用チップチューンBGM自動生成ループ (明るく勇ましいCメジャー熱血トイアニメOP風)
+  // =================================================================
+  // 外部音楽ファイル再生 ＆ フェードイン/アウト接続エンジン (パッケージ3)
+  // =================================================================
+  private currentAudio: HTMLAudioElement | null = null;
+  private isAudioMode: boolean = false;
+
+  private playExternalBGM(filename: string, loop: boolean = true): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.stopBGM(); // 既存のシンセBGMを停止
+
+      const audio = new Audio(`/sounds/${filename}`);
+      audio.loop = loop;
+      audio.volume = 0.45;
+
+      // エラー発生時のハンドラ (アセット未配置の場合はシンセ自動演奏に流す)
+      audio.onerror = () => {
+        console.warn(`[SoundManager] BGM '/sounds/${filename}' not found. Fallback to Synth.`);
+        this.stopExternalAudio();
+        resolve(false);
+      };
+
+      audio.oncanplaythrough = () => {
+        this.stopExternalAudio();
+        this.currentAudio = audio;
+        audio.play().then(() => {
+          this.isAudioMode = true;
+          resolve(true);
+        }).catch(err => {
+          console.warn("[SoundManager] Autoplay blocked or failed:", err);
+          resolve(false);
+        });
+      };
+    });
+  }
+
+  private stopExternalAudio() {
+    if (this.currentAudio) {
+      try {
+        this.currentAudio.pause();
+      } catch (e) {}
+      this.currentAudio = null;
+    }
+    this.isAudioMode = false;
+  }
+
+  // なめらかなBGMフェードアウト遷移
+  public fadeOutBGM(durationMs = 800): Promise<void> {
+    return new Promise((resolve) => {
+      if (this.currentAudio) {
+        const audio = this.currentAudio;
+        const startVolume = audio.volume;
+        const startTime = Date.now();
+
+        const timer = setInterval(() => {
+          const elapsed = Date.now() - startTime;
+          const pct = Math.max(0, 1.0 - elapsed / durationMs);
+          audio.volume = startVolume * pct;
+
+          if (pct <= 0) {
+            clearInterval(timer);
+            this.stopExternalAudio();
+            resolve();
+          }
+        }, 30);
+      } else {
+        this.stopBGM();
+        resolve();
+      }
+    });
+  }
+
+  // 各画面ごとのアセット音楽のトリガー (アセット未配置ならフォールバックで自動シンセ演奏または無音)
+  public startOpeningBGM() {
+    this.playExternalBGM('opening.mp3');
+  }
+
+  public startLobbyBGM() {
+    this.playExternalBGM('lobby.mp3');
+  }
+
+  public startShopBGM() {
+    this.playExternalBGM('shop.mp3');
+  }
+
+  // 通常バトル用BGM (アセット接続 ➔ フォールバックはCメジャー熱血シンセOP風)
   public startBattleBGM() {
+    this.playExternalBGM('battle_normal.mp3').then(success => {
+      if (!success) {
+        this.startBattleBGM_Synth();
+      }
+    });
+  }
+
+  // ピンチ用高速BGM (アセット接続 ➔ フォールバックはBPM165シンセ)
+  public startPinchBGM() {
+    this.playExternalBGM('battle_pinch.mp3').then(success => {
+      if (!success) {
+        this.startPinchBGM_Synth();
+      }
+    });
+  }
+
+  public stopAllBGM() {
+    this.stopBGM();
+    this.stopExternalAudio();
+  }
+
+  // ==========================================
+  // シンセサイザー自動演奏BGM (フォールバック用)
+  // ==========================================
+  private startBattleBGM_Synth() {
     this.initContext();
     this.resumeContext();
     if (!this.ctx) return;
@@ -338,9 +447,7 @@ export class SoundManager {
 
     const bpm = 135;
     const stepDuration = 60 / bpm / 2; // 八分音符の間隔 (秒)
-
     const baseScale = [130.8, 130.8, 164.8, 164.8, 196.0, 196.0, 220.0, 220.0];
-    
     const melodyScale = [
       261.6, 329.6, 392.0, 523.3, 440.0, 392.0, 329.6, 0,
       293.7, 329.6, 392.0, 0, 440.0, 523.3, 392.0, 0,
@@ -353,44 +460,36 @@ export class SoundManager {
     const playStep = () => {
       if (!this.ctx || this.ctx.state === 'suspended') return;
       const time = this.ctx.currentTime;
-
       const currentStep = this.bgmStep % 32;
       const baseIdx = Math.floor(currentStep / 2) % 8;
       const baseFreq = baseScale[baseIdx];
 
-      // 1. ベースライン (鋸歯状波)
       if (baseFreq > 0) {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(baseFreq, time);
-
         gain.gain.setValueAtTime(0.03, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + stepDuration * 0.95);
-
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(time);
         osc.stop(time + stepDuration);
       }
 
-      // 2. リズムドラム (4つ打ち)
       if (currentStep % 4 === 0) {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.frequency.setValueAtTime(140, time);
         osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.12);
-
         gain.gain.setValueAtTime(0.12, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
-
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(time);
         osc.stop(time + 0.13);
       }
 
-      // スネア
       if (currentStep % 4 === 2) {
         const bufferSize = this.ctx.sampleRate * 0.08;
         const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
@@ -398,58 +497,41 @@ export class SoundManager {
         for (let i = 0; i < bufferSize; i++) {
           data[i] = Math.random() * 2 - 1;
         }
-
         const noise = this.ctx.createBufferSource();
         noise.buffer = buffer;
-
         const filter = this.ctx.createBiquadFilter();
         filter.type = 'bandpass';
         filter.frequency.setValueAtTime(1100, time);
-
         const gain = this.ctx.createGain();
         gain.gain.setValueAtTime(0.06, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
-
         noise.connect(filter);
         filter.connect(gain);
         gain.connect(this.ctx.destination);
-
         noise.start(time);
         noise.stop(time + 0.09);
       }
 
-      // 3. メロディライン (三角波)
       const melFreq = melodyScale[currentStep];
       if (melFreq && melFreq > 0) {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(melFreq, time);
-
         gain.gain.setValueAtTime(0.04, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + stepDuration * 0.85);
-
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(time);
         osc.stop(time + stepDuration);
       }
-
       this.bgmStep++;
     };
 
     this.bgmIntervalId = setInterval(playStep, stepDuration * 1000);
   }
 
-  public stopBGM() {
-    if (this.bgmIntervalId) {
-      clearInterval(this.bgmIntervalId);
-      this.bgmIntervalId = null;
-    }
-  }
-
-  // ピンチ用高速BGM (BPM 165)
-  public startPinchBGM() {
+  private startPinchBGM_Synth() {
     this.initContext();
     this.resumeContext();
     const ctx = this.ctx;
@@ -458,7 +540,6 @@ export class SoundManager {
 
     const bpm = 165;
     const stepDuration = 60 / bpm / 2; // 八分音符の間隔 (約0.181秒)
-
     const baseScale = [130.8, 146.8, 164.8, 196.0, 220.0, 196.0, 164.8, 146.8];
     const melodyScale = [
       523.3, 587.3, 659.3, 784.0, 880.0, 784.0, 659.3, 587.3,
@@ -472,44 +553,36 @@ export class SoundManager {
     const playStep = () => {
       if (!ctx || ctx.state === 'suspended') return;
       const time = ctx.currentTime;
-
       const currentStep = this.bgmStep % 32;
       const baseIdx = currentStep % 8;
       const baseFreq = baseScale[baseIdx];
 
-      // 1. 高速ベース (鋸歯状波)
       if (baseFreq > 0) {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(baseFreq * 1.2, time);
-
         gain.gain.setValueAtTime(0.04, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + stepDuration * 0.9);
-
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(time);
         osc.stop(time + stepDuration);
       }
 
-      // 2. 高速ドラム
       if (currentStep % 4 === 0) {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.frequency.setValueAtTime(160, time);
         osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.1);
-
         gain.gain.setValueAtTime(0.14, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
-
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(time);
         osc.stop(time + 0.11);
       }
 
-      // 16ビートハイハット風スナッピーノイズ
       if (currentStep % 2 === 1) {
         const bufferSize = ctx.sampleRate * 0.03;
         const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
@@ -517,27 +590,21 @@ export class SoundManager {
         for (let i = 0; i < bufferSize; i++) {
           data[i] = Math.random() * 2 - 1;
         }
-
         const noise = ctx.createBufferSource();
         noise.buffer = buffer;
-
         const filter = ctx.createBiquadFilter();
         filter.type = 'highpass';
         filter.frequency.setValueAtTime(7000, time);
-
         const gain = ctx.createGain();
         gain.gain.setValueAtTime(0.02, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + 0.02);
-
         noise.connect(filter);
         filter.connect(gain);
         gain.connect(ctx.destination);
-
         noise.start(time);
         noise.stop(time + 0.03);
       }
 
-      // スネア
       if (currentStep % 8 === 4) {
         const bufferSize = ctx.sampleRate * 0.07;
         const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
@@ -545,51 +612,58 @@ export class SoundManager {
         for (let i = 0; i < bufferSize; i++) {
           data[i] = Math.random() * 2 - 1;
         }
-
         const noise = ctx.createBufferSource();
         noise.buffer = buffer;
-
         const filter = ctx.createBiquadFilter();
         filter.type = 'bandpass';
         filter.frequency.setValueAtTime(1500, time);
-
         const gain = ctx.createGain();
         gain.gain.setValueAtTime(0.07, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + 0.07);
-
         noise.connect(filter);
         filter.connect(gain);
         gain.connect(ctx.destination);
-
         noise.start(time);
         noise.stop(time + 0.08);
       }
 
-      // 3. 高速メロディ (三角波)
       const melFreq = melodyScale[currentStep];
       if (melFreq && melFreq > 0) {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(melFreq, time);
-
         gain.gain.setValueAtTime(0.04, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + stepDuration * 0.85);
-
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(time);
         osc.stop(time + stepDuration);
       }
-
       this.bgmStep++;
     };
 
     this.bgmIntervalId = setInterval(playStep, stepDuration * 1000);
   }
 
-  // 勝利ファンファーレジングル (ピロリロリ・ピロリロリ・パッパラー！)
+  public stopBGM() {
+    if (this.bgmIntervalId) {
+      clearInterval(this.bgmIntervalId);
+      this.bgmIntervalId = null;
+    }
+  }
+
+  // 勝利ファンファーレジングル (アセットロード対応)
   public playVictoryJingle() {
+    const audio = new Audio('/sounds/victory.mp3');
+    audio.volume = 0.55;
+    audio.play().catch(() => {
+      // フォールバックシンセ
+      this.playVictoryJingle_Synth();
+    });
+  }
+
+  private playVictoryJingle_Synth() {
     this.initContext();
     this.resumeContext();
     const ctx = this.ctx;
@@ -605,31 +679,35 @@ export class SoundManager {
     notes.forEach((note) => {
       const startTime = time + note.t;
       const duration = note.t === 0.42 ? 0.6 : 0.08;
-
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
       osc.type = 'square';
       osc.frequency.setValueAtTime(note.f, startTime);
-
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
       filter.frequency.setValueAtTime(2000, startTime);
-
       gain.gain.setValueAtTime(0.05, startTime);
       gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
 
       osc.connect(filter);
       filter.connect(gain);
       gain.connect(ctx.destination);
-
       osc.start(startTime);
       osc.stop(startTime + duration + 0.05);
     });
   }
 
-  // 敗北ゲームオーバー音 (テロロロ…プゥーン)
+  // 敗北ジングル (アセットロード対応)
   public playDefeatJingle() {
+    const audio = new Audio('/sounds/defeat.mp3');
+    audio.volume = 0.55;
+    audio.play().catch(() => {
+      this.playDefeatJingle_Synth();
+    });
+  }
+
+  private playDefeatJingle_Synth() {
     this.initContext();
     this.resumeContext();
     const ctx = this.ctx;
@@ -644,22 +722,74 @@ export class SoundManager {
     notes.forEach((note) => {
       const startTime = time + note.t;
       const duration = note.t === 0.4 ? 0.8 : 0.12;
-
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(note.f, startTime);
-
       gain.gain.setValueAtTime(0.08, startTime);
       gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
-
       osc.start(startTime);
       osc.stop(startTime + duration + 0.05);
     });
+  }
+
+  // ステージクリアジングル (アセットロード対応)
+  public playClearJingle() {
+    const audio = new Audio('/sounds/clear.mp3');
+    audio.volume = 0.55;
+    audio.play().catch(() => {
+      this.playClearJingle_Synth();
+    });
+  }
+
+  private playClearJingle_Synth() {
+    this.initContext();
+    this.resumeContext();
+    const ctx = this.ctx;
+    if (!ctx) return;
+
+    const time = ctx.currentTime;
+    const chord = [523.3, 784.0, 1046.5, 1318.5, 1568.0];
+
+    chord.forEach((freq, idx) => {
+      const startTime = time + idx * 0.08;
+      const duration = 1.0;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(freq, startTime);
+      const vibrato = ctx.createOscillator();
+      vibrato.frequency.setValueAtTime(8, startTime);
+      const vibGain = ctx.createGain();
+      vibGain.gain.setValueAtTime(10, startTime);
+      vibrato.connect(vibGain);
+      vibGain.connect(osc.frequency);
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(1800, startTime);
+      gain.gain.setValueAtTime(0.04, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      vibrato.start(startTime);
+      osc.start(startTime);
+      vibrato.stop(startTime + duration + 0.1);
+      osc.stop(startTime + duration + 0.1);
+    });
+  }
+  
+  // 予備ジングルハンドラダミー (クリア時にシンセ実行)
+  private playClearJingle_SynthBackup() {
+    this.playClearJingle_Synth();
   }
 
   // ステージクリア大お祝いジングル
