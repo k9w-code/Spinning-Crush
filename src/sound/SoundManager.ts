@@ -783,5 +783,4 @@ export class SoundManager {
       osc.stop(startTime + duration + 0.1);
     });
   }
-  }
 }
