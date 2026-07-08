@@ -4247,7 +4247,7 @@ class GameApp {
 
       // 勝利時セリフ
       if (speakerEl) speakerEl.textContent = npc.エネミー名;
-      const foundSerifu = this.セリフマスタ.find(s => s.TEXT_ID === `${npc.エネミーID}_win`);
+      const foundSerifu = this.セリフマスタ.find(s => s.TEXT_ID === `${npc.エネミーID}_lose`);
       if (textEl) textEl.textContent = foundSerifu?.テキスト内容 || "「ま、参りました…！君のギア、本当に強いね！」";
 
       // ロジックC：報酬ドロップ・リサイクル
@@ -4303,7 +4303,7 @@ class GameApp {
       
       // 敗北時セリフ
       if (speakerEl) speakerEl.textContent = npc.エネミー名;
-      const foundSerifu = this.セリフマスタ.find(s => s.TEXT_ID === `${npc.エネミーID}_lose`);
+      const foundSerifu = this.セリフマスタ.find(s => s.TEXT_ID === `${npc.エネミーID}_win`);
       if (textEl) textEl.textContent = foundSerifu?.テキスト内容 || "「ふっ、まだまだ修行が足りないようだな。再戦を待っているぞ！」";
 
       // 報酬はなし
