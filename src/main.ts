@@ -49,7 +49,7 @@ const INITIAL_SAVE_DATA: SaveData = {
   インベントリ: ['c001', 'b101_n', 'w101_n', 's101_n'],
   ドロップカウンタ: 0,
   ギアスロット: {
-    '1': { チップ: 'c001', ブレード: 'b101_n', ウェイト: 'w101_n', ソール: 's101_n', レベル: 1, EXP: 0 },
+    '1': null,
     '2': null,
     '3': null,
     '4': null,
@@ -269,6 +269,7 @@ class GameApp {
   private snd = SoundManager.getInstance();
   // セーブデータ
   public saveData: SaveData = JSON.parse(JSON.stringify(INITIAL_SAVE_DATA));
+  private isTutorialActive: boolean = false;
   private prevJp: number = 0; // バトル前のJP記憶用
   private particles: (SparkParticle | SmokeParticle)[] = [];
   private shockwaves: Shockwave[] = [];
@@ -600,6 +601,14 @@ class GameApp {
             slot.ソール = convertOldId(slot.ソール);
           }
         });
+
+        // スロット1が未設定の場合はチュートリアル中とみなす (監査バグ対策・リロード復帰)
+        if (this.saveData.ギアスロット['1'] === null) {
+          this.isTutorialActive = true;
+        } else {
+          this.isTutorialActive = false;
+        }
+
         return true;
       } catch (e) {
         console.error(e);
@@ -738,6 +747,7 @@ class GameApp {
       }
 
       this.saveData = JSON.parse(JSON.stringify(INITIAL_SAVE_DATA));
+      this.isTutorialActive = true; // チュートリアル中フラグを有効化
       // 新規データを即時セーブ（ページ更新で消えるのを防止）
       localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
 
@@ -745,8 +755,13 @@ class GameApp {
       this.changeScreen('garage-screen');
       // シャッター演出の終了を待ってからガレージ背景の上でプロローグを再生
       setTimeout(() => {
-        this.playScenario('prologue', () => {
-          // 会話劇終了
+        this.playScenario('prologue_intro', () => {
+          this.playScenario('prologue_naby_talk', () => {
+            // アセンブル画面へ強制遷移
+            this.editingSlotId = '1';
+            this.customOriginScreen = 'garage-screen';
+            this.changeScreen('custom-screen');
+          });
         });
       }, 550);
     });
@@ -781,6 +796,11 @@ class GameApp {
 
     // ③ カスタマイズ画面
     document.getElementById('btn-custom-cancel')?.addEventListener('click', () => {
+      // チュートリアル中はスロット1が空の状態で戻るのを禁止
+      if (this.isTutorialActive && this.saveData.ギアスロット['1'] === null) {
+        this.showSystemModal('チュートリアル', 'ナビィ：マスター、まずは最初のギアを組み立てましょう！パーツを4箇所すべてに装備してくださいね。');
+        return;
+      }
       // 最後にいた元の画面へ正確に戻る
       this.changeScreen(this.customOriginScreen);
     });
@@ -799,8 +819,20 @@ class GameApp {
       // セーブデータを自動セーブ
       localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
       
-      // 最後にいた元の画面へ正確に戻る
-      this.changeScreen(this.customOriginScreen);
+      if (this.isTutorialActive) {
+        // チュートリアル中アセンブル確定時
+        this.isTutorialActive = false; // フラグ解除
+        this.changeScreen('garage-screen');
+        setTimeout(() => {
+          this.playScenario('tutorial_success', () => {
+            // 自動的にマップ画面へ誘導
+            this.changeScreen('map-screen');
+          });
+        }, 550);
+      } else {
+        // 最後にいた元の画面へ正確に戻る
+        this.changeScreen(this.customOriginScreen);
+      }
     });
 
     // パーツスロット選択ボタンのバインド
