@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/src/index.css">
-  <title>Spinning Crush - 2D格闘ホビーRPG</title>
+  <title>DriveGear Crash - 2D格闘ホビーRPG</title>
 </head>
 <body>
   <div id="app">
@@ -26,7 +26,7 @@
         <canvas id="title-bg-canvas"></canvas>
         <div class="title-logo">
           <span class="logo-sub">2D格闘ホビーRPG</span>
-          <h1 class="logo-main">Spinning Crush</h1>
+          <h1 class="logo-main">DriveGear<br>Crash</h1>
         </div>
         <div class="menu-buttons">
           <button id="btn-new-game" class="btn btn-primary">NEW GAME</button>
@@ -50,7 +50,7 @@
           </div>
           <!-- 6大パラメータ簡易表示 -->
           <div class="stats-panel">
-            <h3>ギアステータス</h3>
+            <h3>ドライブギアステータス</h3>
             <div class="stats-list" id="garage-stats-list">
               <!-- JSで動的生成 -->
             </div>
@@ -66,13 +66,13 @@
       <!-- ================= ③ カスタマイズ画面 ================= -->
       <div id="custom-screen" class="screen">
         <div class="screen-header">
-          <h2>ギア・カスタマイズ</h2>
+          <h2>ドライブギア・カスタム</h2>
           <div class="jp-display">所持JP: <span id="custom-jp">0</span></div>
         </div>
         <div class="custom-layout">
           <!-- 左側：5スロット選択リスト -->
           <div class="slots-list-panel">
-            <h3>ギアスロット</h3>
+            <h3>ドライブギアスロット</h3>
             <div class="slots-container" id="custom-slots-container">
               <!-- スロット1〜5がJSで生成される -->
             </div>
@@ -192,7 +192,7 @@
         <div class="vs-layout">
           <!-- 左側: プレイヤーギア情報 & スロット切り替えギミック -->
           <div class="vs-gear-panel vs-player">
-            <div class="vs-enemy-title">自機ギア</div>
+            <div class="vs-enemy-title">自機ドライブギア</div>
             <div class="vs-gear-visual">
               <canvas id="vs-player-canvas" width="200" height="200"></canvas>
             </div>

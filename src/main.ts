@@ -798,7 +798,7 @@ class GameApp {
     document.getElementById('btn-custom-cancel')?.addEventListener('click', () => {
       // チュートリアル中はスロット1が空の状態で戻るのを禁止
       if (this.isTutorialActive && this.saveData.ギアスロット['1'] === null) {
-        this.showSystemModal('チュートリアル', 'ナビィ：マスター、まずは最初のギアを組み立てましょう！パーツを4箇所すべてに装備してくださいね。');
+        this.showSystemModal('チュートリアル', 'ナビィ：マスター、まずは最初のドライブギアを組み立てましょう！パーツを4箇所すべてに装備してくださいね。');
         return;
       }
       // 最後にいた元の画面へ正確に戻る
@@ -1182,7 +1182,7 @@ class GameApp {
       // ギア名表示
       const chip = this.チップマスタ.find(c => c.チップID === currentSlot.チップ);
       const nameEl = document.getElementById('garage-gear-name');
-      if (nameEl) nameEl.textContent = chip ? chip.チップ名 : 'カスタムギア';
+      if (nameEl) nameEl.textContent = chip ? chip.チップ名 : 'カスタムドライブギア';
 
       // アセンブル実行してステータス表示
       const assembled = アセンブル実行(
@@ -1265,7 +1265,7 @@ class GameApp {
       
       if (slot) {
         const chip = this.チップマスタ.find(c => c.チップID === slot.チップ);
-        gearName = chip ? chip.チップ名 : 'カスタムギア';
+        gearName = chip ? chip.チップ名 : 'カスタムドライブギア';
         const assembled = アセンブル実行(slot.チップ, slot.ブレード, slot.ウェイト, slot.ソール, slot.レベル, this.パーツマスタ, this.チップマスタ, this.奥義マスタ);
         details = `L: ${assembled.ステータス.ライフ} A: ${assembled.ステータス.アタック} D: ${assembled.ステータス.ディフェンス}`;
       }
@@ -2025,7 +2025,7 @@ class GameApp {
     const playerGearName = document.getElementById('vs-player-gear-name');
     if (playerGearName) {
       const chip = this.チップマスタ.find(c => c.チップID === playerSlot.チップ);
-      playerGearName.textContent = chip ? chip.チップ名 : 'カスタムギア';
+      playerGearName.textContent = chip ? chip.チップ名 : 'カスタムドライブギア';
     }
 
     this.renderVsStats('vs-player-stats', playerAssembled);
