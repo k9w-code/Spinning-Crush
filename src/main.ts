@@ -3250,19 +3250,21 @@ class GameApp {
     const enemyRange = this.battleManager.getレンジサークル半径(this.battleManager.エネミーギア.ステータス.レンジ);
     const overlay = document.getElementById('command-overlay');
     
-    if (
+    const isEnemyReady = 
       this.battleManager.現在フェーズ === 'ディスタンス' &&
       Math.floor(this.battleManager.エネミー攻撃ゲージ) >= 100 &&
       this.battleManager.get現在の間合い() <= enemyRange &&
-      overlay && !overlay.classList.contains('active')
-    ) {
+      overlay && !overlay.classList.contains('active');
+
+    if (isEnemyReady) {
       if (this.enemyTransitionDelayFrames === 0) {
         const lvl = this.battleManager.エネミーAI難易度;
-        if (lvl === 1) this.enemyTransitionDelayFrames = 75; // 1.25秒
-        else if (lvl === 2) this.enemyTransitionDelayFrames = 60;  // 1.0秒
-        else if (lvl === 3) this.enemyTransitionDelayFrames = 24;  // 0.4秒
-        else if (lvl === 4) this.enemyTransitionDelayFrames = 12;  // 0.2秒
-        else this.enemyTransitionDelayFrames = 60;
+        // 反応遅延フレーム数を適正化してテンポアップ
+        if (lvl === 1) this.enemyTransitionDelayFrames = 40; // 0.66秒
+        else if (lvl === 2) this.enemyTransitionDelayFrames = 30;  // 0.5秒
+        else if (lvl === 3) this.enemyTransitionDelayFrames = 12;  // 0.2秒
+        else if (lvl === 4) this.enemyTransitionDelayFrames = 5;   // 0.08秒
+        else this.enemyTransitionDelayFrames = 30;
       }
       
       this.enemyTransitionDelayFrames--;
@@ -3273,7 +3275,15 @@ class GameApp {
         this.triggerEnemyCommandPhase();
       }
     } else {
-      this.enemyTransitionDelayFrames = 0; // 範囲外に逃げられた場合は迷いタイマーをクリア
+      // 範囲外に逃げられた場合や衝突反発で離れた場合は、即時0リセットするのではなく、毎フレーム1ずつ蓄積を戻す（遅延を戻す）
+      // これにより一瞬の弾き飛ばしや離脱で攻撃判定が完全に消滅するのを防ぎ、AIの攻撃能動性を改善します
+      const lvl = this.battleManager.エネミーAI難易度;
+      const maxDelay = lvl === 1 ? 40 : (lvl === 2 ? 30 : (lvl === 3 ? 12 : 5));
+      if (this.enemyTransitionDelayFrames > 0 && this.enemyTransitionDelayFrames < maxDelay) {
+        this.enemyTransitionDelayFrames++;
+      } else {
+        this.enemyTransitionDelayFrames = 0;
+      }
     }
 
     // 勝敗判定チェック
