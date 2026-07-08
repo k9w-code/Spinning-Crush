@@ -505,42 +505,84 @@ class GameApp {
   // ==========================================
   // 3. セーブ機能 (ローカルストレージ)
   // ==========================================
+  private validateAndSanitizeSaveData(data: any): SaveData {
+    const fresh: SaveData = JSON.parse(JSON.stringify(INITIAL_SAVE_DATA));
+    if (!data || typeof data !== 'object') return fresh;
+
+    // JPの健全性チェック
+    const jp = Number(data.所持JP);
+    fresh.所持JP = isNaN(jp) ? 0 : Math.max(0, Math.floor(jp));
+
+    // ドロップカウンタの範囲制限 (0〜2)
+    const dc = Number(data.ドロップカウンタ);
+    fresh.ドロップカウンタ = isNaN(dc) ? 0 : Math.max(0, Math.floor(dc)) % 3;
+
+    // 最後使用スロット
+    const lS = Number(data.最後使用スロット);
+    fresh.最後使用スロット = (isNaN(lS) || lS < 1 || lS > 5) ? 1 : Math.floor(lS);
+
+    // インベントリのフィルタリング
+    if (Array.isArray(data.インベントリ)) {
+      fresh.インベントリ = data.インベントリ.filter((item: any) => typeof item === 'string' && item.trim() !== "");
+      // 初期装備がインベントリに含まれていることを保証
+      INITIAL_SAVE_DATA.インベントリ.forEach(defItem => {
+        if (!fresh.インベントリ.includes(defItem)) fresh.インベントリ.push(defItem);
+      });
+    }
+
+    // ギアスロットの整合性チェック（パーツ欠損スロットは未編成 null に強制リセットしてクラッシュを防ぐ）
+    if (data.ギアスロット && typeof data.ギアスロット === 'object') {
+      for (let i = 1; i <= 5; i++) {
+        const slotKey = i.toString();
+        const slot = data.ギアスロット[slotKey];
+        if (slot && typeof slot === 'object') {
+          if (slot.チップ && slot.ブレード && slot.ウェイト && slot.ソール) {
+            fresh.ギアスロット[slotKey] = {
+              チップ: String(slot.チップ).trim(),
+              ブレード: String(slot.ブレード).trim(),
+              ウェイト: String(slot.ウェイト).trim(),
+              ソール: String(slot.ソール).trim(),
+              レベル: isNaN(Number(slot.レベル)) ? 1 : Math.min(5, Math.max(1, Math.floor(Number(slot.レベル)))),
+              EXP: isNaN(Number(slot.EXP)) ? 0 : Math.min(3, Math.max(0, Math.floor(Number(slot.EXP))))
+            };
+          } else {
+            fresh.ギアスロット[slotKey] = null;
+          }
+        }
+      }
+    }
+
+    // 進行状況フラグ
+    if (data.ステージクリア状況 && typeof data.ステージクリア状況 === 'object') {
+      Object.keys(data.ステージクリア状況).forEach(k => { fresh.ステージクリア状況[k] = !!data.ステージクリア状況[k]; });
+    }
+    if (data.ボス解放済みステージ && typeof data.ボス解放済みステージ === 'object') {
+      Object.keys(data.ボス解放済みステージ).forEach(k => { fresh.ボス解放済みステージ[k] = !!data.ボス解放済みステージ[k]; });
+    }
+    if (data.勝利数 && typeof data.勝利数 === 'object') {
+      Object.keys(data.勝利数).forEach(k => { fresh.勝利数[k] = Number(data.勝利数[k]) || 0; });
+    }
+    return fresh;
+  }
+
   private saveGameToStorage() {
-    localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
-    this.showSystemModal('セーブ完了', 'ガレージの日記に冒険の記録をセーブしました！');
+    try {
+      this.saveData = this.validateAndSanitizeSaveData(this.saveData);
+      localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
+      this.showSystemModal('セーブ完了', 'ガレージの日記に冒険の記録をセーブしました！');
+    } catch (e: any) {
+      console.error("Save failed:", e);
+      this.showSystemModal('セーブ失敗', `セーブデータの書き込み中にエラーが発生しました: ${e.message}`);
+    }
   }
 
   private loadGameFromStorage(): boolean {
     const saved = localStorage.getItem('spinning_crush_save');
     if (saved) {
       try {
-        this.saveData = JSON.parse(saved);
-        // 後方互換性用のスロット初期化
-        if (!this.saveData.ギアスロット) {
-          this.saveData.ギアスロット = JSON.parse(JSON.stringify(INITIAL_SAVE_DATA.ギアスロット));
-        }
-        if (!this.saveData.勝利数) {
-          this.saveData.勝利数 = {};
-        }
-        if (this.saveData.ボス解放済み === undefined) {
-          this.saveData.ボス解放済み = false;
-        }
-        if (this.saveData.ステージ1クリア === undefined) {
-          this.saveData.ステージ1クリア = false;
-        }
-        if (this.saveData.ステージ2クリア === undefined) {
-          this.saveData.ステージ2クリア = false;
-        }
-        if (!this.saveData.ステージクリア状況) {
-          this.saveData.ステージクリア状況 = {};
-        }
-        // 旧フラグからのインポート
-        if (this.saveData.ステージ1クリア) {
-          this.saveData.ステージクリア状況['st001'] = true;
-        }
-        if (this.saveData.ステージ2クリア) {
-          this.saveData.ステージクリア状況['st002'] = true;
-        }
+        const raw = JSON.parse(saved);
+        this.saveData = this.validateAndSanitizeSaveData(raw);
+
         // 旧パーツIDから新パーツIDへの移行処理 (b001 -> b101 など)
         const convertOldId = (id: string): string => {
           if (/^[bws]00\d_[fawen]$/.test(id)) {
@@ -549,23 +591,15 @@ class GameApp {
           return id;
         };
 
-        if (this.saveData.インベントリ) {
-          this.saveData.インベントリ = this.saveData.インベントリ.map(convertOldId);
-        }
-        if (this.saveData.ギアスロット) {
-          Object.keys(this.saveData.ギアスロット).forEach(key => {
-            const slot = this.saveData.ギアスロット[key];
-            if (slot) {
-              slot.ブレード = convertOldId(slot.ブレード);
-              slot.ウェイト = convertOldId(slot.ウェイト);
-              slot.ソール = convertOldId(slot.ソール);
-            }
-          });
-        }
-
-        if (!this.saveData.ボス解放済みステージ) {
-          this.saveData.ボス解放済みステージ = {};
-        }
+        this.saveData.インベントリ = this.saveData.インベントリ.map(convertOldId);
+        Object.keys(this.saveData.ギアスロット).forEach(key => {
+          const slot = this.saveData.ギアスロット[key];
+          if (slot) {
+            slot.ブレード = convertOldId(slot.ブレード);
+            slot.ウェイト = convertOldId(slot.ウェイト);
+            slot.ソール = convertOldId(slot.ソール);
+          }
+        });
         return true;
       } catch (e) {
         console.error(e);
@@ -752,6 +786,12 @@ class GameApp {
     });
 
     document.getElementById('btn-custom-confirm')?.addEventListener('click', () => {
+      // バリデーション: 未装備の部位がないかチェック (監査バグ2)
+      if (!this.customGearSim.チップ || !this.customGearSim.ブレード || !this.customGearSim.ウェイト || !this.customGearSim.ソール) {
+        this.showSystemModal('アセンブル不完全', 'すべての部位（チップ、ブレード、ウェイト、ソール）にパーツを装備してください。');
+        return;
+      }
+
       // 現在のアセンブルデータを確定してスロットに保存
       this.saveData.ギアスロット[this.editingSlotId] = JSON.parse(JSON.stringify(this.customGearSim));
       this.saveData.最後使用スロット = Number(this.editingSlotId);
@@ -799,6 +839,13 @@ class GameApp {
     document.getElementById('btn-vs-start')?.addEventListener('click', () => {
       if (!this.selectedNpc) return;
       if (this.isTransitioning) return;
+
+      // 出撃スロットが未編成でないかを検証
+      const playerSlot = this.saveData.ギアスロット[this.vsSlotIndex.toString()];
+      if (!playerSlot) {
+        this.showSystemModal('編成エラー', '選択されたスロットは未編成です。ガレージでパーツを装備してから出撃してください。');
+        return;
+      }
 
       const btn = document.getElementById('btn-vs-start') as HTMLButtonElement;
       if (btn) btn.disabled = true;
@@ -982,6 +1029,12 @@ class GameApp {
     // バトル画面全体のクリックで「F」キーの役割を持たせる (レイヤーによる遮断を防ぐためdocument全体で捕捉)
     document.addEventListener('click', (e) => {
       if (this.currentScreenId !== 'battle-screen' || !this.battleManager) {
+        return;
+      }
+
+      // 会話ダイアログがアクティブな場合は、バトル操作のためのクリック入力をガードする (監査バグ8)
+      const talkDialog = document.getElementById('talk-dialog');
+      if (talkDialog && talkDialog.classList.contains('active')) {
         return;
       }
 
@@ -1587,12 +1640,14 @@ class GameApp {
 
       if (!isLocked) {
         pin.addEventListener('click', () => {
+          if (this.isTransitioning) return; // 遷移ロック中は処理を完全に拒否
           this.selectedStageId = stage.ステージID;
           this.initStageScreen();
           this.changeScreen('stage-screen');
         });
       } else {
         pin.addEventListener('click', () => {
+          if (this.isTransitioning) return;
           const reqStage = this.ステージマスタ.find(s => s.ステージID === stage.解放条件);
           const reqName = reqStage ? reqStage.ステージ名 : '前ステージ';
           this.showSystemModal('エリアロック', `『${reqName}』のボスを撃破すると解放されます！`);
@@ -1611,6 +1666,7 @@ class GameApp {
     shopDiv.style.background = '#ffd800';
     shopDiv.style.borderColor = '#222';
     shopDiv.addEventListener('click', () => {
+      if (this.isTransitioning) return;
       this.changeScreen('shop-screen');
     });
     pinsContainer.appendChild(shopDiv);
@@ -4008,7 +4064,7 @@ class GameApp {
       const 防御側ディフェンス = 防御側ギア.ステータス.ディフェンス;
       
       // ダメージ基本計算式
-      let ダメージ = 0.18 * 攻撃側アタック * (攻撃側アタック / 防御側ディフェンス) * 最終倍率;
+      let ダメージ = 0.18 * 攻撃側アタック * (攻撃側アタック / Math.max(1, 防御側ディフェンス)) * 最終倍率;
 
       let advDialogText = '';
       let isHit = true;
@@ -4085,7 +4141,7 @@ class GameApp {
         const ソール相性 = 属性相性判定(防御側ギア.部位属性.ソール, 攻撃側ギア.部位属性.ソール);
         const ソール属性補正 = ソール相性 === 1 ? 10 : (ソール相性 === -1 ? -10 : 0);
 
-        const 最終回避率 = baseEvade + (防御側ギア.ステータス.スピード - 攻撃側ギア.ステータス.スピード) / 20 + ソール属性補正;
+        const 最終回避率 = Math.min(100, Math.max(0, baseEvade + (防御側ギア.ステータス.スピード - 攻撃側ギア.ステータス.スピード) / 20 + ソール属性補正));
         const 乱数 = Math.random() * 100;
 
         if (乱数 < 最終回避率) {
@@ -4118,7 +4174,7 @@ class GameApp {
           
           const 反撃ブレード相性 = 属性相性判定(防御側ギア.部位属性.ブレード, 攻撃側ギア.部位属性.ブレード);
           const 反撃補正 = 反撃ブレード相性 === 1 ? 0.1 : (反撃ブレード相性 === -1 ? -0.1 : 0);
-          const 反撃ダメージ = 0.18 * 防御側ギア.ステータス.アタック * (防御側ギア.ステータス.アタック / 攻撃側ギア.ステータス.ディフェンス) * (0.7 + 反撃補正);
+          const 反撃ダメージ = 0.18 * 防御側ギア.ステータス.アタック * (防御側ギア.ステータス.アタック / Math.max(1, 攻撃側ギア.ステータス.ディフェンス)) * (0.7 + 反撃補正);
 
           this.clashPendingCounterDamage = 反撃ダメージ;
           advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}の鋭いカウンター炸裂！反撃ダメージを与えた！ (反撃被ダメージ: ${Math.floor(反撃ダメージ)} / 成功率: ${カウンター成功率.toFixed(1)}%)`;
@@ -4155,7 +4211,7 @@ class GameApp {
           const counterAtkMultiplier = Number(防御奥義.効果量 || 200) / 100;
           const 反撃ブレード相性 = 属性相性判定(防御側ギア.部位属性.ブレード, 攻撃側ギア.部位属性.ブレード);
           const 反撃補正 = 反撃ブレード相性 === 1 ? 0.1 : (反撃ブレード相性 === -1 ? -0.1 : 0);
-          const 反撃ダメージ = 0.18 * 防御側ギア.ステータス.アタック * (防御側ギア.ステータス.アタック / 攻撃側ギア.ステータス.ディフェンス) * (counterAtkMultiplier + 反撃補正);
+          const 反撃ダメージ = 0.18 * 防御側ギア.ステータス.アタック * (防御側ギア.ステータス.アタック / Math.max(1, 攻撃側ギア.ステータス.ディフェンス)) * (counterAtkMultiplier + 反撃補正);
 
           this.clashPendingCounterDamage = 反撃ダメージ;
           advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}のカウンター奥義「${防御奥義.奥義名}」が炸裂！強烈な反撃！ (反撃被ダメージ: ${Math.floor(反撃ダメージ)} / 成功率: ${カウンター成功率.toFixed(1)}%)`;
@@ -5152,6 +5208,15 @@ class GameApp {
   // 8. ADV演出エンジン
   // ==========================================
   public playScenario(scenarioId: string, onComplete: () => void) {
+    // 既に別の会話が実行中の場合、クリーンアップして古いコールバックを安全に回収する (監査バグ4)
+    if (document.getElementById('talk-dialog')?.classList.contains('active')) {
+      if (this.talkOnCompleteAll) {
+        const cb = this.talkOnCompleteAll;
+        this.talkOnCompleteAll = null;
+        cb();
+      }
+    }
+
     try {
       const steps = this.シナリオマスタ
         .filter(s => s.シナリオID === scenarioId)
@@ -5159,6 +5224,10 @@ class GameApp {
 
       if (steps.length === 0) {
         this.showSystemModal('シナリオ再生エラー', `シナリオ「${scenarioId}」のステップがマスタデータに見つかりません。マスタが空の可能性があります。`);
+        // ダイアログ状態とコールバックをクリアして安全に抜ける
+        document.getElementById('talk-dialog')?.classList.remove('active');
+        this.talkQueue = [];
+        this.talkOnCompleteAll = null;
         onComplete();
         return;
       }
@@ -5242,8 +5311,9 @@ class GameApp {
     if (this.currentTalkIndex >= this.talkQueue.length) {
       document.getElementById('talk-dialog')?.classList.remove('active');
       if (this.talkOnCompleteAll) {
-        this.talkOnCompleteAll();
-        this.talkOnCompleteAll = null;
+        const cb = this.talkOnCompleteAll;
+        this.talkOnCompleteAll = null; // 実行前にnullクリアすることで、コールバック内での新規会話の登録を上書き破壊しない (監査バグ4)
+        cb();
       }
       return;
     }
