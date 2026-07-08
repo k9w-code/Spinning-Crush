@@ -799,33 +799,15 @@ class GameApp {
       const hasScenario = this.シナリオマスタ.some(s => s.シナリオID === scenarioId);
 
       if (hasScenario) {
-        // 対戦前シナリオがある場合は掛け合い劇を再生してからバトル開始
+        // シナリオがある場合はストーリー再生後にVSカットイン演出へ
         this.playScenario(scenarioId, () => {
-          this.startBattle();
+          this.triggerVsCutin(() => {
+            this.startBattle();
+          });
         });
       } else {
-        // シナリオがない場合は従来の1行会話
-        const found = this.セリフマスタ.find(s => s.TEXT_ID === `${enemyId}_before`);
-        const beforeText = found ? found.テキスト内容 : "「いざ尋常に…勝負！」";
-
-        this.startTalk([
-          {
-            speaker: this.selectedNpc.エネミー名,
-            text: beforeText,
-            onComplete: () => {
-              const avatarRight = document.getElementById('talk-avatar-right');
-              if (avatarRight) {
-                // 右側にライバルキャラのホログラム立ち絵を表示
-                const isDefault = !['e005', 'e010', 'e015', 'e020', 'e025', 'e030'].includes(enemyId);
-                avatarRight.className = `talk-avatar right active ${isDefault ? 'avatar-default' : 'avatar-' + enemyId}`;
-              }
-            }
-          }
-        ], () => {
-          const avatarRight = document.getElementById('talk-avatar-right');
-          if (avatarRight) {
-            avatarRight.className = 'talk-avatar right';
-          }
+        // 通常対決は即時カットイン演出を実行してバトル開始
+        this.triggerVsCutin(() => {
           this.startBattle();
         });
       }
@@ -2053,6 +2035,8 @@ class GameApp {
           ${pSoleAttr !== '無' || eSoleAttr !== '無' ? getMatchupBadgeHtml(soleRes, 'enemy') : ''}
         </div>
       `;
+      
+      this.drawVsRadarChart(playerAssembled, enemyAssembled);
     }
   }
 
@@ -2069,6 +2053,154 @@ class GameApp {
       <div class="vs-stat-item"><span>範囲:</span> <span>${stats.レンジ}</span></div>
       <div class="vs-stat-item"><span>機動:</span> <span>${stats.モビリティ}</span></div>
     `;
+  }
+
+  private drawVsRadarChart(playerAssembled: アセンブルデータ, enemyAssembled: アセンブルデータ) {
+    const canvas = document.getElementById('vs-radar-canvas') as HTMLCanvasElement;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // キャンバスのクリア
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const radius = 80;
+    const keys = ['ライフ', 'アタック', 'ディフェンス', 'スピード', 'レンジ', 'モビリティ'];
+    const maxValues = { ライフ: 1200, アタック: 150, ディフェンス: 1200, スピード: 150, レンジ: 800, モビリティ: 150 };
+
+    const numPoints = keys.length;
+
+    // 1. レーダーグリッド（多角形）の背景・同心円グリッドの描画
+    ctx.strokeStyle = 'rgba(0, 243, 255, 0.15)';
+    ctx.lineWidth = 1;
+
+    for (let j = 1; j <= 4; j++) {
+      const r = radius * (j / 4);
+      ctx.beginPath();
+      for (let i = 0; i < numPoints; i++) {
+        const angle = (i * 2 * Math.PI) / numPoints - Math.PI / 2;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+
+    // 放射状の軸線を描く
+    ctx.beginPath();
+    for (let i = 0; i < numPoints; i++) {
+      const angle = (i * 2 * Math.PI) / numPoints - Math.PI / 2;
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + radius * Math.cos(angle), cy + radius * Math.sin(angle));
+    }
+    ctx.stroke();
+
+    // 軸ラベルの描画
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '9px var(--font-hud)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const labelOffsets = [
+      { x: 0, y: -12 }, // ライフ
+      { x: 12, y: -6 }, // アタック
+      { x: 12, y: 6 },  // ディフェンス
+      { x: 0, y: 12 },  // スピード
+      { x: -12, y: 6 }, // レンジ
+      { x: -12, y: -6 } // モビリティ
+    ];
+
+    keys.forEach((key, i) => {
+      const angle = (i * 2 * Math.PI) / numPoints - Math.PI / 2;
+      const label = key === 'ディフェンス' ? '防衛' : (key === 'スピード' ? '速さ' : (key === 'モビリティ' ? '機動' : (key === 'レンジ' ? '範囲' : key)));
+      const offset = labelOffsets[i];
+      const lx = cx + (radius + 18) * Math.cos(angle) + offset.x;
+      const ly = cy + (radius + 12) * Math.sin(angle) + offset.y;
+      ctx.fillText(label, lx, ly);
+    });
+
+    // 2. プレイヤーのチャートデータ描画
+    const drawChart = (assembled: アセンブルデータ, color: string, fillColor: string) => {
+      ctx.strokeStyle = color;
+      ctx.fillStyle = fillColor;
+      ctx.lineWidth = 2.5;
+
+      ctx.beginPath();
+      keys.forEach((key, i) => {
+        const val = (assembled.ステータス as any)[key] || 0;
+        const max = (maxValues as any)[key] || 100;
+        const pct = Math.min(1.0, Math.max(0.1, val / max));
+        const r = radius * pct;
+        const angle = (i * 2 * Math.PI) / numPoints - Math.PI / 2;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fill();
+    };
+
+    // エネミー: ネオンレッド
+    drawChart(enemyAssembled, '#ff0055', 'rgba(255, 0, 85, 0.25)');
+    // プレイヤー: ネオンブルー
+    drawChart(playerAssembled, '#00f3ff', 'rgba(0, 243, 255, 0.25)');
+  }
+
+  private triggerVsCutin(onComplete: () => void) {
+    if (!this.selectedNpc) {
+      onComplete();
+      return;
+    }
+
+    const overlay = document.getElementById('vs-cutin-overlay');
+    const speakerEl = document.getElementById('vs-talk-speaker');
+    const bubbleEl = document.getElementById('vs-talk-bubble');
+    const enemyPortraitName = document.getElementById('vs-enemy-portrait-name');
+
+    if (!overlay || !speakerEl || !bubbleEl) {
+      onComplete();
+      return;
+    }
+
+    // セリフマスタから対戦前セリフを抽出
+    const enemyId = this.selectedNpc.エネミーID;
+    const found = this.セリフマスタ.find(s => s.TEXT_ID === `${enemyId}_before`);
+    const beforeText = found ? found.テキスト内容 : "「いざ尋常に…勝負！」";
+
+    // 情報を流し込む
+    speakerEl.textContent = this.selectedNpc.エネミー名;
+    bubbleEl.textContent = beforeText;
+    if (enemyPortraitName) {
+      enemyPortraitName.textContent = this.selectedNpc.エネミー名.toUpperCase();
+    }
+
+    // 演出を活性化
+    overlay.classList.add('active');
+    this.snd.playOsugiCharge(); // 立ち上がりで盛り上げる充電金属SEを借用
+
+    // クリックでスキップ、または2.2秒後に自動完了
+    let completed = false;
+    const finish = () => {
+      if (completed) return;
+      completed = true;
+      overlay.classList.remove('active');
+      document.removeEventListener('keydown', handleKey);
+      overlay.removeEventListener('click', handleClick);
+      onComplete();
+    };
+
+    const handleKey = () => finish();
+    const handleClick = () => finish();
+
+    document.addEventListener('keydown', handleKey);
+    overlay.addEventListener('click', handleClick);
+
+    setTimeout(finish, 2200);
   }
 
   private getGachaMaxRank(): number {
@@ -2965,12 +3097,12 @@ class GameApp {
       this.commandPhaseCooldownFrames--;
     }
 
-    // プレイヤーの入力値マッピング (移行はオートになったためFキー入力のディスタンスフェーズ中マッピングは不要)
+    // プレイヤーの入力値マッピング (手動移行トリガーを適用: Finding 7)
     let input: 'A' | 'D' | 'F' | null = null;
     if (this.keyState['a'] || this.keyState['arrowleft']) input = 'A';
     if (this.keyState['d'] || this.keyState['arrowright']) input = 'D';
     if (this.keyState['f']) {
-      // コマンドフェーズ決定用のFキー入力は、キーダウン処理側で別途制御するため、ここでは入力を消費するのみ
+      input = 'F';
       this.keyState['f'] = false;
     }
 
@@ -2979,11 +3111,26 @@ class GameApp {
 
     // 衝突検知時のエフェクト生成
     if (this.battleManager.isJustCollided) {
-      // 火花生成 (ポップなオレンジ＆イエロー＆ホワイトのトイスパーク)
-      for (let i = 0; i < 15; i++) {
-        this.particles.push(new SparkParticle(this.battleManager.collisionX, this.battleManager.collisionY, '#ff5500'));
-        this.particles.push(new SparkParticle(this.battleManager.collisionX, this.battleManager.collisionY, '#ffd800'));
-        if (Math.random() < 0.4) {
+      // 属性に応じた火花ネオンカラーを算出 (パッケージA)
+      const pAttr = this.battleManager.プレイヤーギア.部位属性.ブレード || '無';
+      const eAttr = this.battleManager.エネミーギア.部位属性.ブレード || '無';
+      
+      const getSparkColor = (attr: string) => {
+        if (attr === '火') return '#ff0055';
+        if (attr === '水') return '#00f3ff';
+        if (attr === '風') return '#39ff14';
+        if (attr === '土' || attr === '雷') return '#ffaa00';
+        return '#ffffff';
+      };
+
+      const pColor = getSparkColor(pAttr);
+      const eColor = getSparkColor(eAttr);
+
+      // 両者の属性火花をブレンドして激しく飛び散らせる
+      for (let i = 0; i < 10; i++) {
+        this.particles.push(new SparkParticle(this.battleManager.collisionX, this.battleManager.collisionY, pColor));
+        this.particles.push(new SparkParticle(this.battleManager.collisionX, this.battleManager.collisionY, eColor));
+        if (Math.random() < 0.3) {
           this.particles.push(new SparkParticle(this.battleManager.collisionX, this.battleManager.collisionY, '#ffffff'));
         }
       }
@@ -2991,9 +3138,9 @@ class GameApp {
       // 激突の衝撃波 (Shockwave) を生成
       this.shockwaves.push(new Shockwave(this.battleManager.collisionX, this.battleManager.collisionY));
 
-      // リアルタイム衝突時の簡易ヒットストップ＆シェイク
-      this.battleHitStopFrames = 3;
-      this.battleShakeFrames = 5;
+      // リアルタイム衝突時のヒットストップ＆シェイク強化 (パッケージA)
+      this.battleHitStopFrames = 5; // より強い衝突フィードバック
+      this.battleShakeFrames = 12;  // 衝撃を伝える画面揺れ
     }
 
     // パーティクルの更新

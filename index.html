@@ -208,7 +208,10 @@
             </div>
           </div>
 
-          <div class="vs-divider">VS</div>
+          <div class="vs-divider-container">
+            <div class="vs-divider">VS</div>
+            <canvas id="vs-radar-canvas" width="240" height="240" style="margin-top: 20px; z-index: 10;"></canvas>
+          </div>
 
           <!-- 右側: 対戦相手NPCギア情報 -->
           <div class="vs-gear-panel vs-enemy">
@@ -229,6 +232,29 @@
           <button id="btn-vs-back" class="btn btn-secondary">戻る</button>
           <button id="btn-vs-custom" class="btn btn-outline">カスタマイズへ直行</button>
           <button id="btn-vs-start" class="btn btn-primary btn-large">バトル開始！</button>
+        </div>
+
+        <!-- GBA風対決カットイン演出オーバーレイ (パッケージB) -->
+        <div id="vs-cutin-overlay" class="vs-cutin-overlay">
+          <div class="vs-cutin-stripe"></div>
+          <div class="vs-cutin-slit">
+            <!-- プレイヤー側カットイン -->
+            <div class="vs-portrait-player">
+              <div class="vs-portrait-glow-p"></div>
+              <div class="vs-portrait-fallback-p">PLAYER</div>
+            </div>
+            <div class="vs-vs-neon">VS</div>
+            <!-- エネミー側カットイン -->
+            <div class="vs-portrait-enemy">
+              <div class="vs-portrait-glow-e"></div>
+              <div class="vs-portrait-fallback-e" id="vs-enemy-portrait-name">ENEMY</div>
+            </div>
+          </div>
+          <!-- 対話吹き出しダイアログ -->
+          <div id="vs-talk-container" class="vs-talk-container">
+            <div id="vs-talk-speaker" class="vs-talk-speaker">NPC名</div>
+            <div id="vs-talk-bubble" class="vs-talk-bubble">「挑発のセリフ」</div>
+          </div>
         </div>
       </div>
 
