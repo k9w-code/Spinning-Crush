@@ -337,6 +337,9 @@ export class SoundManager {
 
   private playExternalBGM(filename: string, loop: boolean = true): Promise<boolean> {
     this.targetBgmFilename = filename;
+    // 新しいBGMを要求された瞬間に、古い外部BGMの再生を即時完全停止する
+    this.stopExternalAudio();
+
     return new Promise((resolve) => {
       this.stopBGM(); // 既存のシンセBGMを停止
 
@@ -417,15 +420,21 @@ export class SoundManager {
 
   // 各画面ごとのアセット音楽のトリガー (アセット未配置ならフォールバックで自動シンセ演奏または無音)
   public startOpeningBGM() {
-    this.playExternalBGM('opening.mp3');
+    this.playExternalBGM('opening.mp3').then(success => {
+      if (!success) this.startLobbyBGM_Synth();
+    });
   }
 
   public startLobbyBGM() {
-    this.playExternalBGM('lobby.mp3');
+    this.playExternalBGM('lobby.mp3').then(success => {
+      if (!success) this.startLobbyBGM_Synth();
+    });
   }
 
   public startShopBGM() {
-    this.playExternalBGM('shop.mp3');
+    this.playExternalBGM('shop.mp3').then(success => {
+      if (!success) this.startLobbyBGM_Synth();
+    });
   }
 
   // 通常バトル用BGM (アセット接続 ➔ フォールバックはCメジャー熱血シンセOP風)
@@ -655,6 +664,80 @@ export class SoundManager {
         gain.connect(ctx.destination);
         osc.start(time);
         osc.stop(time + stepDuration);
+      }
+      this.bgmStep++;
+    };
+
+    this.bgmIntervalId = setInterval(playStep, stepDuration * 1000);
+  }
+
+  private startLobbyBGM_Synth() {
+    this.initContext();
+    this.resumeContext();
+    const ctx = this.ctx;
+    if (!ctx) return;
+    if (this.bgmIntervalId) this.stopBGM();
+
+    const bpm = 105;
+    const stepDuration = 60 / bpm / 2; // 八分音符の間隔
+    const baseScale = [130.81, 146.83, 164.81, 196.00, 130.81, 146.83, 164.81, 196.00];
+    const melodyScale = [
+      261.63, 293.66, 329.63, 0, 392.00, 329.63, 293.66, 0,
+      329.63, 392.00, 440.00, 0, 392.00, 440.00, 523.25, 0,
+      0, 523.25, 440.00, 392.00, 329.63, 0, 293.66, 261.63,
+      293.66, 329.63, 392.00, 293.66, 261.63, 0, 0, 0
+    ];
+
+    this.bgmStep = 0;
+
+    const playStep = () => {
+      if (!ctx || ctx.state === 'suspended') return;
+      const time = ctx.currentTime;
+      const currentStep = this.bgmStep % 32;
+      const baseIdx = Math.floor(currentStep / 2) % 8;
+      const baseFreq = baseScale[baseIdx];
+
+      // ベース（柔らかい三角波）
+      if (baseFreq > 0 && currentStep % 2 === 0) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(baseFreq * 0.75, time); // 低音オクターブ
+        gain.gain.setValueAtTime(0.04, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + stepDuration * 1.8);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(time);
+        osc.stop(time + stepDuration * 2);
+      }
+
+      // 静かなチクチクパーカッション (16分音符)
+      if (currentStep % 4 === 0) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.setValueAtTime(1000, time);
+        osc.frequency.linearRampToValueAtTime(10, time + 0.03);
+        gain.gain.setValueAtTime(0.015, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(time);
+        osc.stop(time + 0.04);
+      }
+
+      // ピコピコメロディ (サイン波でやさしい響き)
+      const melFreq = melodyScale[currentStep];
+      if (melFreq && melFreq > 0) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(melFreq, time);
+        gain.gain.setValueAtTime(0.035, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + stepDuration * 1.2);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(time);
+        osc.stop(time + stepDuration * 1.5);
       }
       this.bgmStep++;
     };

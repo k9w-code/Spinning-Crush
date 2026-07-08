@@ -319,7 +319,7 @@ class GameApp {
   // カスタマイズ画面用ステータス
   private editingSlotId: string = '1';
   private customOriginScreen: string = 'garage-screen'; // 戻り先画面不具合修正用
-  private customGearSim: SlotData = { チップ: 'c001', ブレード: 'b001_n', ウェイト: 'w001_n', ソール: 's001_n', レベル: 1, EXP: 0 };
+  private customGearSim: SlotData = { チップ: 'c001', ブレード: 'b101_n', ウェイト: 'w101_n', ソール: 's101_n', レベル: 1, EXP: 0 };
 
   // マップ画面
   private mapCanvas: HTMLCanvasElement | null = null;
@@ -585,6 +585,11 @@ class GameApp {
         this.previewAnimIds[canvasId] = 0;
       }
     });
+    // 新パーツ獲得演出のCanvasループも安全に停止する (監査バグ6)
+    if (this.partGetAnimFrameId) {
+      cancelAnimationFrame(this.partGetAnimFrameId);
+      this.partGetAnimFrameId = null;
+    }
   }
 
   private changeScreen(screenId: string) {
@@ -793,6 +798,10 @@ class GameApp {
 
     document.getElementById('btn-vs-start')?.addEventListener('click', () => {
       if (!this.selectedNpc) return;
+      if (this.isTransitioning) return;
+
+      const btn = document.getElementById('btn-vs-start') as HTMLButtonElement;
+      if (btn) btn.disabled = true;
       
       const enemyId = this.selectedNpc.エネミーID;
       const scenarioId = `${enemyId}_before`;
@@ -1020,6 +1029,9 @@ class GameApp {
         // マップ画面に戻し、ステージクリアの派手な演出を実行
         this.changeScreen('map-screen');
 
+        // クリア演出中は他のマップピンをクリックさせないよう一時ロック (監査バグ4)
+        this.isTransitioning = true;
+
         setTimeout(() => {
           const clearOverlay = document.getElementById('stage-clear-overlay');
           if (clearOverlay) {
@@ -1031,9 +1043,12 @@ class GameApp {
               clearOverlay.classList.remove('active');
               const scenarioId = `${currentStageId}_clear`;
               this.playScenario(scenarioId, () => {
+                this.isTransitioning = false; // 操作ロック解除
                 this.changeScreen('stage-screen');
               });
             }, 2800);
+          } else {
+            this.isTransitioning = false;
           }
         }, 600); // 画面遷移シャッターが開くのを待つ
       } else {
@@ -1869,6 +1884,9 @@ class GameApp {
 
     // プレイヤーの最後使用スロットから表示
     this.vsSlotIndex = this.saveData.最後使用スロット;
+
+    const btn = document.getElementById('btn-vs-start') as HTMLButtonElement;
+    if (btn) btn.disabled = false;
 
     this.updateVsGearDisplay();
   }
@@ -3404,6 +3422,12 @@ class GameApp {
   private executePlayerAttack(type: string, osugi?: 奥義マスタ行) {
     try {
       if (!this.battleManager || !this.selectedNpc) return;
+
+      // アニメーション演出中の二重実行防止ガード (監査バグ1)
+      if (this.isClashAnimationActive || this.isOsugiCutinActive) {
+        return;
+      }
+
       document.getElementById('command-overlay')?.classList.remove('active');
 
       let atkCost = 0;
@@ -3823,6 +3847,12 @@ class GameApp {
   ) {
     try {
       if (!this.battleManager) return;
+
+      // アニメーション演出中の二重実行防止ガード (監査バグ1)
+      if (this.isClashAnimationActive || this.isOsugiCutinActive) {
+        return;
+      }
+
       document.getElementById('command-overlay')?.classList.remove('active');
 
       const runDefense = () => {
@@ -3888,6 +3918,16 @@ class GameApp {
     const cutinImg = document.getElementById('seiju-cutin-img') as HTMLImageElement;
     const cutinText = document.getElementById('seiju-cutin-fallback-text') as HTMLElement;
     const cutinOverlay = document.getElementById('seiju-cutin-overlay');
+
+    // 前回表示した聖獣画像が非同期ロード完了まで残ってチラつくのを防ぐ初期化 (監査バグ5)
+    if (cutinImg) {
+      cutinImg.removeAttribute('src');
+      cutinImg.style.display = 'none';
+    }
+    if (cutinText) {
+      cutinText.textContent = '';
+      cutinText.style.display = 'none';
+    }
 
     if (cutinOverlay) {
       if (imgUrl) {
