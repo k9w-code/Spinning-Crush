@@ -978,7 +978,7 @@ class GameApp {
               this.saveData.クリア状況[enemy.エネミーID] = true;
             }
           });
-          for (let i = 1; i <= 6; i++) {
+          for (let i = 1; i <= 7; i++) {
             const stId = `st00${i}`;
             this.saveData.ボス解放済みステージ[stId] = true;
             this.saveData.ステージクリア状況[stId] = true;
@@ -1636,7 +1636,8 @@ class GameApp {
       'st003': { x: 450, y: 250 },
       'st004': { x: 600, y: 150 },
       'st005': { x: 720, y: 250 },
-      'st006': { x: 680, y: 90 }
+      'st006': { x: 680, y: 90 },
+      'st007': { x: 530, y: 70 }
     };
 
     // ステージマスタからピンを生成
@@ -1737,7 +1738,8 @@ class GameApp {
       'st003': { x: 450, y: 250 },
       'st004': { x: 600, y: 150 },
       'st005': { x: 720, y: 250 },
-      'st006': { x: 680, y: 90 }
+      'st006': { x: 680, y: 90 },
+      'st007': { x: 530, y: 70 }
     };
 
     const connections = [
@@ -1745,7 +1747,8 @@ class GameApp {
       { from: 'st002', to: 'st003' },
       { from: 'st003', to: 'st004' },
       { from: 'st004', to: 'st005' },
-      { from: 'st005', to: 'st006' }
+      { from: 'st005', to: 'st006' },
+      { from: 'st006', to: 'st007' }
     ];
 
     // 3. 道の動的色分け描画 (進行度連動)
@@ -1793,7 +1796,7 @@ class GameApp {
     });
 
     // 4. ロックされているエリアの霧および電脳警告ラインの描画
-    const stages = ['st001', 'st002', 'st003', 'st004', 'st005', 'st006'];
+    const stages = ['st001', 'st002', 'st003', 'st004', 'st005', 'st006', 'st007'];
     let firstLockedIdx = -1;
     for (let i = 0; i < stages.length; i++) {
       const sId = stages[i];
@@ -1854,9 +1857,9 @@ class GameApp {
     const normalNpcs = npcs.filter(n => n.ボスフラグ !== '1');
     const isAllNormalCleared = normalNpcs.every(n => this.saveData.クリア状況[n.エネミーID] === true);
 
-    // ボス解放トリガー：通常ライバル全員クリアしてまだこのステージのボス解放会話を見ていない場合
+    // ボス解放トリガー：通常ライバル全員クリアしてまだこのステージのボス解放会話を見ていない場合（ただしst007は除く）
     const hasBossUnlocked = this.saveData.ボス解放済みステージ[this.selectedStageId] === true;
-    if (isAllNormalCleared && !hasBossUnlocked) {
+    if (this.selectedStageId !== 'st007' && isAllNormalCleared && !hasBossUnlocked) {
       this.saveData.ボス解放済みステージ[this.selectedStageId] = true;
       localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
 
