@@ -1105,6 +1105,18 @@ class GameApp {
       if (isBoss && isCleared && !this.saveData.ステージクリア状況[currentStageId]) {
         this.saveData.ステージクリア状況[currentStageId] = true;
         
+        // 特定ボス撃破時にチップを自動プレゼント
+        if (currentStageId === 'st003') {
+          if (!this.saveData.インベントリ.includes('c003')) {
+            this.saveData.インベントリ.push('c003');
+          }
+        }
+        if (currentStageId === 'st005') {
+          if (!this.saveData.インベントリ.includes('c005')) {
+            this.saveData.インベントリ.push('c005');
+          }
+        }
+
         // 後方互換のために古いフラグも更新
         if (currentStageId === 'st001') this.saveData.ステージ1クリア = true;
         if (currentStageId === 'st002') this.saveData.ステージ2クリア = true;
@@ -1148,6 +1160,10 @@ class GameApp {
 
     document.getElementById('btn-shop-gacha')?.addEventListener('click', () => {
       this.executeShopGacha();
+    });
+
+    document.getElementById('btn-shop-gacha-chip')?.addEventListener('click', () => {
+      this.executeShopGachaChip();
     });
 
     document.getElementById('btn-gacha-perf-confirm')?.addEventListener('click', () => {
@@ -2337,20 +2353,64 @@ class GameApp {
 
     // ガチャ実行の制限
     const maxRank = this.getGachaMaxRank();
-    const targetParts = this.パーツマスタ.filter(p => {
-      const pRank = parseInt(p.ランク);
-      return !isNaN(pRank) && pRank <= maxRank;
-    });
-    const isAllOwned = targetParts.every(p => this.saveData.インベントリ.includes(p.パーツID));
+    
+    // 通常ガチャの対象プール (パーツ)
+    let targetPool: { id: string; name: string; type: string }[] = this.パーツマスタ
+      .filter(p => {
+        const pRank = parseInt(p.ランク);
+        return !isNaN(pRank) && pRank <= maxRank;
+      })
+      .map(p => ({ id: p.パーツID, name: p.パーツ名, type: 'part' }));
+
+    // 本編クリア後は通常ガチャに汎用チップを追加
+    if (this.saveData.ステージクリア状況['st006'] === true) {
+      const commonChips = ['c002', 'c004', 'c006', 'c007', 'c008', 'c009', 'c010', 'c011', 'c012', 'c013', 'c014', 'c015', 'c016', 'c017', 'c018'];
+      const chipPool = this.チップマスタ
+        .filter(c => commonChips.includes(c.チップID))
+        .map(c => ({ id: c.チップID, name: c.チップ名, type: 'chip' }));
+      targetPool = targetPool.concat(chipPool);
+    }
+
+    const isAllOwned = targetPool.every(item => this.saveData.インベントリ.includes(item.id));
     
     const btn = document.getElementById('btn-shop-gacha') as HTMLButtonElement;
     if (btn) {
       if (isAllOwned) {
         btn.disabled = true;
-        btn.textContent = `全ランク${maxRank}以下パーツ獲得済み`;
+        btn.textContent = `全パーツ・通常チップ獲得済み`;
       } else {
         btn.disabled = false;
-        btn.textContent = `ガチャを回す (解禁: ランク${maxRank}以下)`;
+        btn.textContent = `ガチャを回す (解禁: ランク${maxRank}以下 / チップ)`;
+      }
+    }
+
+    // --- チップ専用ガチャの表示制御 ---
+    const chipGachaContainer = document.getElementById('shop-gacha-chip-container');
+    if (chipGachaContainer) {
+      if (this.saveData.ステージクリア状況['st007'] === true) {
+        chipGachaContainer.style.display = 'block';
+        
+        // チップ専用ガチャの活性化制御
+        const chipPoolAll = this.チップマスタ
+          .filter(c => c.チップID !== 'c001') // 主人公専用は除く
+          .map(c => ({ id: c.チップID, name: c.チップ名 }));
+        const unownedChips = chipPoolAll.filter(c => !this.saveData.インベントリ.includes(c.id));
+        
+        const btnChip = document.getElementById('btn-shop-gacha-chip') as HTMLButtonElement;
+        const msgChip = document.getElementById('gacha-status-message-chip');
+        if (msgChip) msgChip.textContent = '';
+        
+        if (btnChip) {
+          if (unownedChips.length === 0) {
+            btnChip.disabled = true;
+            btnChip.textContent = '全チップ獲得済み';
+          } else {
+            btnChip.disabled = false;
+            btnChip.textContent = 'チップガチャを回す';
+          }
+        }
+      } else {
+        chipGachaContainer.style.display = 'none';
       }
     }
   }
@@ -2366,25 +2426,36 @@ class GameApp {
     if (btn) btn.disabled = true;
 
     const maxRank = this.getGachaMaxRank();
-    const targetParts = this.パーツマスタ.filter(p => {
-      const pRank = parseInt(p.ランク);
-      return !isNaN(pRank) && pRank <= maxRank;
-    });
-    const unownedParts = targetParts.filter(p => !this.saveData.インベントリ.includes(p.パーツID));
+    let targetPool: { id: string; name: string; type: string }[] = this.パーツマスタ
+      .filter(p => {
+        const pRank = parseInt(p.ランク);
+        return !isNaN(pRank) && pRank <= maxRank;
+      })
+      .map(p => ({ id: p.パーツID, name: p.パーツ名, type: 'part' }));
 
-    if (unownedParts.length === 0) {
-      this.showSystemModal('ショップ案内', `現在解放されているランク${maxRank}以下のすべてのパーツを獲得済みです！`);
+    if (this.saveData.ステージクリア状況['st006'] === true) {
+      const commonChips = ['c002', 'c004', 'c006', 'c007', 'c008', 'c009', 'c010', 'c011', 'c012', 'c013', 'c014', 'c015', 'c016', 'c017', 'c018'];
+      const chipPool = this.チップマスタ
+        .filter(c => commonChips.includes(c.チップID))
+        .map(c => ({ id: c.チップID, name: c.チップ名, type: 'chip' }));
+      targetPool = targetPool.concat(chipPool);
+    }
+
+    const unownedPool = targetPool.filter(item => !this.saveData.インベントリ.includes(item.id));
+
+    if (unownedPool.length === 0) {
+      this.showSystemModal('ショップ案内', `現在解放されているすべてのパーツ・チップを獲得済みです！`);
       return;
     }
 
     // 10JP消費
     this.saveData.所持JP -= 10;
     
-    // ガチャ演出としてランダムで1個未所持パーツを獲得
-    const randomIndex = Math.floor(Math.random() * unownedParts.length);
-    const reward = unownedParts[randomIndex];
+    // ガチャ演出としてランダムで1個未所持パーツ/チップを獲得
+    const randomIndex = Math.floor(Math.random() * unownedPool.length);
+    const reward = unownedPool[randomIndex];
 
-    this.saveData.インベントリ.push(reward.パーツID);
+    this.saveData.インベントリ.push(reward.id);
     localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
 
     // ガチャ演出オーバーレイのDOM要素を取得
@@ -2425,50 +2496,203 @@ class GameApp {
 
       // 4. カード出現 ＆ 2D Canvas描画 (1.5秒後)
       setTimeout(() => {
-        // 獲得パーツ情報のバインド
+        // 獲得アイテム情報のバインド
         const nameEl = document.getElementById('gacha-result-part-name');
-        if (nameEl) nameEl.textContent = reward.パーツ名;
+        if (nameEl) nameEl.textContent = reward.name;
 
         const statsEl = document.getElementById('gacha-result-part-stats');
         if (statsEl) {
-          statsEl.innerHTML = `
-            <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#ff5500; font-weight:800;">
-              <span>部位: ${reward.種別 === '1' ? 'ブレード' : (reward.種別 === '2' ? 'ウェイト' : 'ソール')}</span>
-              <span>属性: ${reward.属性}</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; margin-top:5px; font-weight:700;">
-              <span>HP: +${reward.ライフ}</span>
-              <span>ATK: +${reward.アタック}</span>
-              <span>DEF: +${reward.ディフェンス}</span>
-            </div>
-          `;
+          if (reward.type === 'chip') {
+            statsEl.innerHTML = `
+              <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#00ffff; font-weight:800;">
+                <span>種別: カスタムチップ</span>
+                <span>属性: なし</span>
+              </div>
+              <div style="font-size:0.8rem; margin-top:5px; font-weight:500; color:#ccc;">
+                スロットに装備して強力な奥義戦術を解放可能！
+              </div>
+            `;
+          } else {
+            const pObj = this.パーツマスタ.find(p => p.パーツID === reward.id);
+            if (pObj) {
+              statsEl.innerHTML = `
+                <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#ff5500; font-weight:800;">
+                  <span>部位: ${pObj.種別 === '1' ? 'ブレード' : (pObj.種別 === '2' ? 'ウェイト' : 'ソール')}</span>
+                  <span>属性: ${pObj.属性}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top:5px; font-weight:700;">
+                  <span>HP: +${pObj.ライフ}</span>
+                  <span>ATK: +${pObj.アタック}</span>
+                  <span>DEF: +${pObj.ディフェンス}</span>
+                </div>
+              `;
+            }
+          }
         }
 
-        // 獲得パーツのCanvasプレビュー描画
+        // 獲得アイテムのCanvasプレビュー描画
         const visualContainer = document.getElementById('gacha-result-part-visual');
         if (visualContainer) {
           visualContainer.innerHTML = '<canvas id="gacha-reward-canvas" width="80" height="80"></canvas>';
-          const rewardAssembled = アセンブル実行(
-            'c001',
-            reward.種別 === '1' ? reward.パーツID : 'b101_n',
-            reward.種別 === '2' ? reward.パーツID : 'w101_n',
-            reward.種別 === '3' ? reward.パーツID : 's101_n',
-            1,
-            this.パーツマスタ,
-            this.チップマスタ,
-            this.奥義マスタ
-          );
-          this.renderGearPreview('gacha-reward-canvas', rewardAssembled);
+          if (reward.type === 'chip') {
+            const canvas = document.getElementById('gacha-reward-canvas') as HTMLCanvasElement;
+            const ctx = canvas?.getContext('2d');
+            if (ctx) {
+              ctx.fillStyle = '#00ffff';
+              ctx.beginPath();
+              ctx.arc(40, 40, 30, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.strokeStyle = '#ffffff';
+              ctx.lineWidth = 3;
+              ctx.stroke();
+              ctx.fillStyle = '#0b0c10';
+              ctx.font = 'bold 12px sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('CHIP', 40, 40);
+            }
+          } else {
+            const rewardAssembled = アセンブル実行(
+              'c001',
+              reward.id.endsWith('_f') || reward.id.endsWith('_a') || reward.id.endsWith('_e') || reward.id.endsWith('_w') || reward.id.endsWith('_n') ? reward.id : 'b101_n',
+              reward.id.startsWith('w') ? reward.id : 'w101_n',
+              reward.id.startsWith('s') ? reward.id : 's101_n',
+              1,
+              this.パーツマスタ,
+              this.チップマスタ,
+              this.奥義マスタ
+            );
+            this.renderGearPreview('gacha-reward-canvas', rewardAssembled);
+          }
         }
 
         card.classList.add('card-visible');
         this.snd.playVictoryJingle(); // 獲得お祝いファンファーレ
       }, 1500);
     } else {
-      // フォールバック（何らかの理由でDOMがない場合）
+      // フォールバック
       this.initShopScreen();
       this.snd.playVictoryJingle();
-      this.showSystemModal('ガチャ結果', `新パーツ「${reward.パーツ名}」を獲得しました！`);
+      this.showSystemModal('ガチャ結果', `新アイテム「${reward.name}」を獲得しました！`);
+    }
+  }
+
+  // チップ専用ガチャの実行
+  private executeShopGachaChip() {
+    if (this.saveData.所持JP < 10) {
+      this.showSystemModal('JP不足', 'ガチャを回すには 10 JP 必要です。');
+      return;
+    }
+
+    const btnChip = document.getElementById('btn-shop-gacha-chip') as HTMLButtonElement;
+    if (btnChip) btnChip.disabled = true;
+
+    // 全チップ（c002〜c020）のうち、未所持のもの
+    const chipPoolAll = this.チップマスタ
+      .filter(c => c.チップID !== 'c001') // 主人公専用は除く
+      .map(c => ({ id: c.チップID, name: c.チップ名 }));
+    const unownedChips = chipPoolAll.filter(c => !this.saveData.インベントリ.includes(c.id));
+
+    if (unownedChips.length === 0) {
+      this.showSystemModal('ショップ案内', `すべてのチップを獲得済みです！`);
+      return;
+    }
+
+    // 10JP消費
+    this.saveData.所持JP -= 10;
+    
+    // ガチャ演出としてランダムで1個未所持のチップを獲得
+    const randomIndex = Math.floor(Math.random() * unownedChips.length);
+    const reward = unownedChips[randomIndex];
+
+    this.saveData.インベントリ.push(reward.id);
+    localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
+
+    // ガチャ演出オーバーレイのDOM要素を取得
+    const overlay = document.getElementById('gacha-performance-overlay');
+    const handle = document.getElementById('gacha-perf-handle');
+    const capsule = document.getElementById('gacha-capsule-fall');
+    const flash = document.getElementById('gacha-perf-flash');
+    const card = document.getElementById('gacha-perf-result-card');
+
+    if (overlay && handle && capsule && flash && card) {
+      // クラスを初期化
+      overlay.classList.add('active');
+      handle.classList.remove('turn-action');
+      capsule.classList.remove('drop-active', 'split-active');
+      capsule.style.opacity = '0';
+      flash.classList.remove('flash-active');
+      card.classList.remove('card-visible');
+
+      // 1. ハンドル回転
+      setTimeout(() => {
+        handle.classList.add('turn-action');
+        this.snd.playGachaSpin(); // ハンドル回転音
+      }, 50);
+
+      // 2. カプセル落下 (ハンドルが回りきった0.5秒後)
+      setTimeout(() => {
+        capsule.style.opacity = '1';
+        capsule.classList.add('drop-active');
+      }, 550);
+
+      // 3. カプセル分裂 ＆ 閃光 (落下完了の1.3秒後)
+      setTimeout(() => {
+        capsule.classList.add('split-active');
+        flash.classList.add('flash-active');
+        this.snd.playCapsuleDropOpen(); // カプセル分裂音
+        this.snd.playExplosion(); // 閃光爆発音
+      }, 1300);
+
+      // 4. カード出現 ＆ 2D Canvas描画 (1.5秒後)
+      setTimeout(() => {
+        // 獲得チップ情報のバインド
+        const nameEl = document.getElementById('gacha-result-part-name');
+        if (nameEl) nameEl.textContent = reward.name;
+
+        const statsEl = document.getElementById('gacha-result-part-stats');
+        if (statsEl) {
+          statsEl.innerHTML = `
+            <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#ff007f; font-weight:800;">
+              <span>種別: レジェンドチップ</span>
+              <span>属性: なし</span>
+            </div>
+            <div style="font-size:0.8rem; margin-top:5px; font-weight:500; color:#ccc;">
+              伝説の奥義を解放する最上位カスタムコア。
+            </div>
+          `;
+        }
+
+        // 獲得チップのCanvasプレビュー描画
+        const visualContainer = document.getElementById('gacha-result-part-visual');
+        if (visualContainer) {
+          visualContainer.innerHTML = '<canvas id="gacha-reward-canvas" width="80" height="80"></canvas>';
+          const canvas = document.getElementById('gacha-reward-canvas') as HTMLCanvasElement;
+          const ctx = canvas?.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#ff007f';
+            ctx.beginPath();
+            ctx.arc(40, 40, 30, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('LEGEND', 40, 40);
+          }
+        }
+
+        card.classList.add('card-visible');
+        this.snd.playVictoryJingle(); // 獲得お祝いファンファーレ
+      }, 1500);
+    } else {
+      // フォールバック
+      this.initShopScreen();
+      this.snd.playVictoryJingle();
+      this.showSystemModal('ガチャ結果', `新チップ「${reward.name}」を獲得しました！`);
     }
   }
 

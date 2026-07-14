@@ -420,12 +420,19 @@
               <p class="serifu-text" id="shop-keeper-text">「いらっしゃい！貯まったJPでジャンクガチャを回せるよ。被りなしで未所持パーツが手に入る！」</p>
             </div>
           </div>
-          <div class="shop-actions">
+          <div class="shop-actions" style="height: auto; min-height: 400px; flex-direction: column; gap: 30px; padding: 30px 20px;">
             <div class="gacha-box">
               <h3>ジャンクガチャ</h3>
               <div class="gacha-cost">1回: 10 JP</div>
               <button id="btn-shop-gacha" class="btn btn-primary btn-large">ガチャを回す</button>
               <div class="gacha-status" id="gacha-status-message"></div>
+            </div>
+            <!-- チップ専用ガチャ (店長撃破後に解禁) -->
+            <div class="gacha-box" id="shop-gacha-chip-container" style="display: none; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 25px;">
+              <h3>チップ専用ガチャ</h3>
+              <div class="gacha-cost">1回: 10 JP</div>
+              <button id="btn-shop-gacha-chip" class="btn btn-accent btn-large" style="background: linear-gradient(135deg, #ff007f, #7f00ff); border-color: #ff007f; color: #fff; box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);">チップガチャを回す</button>
+              <div class="gacha-status" id="gacha-status-message-chip"></div>
             </div>
           </div>
         </div>
