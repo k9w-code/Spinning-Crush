@@ -1107,13 +1107,13 @@ class GameApp {
         
         // 特定ボス撃破時にチップを自動プレゼント
         if (currentStageId === 'st003') {
-          if (!this.saveData.インベントリ.includes('c003')) {
-            this.saveData.インベントリ.push('c003');
+          if (!this.saveData.インベントリ.includes('c017')) {
+            this.saveData.インベントリ.push('c017');
           }
         }
         if (currentStageId === 'st005') {
-          if (!this.saveData.インベントリ.includes('c005')) {
-            this.saveData.インベントリ.push('c005');
+          if (!this.saveData.インベントリ.includes('c018')) {
+            this.saveData.インベントリ.push('c018');
           }
         }
 
@@ -2364,7 +2364,7 @@ class GameApp {
 
     // 本編クリア後は通常ガチャに汎用チップを追加
     if (this.saveData.ステージクリア状況['st006'] === true) {
-      const commonChips = ['c002', 'c004', 'c006', 'c007', 'c008', 'c009', 'c010', 'c011', 'c012', 'c013', 'c014', 'c015', 'c016', 'c017', 'c018'];
+      const commonChips = ['c002', 'c003', 'c004', 'c005', 'c006', 'c007', 'c008', 'c009', 'c010', 'c011', 'c012', 'c013', 'c014', 'c015', 'c016'];
       const chipPool = this.チップマスタ
         .filter(c => commonChips.includes(c.チップID))
         .map(c => ({ id: c.チップID, name: c.チップ名, type: 'chip' }));
@@ -2434,7 +2434,7 @@ class GameApp {
       .map(p => ({ id: p.パーツID, name: p.パーツ名, type: 'part' }));
 
     if (this.saveData.ステージクリア状況['st006'] === true) {
-      const commonChips = ['c002', 'c004', 'c006', 'c007', 'c008', 'c009', 'c010', 'c011', 'c012', 'c013', 'c014', 'c015', 'c016', 'c017', 'c018'];
+      const commonChips = ['c002', 'c003', 'c004', 'c005', 'c006', 'c007', 'c008', 'c009', 'c010', 'c011', 'c012', 'c013', 'c014', 'c015', 'c016'];
       const chipPool = this.チップマスタ
         .filter(c => commonChips.includes(c.チップID))
         .map(c => ({ id: c.チップID, name: c.チップ名, type: 'chip' }));
