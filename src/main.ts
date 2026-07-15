@@ -2837,7 +2837,7 @@ class GameApp {
     osc.stop(time + 0.45);
   }
 
-  private drawGear(
+    private drawGear(
     ctx: CanvasRenderingContext2D,
     x: number,
     y: number,
@@ -2868,6 +2868,15 @@ class GameApp {
     else if (attr === '無') neonColor = '#f0f3fa'; // サイバーホワイト
 
     // パーツの個性(ID末尾のタイプ)とランクを取得するヘルパー
+    const getPartNumber = (partId: string): number => {
+      if (!partId) return 1;
+      const base = partId.split('_')[0]; // 例: b101
+      if (base.length < 4) return 1;
+      const numStr = base.substring(2); // 例: 01
+      const val = parseInt(numStr, 10);
+      return isNaN(val) ? 1 : val;
+    };
+
     const getPartType = (partId: string): 'attack' | 'defense' | 'speed' | 'balance' => {
       if (!partId) return 'balance';
       const parts = partId.split('_');
@@ -2891,12 +2900,15 @@ class GameApp {
     const soleId = assembled.装備ID.ソール;
     const chipId = assembled.装備ID.チップ;
 
-    const bladeType = getPartType(bladeId);
+    const bladeNo = getPartNumber(bladeId);
     const bladeRank = getPartRank(bladeId);
+    const bladeType = getPartType(bladeId);
 
-    const weightType = getPartType(weightId);
+    const weightNo = getPartNumber(weightId);
     const weightRank = getPartRank(weightId);
+    const weightType = getPartType(weightId);
 
+    const soleNo = getPartNumber(soleId);
     const soleType = getPartType(soleId);
 
     const chipType = getPartType(chipId);
@@ -2965,60 +2977,219 @@ class GameApp {
 
     ctx.rotate(rotation);
 
-    // 1. 最下層：ソール (中心の光るスタビライザーライン)
-    ctx.fillStyle = '#fff';
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = neonColor;
-    ctx.beginPath();
-    ctx.arc(0, 0, radius * 0.15, 0, Math.PI * 2);
-    ctx.fill();
-
-    // ソールの個性に応じた補助スタビライザー
+    // ==========================================
+    // 1. 最下層：ソール (中心スタビライザーの美麗差別化)
+    // ==========================================
     ctx.save();
-    ctx.strokeStyle = neonColor;
-    ctx.lineWidth = 1.5;
-    ctx.globalAlpha = 0.6;
-    if (soleType === 'speed') {
-      // スピード型：3本のシャープスリットライン
-      for (let i = 0; i < 3; i++) {
-        const angle = (i / 3) * Math.PI * 2;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(radius * 0.45 * Math.cos(angle), radius * 0.45 * Math.sin(angle));
-        ctx.stroke();
-      }
-    } else if (soleType === 'defense') {
-      // 防御型：頑丈な二重同心円リング
-      ctx.beginPath();
-      ctx.arc(0, 0, radius * 0.35, 0, Math.PI * 2);
-      ctx.stroke();
-    } else {
-      // バランス型等：シンプルな一重サークルライン
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = neonColor;
+
+    if (soleNo === 1) {
+      // 01: ベーシック / バランス ➔ シンプル同心円 ＋ 十字スリット
+      ctx.strokeStyle = neonColor;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.arc(0, 0, radius * 0.28, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-radius * 0.25, 0); ctx.lineTo(radius * 0.25, 0);
+      ctx.moveTo(0, -radius * 0.25); ctx.lineTo(0, radius * 0.25);
+      ctx.stroke();
+    } else if (soleNo === 2) {
+      // 02: 段差付き / フラつき防止 ➔ 階段状二重段差
+      ctx.strokeStyle = neonColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.35, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.23, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (soleNo === 3) {
+      // 03: シャープ / ニードル ➔ 極小摩擦の針状ライン＆先端ホワイト発光
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 4; i++) {
+        const angle = (i / 4) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(radius * 0.4 * Math.cos(angle), radius * 0.4 * Math.sin(angle));
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#fff';
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = '#fff';
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (soleNo === 4) {
+      // 04: アクセル / 坂道加速 ➔ 高速プロペラファン状の3枚スリット
+      ctx.strokeStyle = neonColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.3, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let i = 0; i < 3; i++) {
+        const angle = (i / 3) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(radius * 0.1 * Math.cos(angle), radius * 0.1 * Math.sin(angle));
+        ctx.lineTo(radius * 0.35 * Math.cos(angle + 0.5), radius * 0.35 * Math.sin(angle + 0.5));
+        ctx.stroke();
+      }
+    } else if (soleNo === 5) {
+      // 05: ワイド / 急制動・回避 ➔ 十字状の幅広ブレーキパッド
+      ctx.fillStyle = 'rgba(100, 100, 100, 0.7)';
+      ctx.strokeStyle = neonColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.rect(-radius * 0.3, -radius * 0.08, radius * 0.6, radius * 0.16);
+      ctx.rect(-radius * 0.08, -radius * 0.3, radius * 0.16, radius * 0.6);
+      ctx.fill();
+      ctx.stroke();
+    } else if (soleNo === 6) {
+      // 06: ラバー / 高摩擦 ➔ ダークグレー高密度ゴム ＋ 12本トレッドスリット
+      ctx.strokeStyle = '#3a3d42';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.32, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = neonColor;
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(radius * 0.28 * Math.cos(angle), radius * 0.28 * Math.sin(angle));
+        ctx.lineTo(radius * 0.35 * Math.cos(angle), radius * 0.35 * Math.sin(angle));
+        ctx.stroke();
+      }
+    } else if (soleNo === 7) {
+      // 07: 真鍮円盤 / 高重量 ➔ 円盤ブラス ＋ 4点ウェイトボルト
+      ctx.fillStyle = 'rgba(218, 165, 32, 0.65)';
+      ctx.strokeStyle = '#ffcc00';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      for (let i = 0; i < 4; i++) {
+        const angle = (i / 4) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(radius * 0.24 * Math.cos(angle), radius * 0.24 * Math.sin(angle), 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (soleNo === 8) {
+      // 08: 溝彫り / 滑りコントロール ➔ 美しい二重らせんスパイラル
+      ctx.strokeStyle = neonColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let theta = 0; theta < Math.PI * 4; theta += 0.1) {
+        const r = (radius * 0.03) * theta;
+        const sx = r * Math.cos(theta);
+        const sy = r * Math.sin(theta);
+        if (theta === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.stroke();
+    } else if (soleNo === 9) {
+      // 09: レオ専用ゴールドブースター ➔ 黄金の獅子頭風3点ブースター噴射炎
+      for (let i = 0; i < 3; i++) {
+        const angle = (i / 3) * Math.PI * 2 + rotation * 0.5;
+        ctx.save();
+        ctx.shadowColor = '#ffaa00';
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = '#ffaa00';
+        ctx.beginPath();
+        ctx.arc(radius * 0.28 * Math.cos(angle), radius * 0.28 * Math.sin(angle), radius * 0.08, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(radius * 0.28 * Math.cos(angle), radius * 0.28 * Math.sin(angle), radius * 0.04, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    } else {
+      // 10: カイザー専用オルタナティブ ➔ 皇帝の絶対防壁・プラチナ幾何学魔術回路
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.32, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = neonColor;
+      ctx.beginPath();
+      ctx.moveTo(-radius * 0.22, -radius * 0.22);
+      ctx.lineTo(radius * 0.22, -radius * 0.22);
+      ctx.lineTo(radius * 0.22, radius * 0.22);
+      ctx.lineTo(-radius * 0.22, radius * 0.22);
+      ctx.closePath();
+      ctx.stroke();
     }
+
+    // 中心のベアリングスピンドル軸先 (共通)
+    ctx.fillStyle = '#fff';
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#fff';
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.12, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
 
-    // 2. 第二層：ウェイト (メタル重量リング)
+    // ==========================================
+    // 2. 第二層：ウェイト (メタル重量リング・美麗メタリックグラデーション)
+    // ==========================================
+    ctx.save();
     let weightSides = 6;
-    let weightColor = 'rgba(255, 215, 0, 0.7)'; // ゴールド（デフォルト）
+    let weightGrad = ctx.createRadialGradient(0, 0, radius * 0.35, 0, 0, radius * 0.65);
 
     if (weightType === 'attack') {
-      weightSides = 8; // アタック：シャープな八角形
-      weightColor = 'rgba(255, 140, 0, 0.75)'; // カッパー/ブロンズ
+      // アタック ➔ ブロンズ/コッパースパイク (8角形 ＋ 4本のスパイクピン)
+      weightSides = 8;
+      weightGrad.addColorStop(0, '#5e2e00');
+      weightGrad.addColorStop(0.5, '#d2691e');
+      weightGrad.addColorStop(1, '#ff8c00');
     } else if (weightType === 'defense') {
-      weightSides = 12; // 防御：円に近い十二角形
-      weightColor = 'rgba(192, 192, 192, 0.8)'; // 重厚シルバー
+      // ディフェンス ➔ 重厚クロームシルバー (三重リング of ディテール)
+      weightSides = 12;
+      weightGrad.addColorStop(0, '#2b2b2b');
+      weightGrad.addColorStop(0.3, '#c0c0c0');
+      weightGrad.addColorStop(0.7, '#ffffff');
+      weightGrad.addColorStop(1, '#5c5c5c');
+    } else if (weightType === 'speed') {
+      // スピード ➔ チタンブルー (幾何学スリット付き)
+      weightSides = 10;
+      weightGrad.addColorStop(0, '#001f3f');
+      weightGrad.addColorStop(0.5, '#0074d9');
+      weightGrad.addColorStop(0.8, '#7fdbff');
+      weightGrad.addColorStop(1, '#001f3f');
     } else {
-      weightSides = 6; // バランス等：スタンダード六角形
-      weightColor = 'rgba(212, 175, 55, 0.8)'; // ゴールド
+      // バランス等 ➔ ゴールド (6角形 ＋ 6点リベット)
+      weightSides = 6;
+      weightGrad.addColorStop(0, '#664d03');
+      weightGrad.addColorStop(0.4, '#ffc107');
+      weightGrad.addColorStop(0.7, '#fff3cd');
+      weightGrad.addColorStop(1, '#856404');
     }
 
-    // ランクが高いほどウェイトが太く肉厚になる
-    ctx.strokeStyle = weightColor;
-    ctx.lineWidth = radius * (0.14 + weightRank * 0.015);
-    ctx.shadowBlur = 0;
+    // レオ専用ゴールドウェイト (`09`) / カイザー専用オーラ (`10`)
+    if (weightNo === 9) {
+      weightSides = 12; // 獅子の鬣のような12角形の波打ちリング
+      weightGrad = ctx.createRadialGradient(0, 0, radius * 0.35, 0, 0, radius * 0.68);
+      weightGrad.addColorStop(0, '#b8860b');
+      weightGrad.addColorStop(0.5, '#ffd700');
+      weightGrad.addColorStop(0.8, '#fff');
+      weightGrad.addColorStop(1, '#ffd700');
+    } else if (weightNo === 10) {
+      weightSides = 16; // プラチナ16角形
+      weightGrad = ctx.createRadialGradient(0, 0, radius * 0.35, 0, 0, radius * 0.68);
+      weightGrad.addColorStop(0, '#3a3a3a');
+      weightGrad.addColorStop(0.4, '#e5e5e5');
+      weightGrad.addColorStop(0.7, '#fff');
+      weightGrad.addColorStop(1, '#7f7f7f');
+    }
+
+    ctx.strokeStyle = weightGrad;
+    ctx.lineWidth = radius * (0.13 + weightRank * 0.015);
+    ctx.lineJoin = 'round';
     ctx.beginPath();
     for (let i = 0; i <= weightSides; i++) {
       const angle = (i / weightSides) * Math.PI * 2;
@@ -3030,139 +3201,295 @@ class GameApp {
     ctx.closePath();
     ctx.stroke();
 
-    // 3. 第一層：ブレード (物理回転翼)
-    ctx.strokeStyle = neonColor;
-    ctx.lineWidth = radius * 0.08;
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = neonColor;
-    ctx.fillStyle = 'rgba(10, 12, 20, 0.6)'; // スモーククリア樹脂風
+    // ウェイト上のディテール (ボルトやスリット)
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 1;
+    if (weightType === 'balance') {
+      // 6つの頂点にゴールドスタッドリベット
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(radius * 0.5 * Math.cos(angle), radius * 0.5 * Math.sin(angle), 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    } else if (weightType === 'speed') {
+      // スピードの肉抜きスリットを刻印
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2 + 0.3;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.5, angle - 0.15, angle + 0.15);
+        ctx.stroke();
+      }
+    } else if (weightType === 'attack') {
+      // アタック：4つの主要スパイク部に灼熱メタルピン
+      ctx.fillStyle = '#ff4500';
+      for (let i = 0; i < 4; i++) {
+        const angle = (i / 4) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(radius * 0.55 * Math.cos(angle), radius * 0.55 * Math.sin(angle), 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
 
-    // ランクが高いほど外周のトゲトゲが巨大化
+    // ==========================================
+    // 3. 第一層：ブレード (物理回転翼の完全差別化形状)
+    // ==========================================
+    ctx.save();
+    ctx.strokeStyle = neonColor;
+    ctx.lineWidth = radius * 0.07;
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = neonColor;
+    ctx.fillStyle = 'rgba(10, 12, 20, 0.72)'; // スモーククリア樹脂
+
     const outerScale = 1.1 + (bladeRank * 0.035);
 
     ctx.beginPath();
-    if (bladeType === 'attack') {
-      // 攻撃特化：8枚の鋭い鋸歯（のこぎり）刃
-      const blades = 8;
+    
+    // ブレードID下2桁 (種類) ごとに完全描き分け
+    if (bladeNo === 1) {
+      // 01: ベーシック / 流線型正円 ＋ 2枚の流れる極小ウイング
+      const blades = 4;
       for (let i = 0; i < blades; i++) {
         const angle = (i / blades) * Math.PI * 2;
-        const x1 = radius * 0.85 * Math.cos(angle);
-        const y1 = radius * 0.85 * Math.sin(angle);
-        const tx = radius * outerScale * Math.cos(angle + 0.15);
-        const ty = radius * outerScale * Math.sin(angle + 0.15);
-        const x2 = radius * 0.7 * Math.cos(angle + 0.25);
-        const y2 = radius * 0.7 * Math.sin(angle + 0.25);
+        const x1 = radius * 0.88 * Math.cos(angle);
+        const y1 = radius * 0.88 * Math.sin(angle);
+        const tx = radius * outerScale * 0.95 * Math.cos(angle + 0.2);
+        const ty = radius * outerScale * 0.95 * Math.sin(angle + 0.2);
+        const x2 = radius * 0.82 * Math.cos(angle + 0.35);
+        const y2 = radius * 0.82 * Math.sin(angle + 0.35);
 
         if (i === 0) ctx.moveTo(x1, y1);
         ctx.lineTo(tx, ty);
         ctx.lineTo(x2, y2);
       }
-    } else if (bladeType === 'defense') {
-      // 防御特化：円形に近い盾状の丸い4枚ガード刃
-      const blades = 4;
+    } else if (bladeNo === 2) {
+      // 02: ノーブル / 重厚3重ガードプレート (三角形盾ベース)
+      const blades = 3;
       for (let i = 0; i < blades; i++) {
         const angle = (i / blades) * Math.PI * 2;
-        const x1 = radius * 0.9 * Math.cos(angle);
-        const y1 = radius * 0.9 * Math.sin(angle);
-        const tx = radius * outerScale * 0.95 * Math.cos(angle + 0.4);
-        const ty = radius * outerScale * 0.95 * Math.sin(angle + 0.4);
-        const x2 = radius * 0.85 * Math.cos(angle + 0.8);
-        const y2 = radius * 0.85 * Math.sin(angle + 0.8);
+        const x1 = radius * 0.8 * Math.cos(angle);
+        const y1 = radius * 0.8 * Math.sin(angle);
+        const tx = radius * outerScale * 1.15 * Math.cos(angle + 0.3);
+        const ty = radius * outerScale * 1.15 * Math.sin(angle + 0.3);
+        const x2 = radius * 0.8 * Math.cos(angle + 0.6);
+        const y2 = radius * 0.8 * Math.sin(angle + 0.6);
 
         if (i === 0) ctx.moveTo(x1, y1);
         ctx.quadraticCurveTo(tx, ty, x2, y2);
       }
-    } else if (bladeType === 'speed') {
-      // スピード特化：逆巻く巨大な2枚ツバサ翼
+    } else if (bladeNo === 3) {
+      // 03: クロス / 十字巨大4枚刃 (鋭利カッター)
+      const blades = 4;
+      for (let i = 0; i < blades; i++) {
+        const angle = (i / blades) * Math.PI * 2;
+        const x1 = radius * 0.7 * Math.cos(angle);
+        const y1 = radius * 0.7 * Math.sin(angle);
+        const tx = radius * outerScale * 1.25 * Math.cos(angle + 0.12);
+        const ty = radius * outerScale * 1.25 * Math.sin(angle + 0.12);
+        const x2 = radius * 0.68 * Math.cos(angle + 0.18);
+        const y2 = radius * 0.68 * Math.sin(angle + 0.18);
+
+        if (i === 0) ctx.moveTo(x1, y1);
+        ctx.lineTo(tx, ty);
+        ctx.lineTo(x2, y2);
+      }
+    } else if (bladeNo === 4) {
+      // 04: チェイン / 16枚ギザギザノコギリ刃 (多段ヒット型)
+      const blades = 16;
+      for (let i = 0; i < blades; i++) {
+        const angle = (i / blades) * Math.PI * 2;
+        const x1 = radius * 0.82 * Math.cos(angle);
+        const y1 = radius * 0.82 * Math.sin(angle);
+        const tx = radius * outerScale * 1.05 * Math.cos(angle + 0.05);
+        const ty = radius * outerScale * 1.05 * Math.sin(angle + 0.05);
+        const x2 = radius * 0.8 * Math.cos(angle + 0.1);
+        const y2 = radius * 0.8 * Math.sin(angle + 0.1);
+
+        if (i === 0) ctx.moveTo(x1, y1);
+        ctx.lineTo(tx, ty);
+        ctx.lineTo(x2, y2);
+      }
+    } else if (bladeNo === 5) {
+      // 05: ブリザード / ワイドな湾曲2枚ガード翼プレート
       const blades = 2;
       for (let i = 0; i < blades; i++) {
         const angle = (i / blades) * Math.PI * 2;
         const x1 = radius * 0.75 * Math.cos(angle);
         const y1 = radius * 0.75 * Math.sin(angle);
-        const tx1 = radius * outerScale * 1.15 * Math.cos(angle + 0.35);
-        const ty1 = radius * outerScale * 1.15 * Math.sin(angle + 0.35);
-        const tx2 = radius * outerScale * 1.25 * Math.cos(angle + 0.45);
-        const ty2 = radius * outerScale * 1.25 * Math.sin(angle + 0.45);
-        const x2 = radius * 0.6 * Math.cos(angle + 0.9);
-        const y2 = radius * 0.6 * Math.sin(angle + 0.9);
+        const tx1 = radius * outerScale * 1.15 * Math.cos(angle + 0.3);
+        const ty1 = radius * outerScale * 1.15 * Math.sin(angle + 0.3);
+        const tx2 = radius * outerScale * 1.2 * Math.cos(angle + 0.6);
+        const ty2 = radius * outerScale * 1.2 * Math.sin(angle + 0.6);
+        const x2 = radius * 0.75 * Math.cos(angle + 0.85);
+        const y2 = radius * 0.75 * Math.sin(angle + 0.85);
+
+        if (i === 0) ctx.moveTo(x1, y1);
+        ctx.bezierCurveTo(tx1, ty1, tx2, ty2, x2, y2);
+      }
+    } else if (bladeNo === 6) {
+      // 06: アーク / 3枚の引っ掛け鋭利鎌刃 (フック)
+      const blades = 3;
+      for (let i = 0; i < blades; i++) {
+        const angle = (i / blades) * Math.PI * 2;
+        const x1 = radius * 0.75 * Math.cos(angle);
+        const y1 = radius * 0.75 * Math.sin(angle);
+        const tx = radius * outerScale * 1.3 * Math.cos(angle + 0.4);
+        const ty = radius * outerScale * 1.3 * Math.sin(angle + 0.4);
+        const x2 = radius * 0.6 * Math.cos(angle + 0.6);
+        const y2 = radius * 0.6 * Math.sin(angle + 0.6);
+
+        if (i === 0) ctx.moveTo(x1, y1);
+        ctx.lineTo(tx, ty);
+        ctx.lineTo(x2, y2);
+      }
+    } else if (bladeNo === 7) {
+      // 07: ガーディアン / 四角形極厚要塞盾 (盾・バルジ構造)
+      const blades = 4;
+      for (let i = 0; i < blades; i++) {
+        const angle = (i / blades) * Math.PI * 2;
+        const x1 = radius * 0.78 * Math.cos(angle);
+        const y1 = radius * 0.78 * Math.sin(angle);
+        const tx = radius * outerScale * 1.18 * Math.cos(angle + 0.25);
+        const ty = radius * outerScale * 1.18 * Math.sin(angle + 0.25);
+        const x2 = radius * 0.78 * Math.cos(angle + 0.5);
+        const y2 = radius * 0.78 * Math.sin(angle + 0.5);
+
+        if (i === 0) ctx.moveTo(x1, y1);
+        ctx.lineTo(tx, ty);
+        ctx.lineTo(x2, y2);
+      }
+    } else if (bladeNo === 8) {
+      // 08: マッハ・ウイング / 鳥の翼のような流れる2枚大翼
+      const blades = 2;
+      for (let i = 0; i < blades; i++) {
+        const angle = (i / blades) * Math.PI * 2;
+        const x1 = radius * 0.7 * Math.cos(angle);
+        const y1 = radius * 0.7 * Math.sin(angle);
+        const tx1 = radius * outerScale * 1.3 * Math.cos(angle + 0.4);
+        const ty1 = radius * outerScale * 1.3 * Math.sin(angle + 0.4);
+        const tx2 = radius * outerScale * 1.1 * Math.cos(angle + 0.8);
+        const ty2 = radius * outerScale * 1.1 * Math.sin(angle + 0.8);
+        const x2 = radius * 0.65 * Math.cos(angle + 0.95);
+        const y2 = radius * 0.65 * Math.sin(angle + 0.95);
+
+        if (i === 0) ctx.moveTo(x1, y1);
+        ctx.bezierCurveTo(tx1, ty1, tx2, ty2, x2, y2);
+      }
+    } else if (bladeNo === 9) {
+      // 09: レオ＝ゴールドブレード ➔ 5本の鋭利ライオンファング
+      const blades = 5;
+      for (let i = 0; i < blades; i++) {
+        const angle = (i / blades) * Math.PI * 2;
+        const x1 = radius * 0.75 * Math.cos(angle);
+        const y1 = radius * 0.75 * Math.sin(angle);
+        const tx1 = radius * outerScale * 1.25 * Math.cos(angle + 0.22);
+        const ty1 = radius * outerScale * 1.25 * Math.sin(angle + 0.22);
+        const tx2 = radius * outerScale * 1.28 * Math.cos(angle + 0.28);
+        const ty2 = radius * outerScale * 1.28 * Math.sin(angle + 0.28);
+        const x2 = radius * 0.62 * Math.cos(angle + 0.55);
+        const y2 = radius * 0.62 * Math.sin(angle + 0.55);
 
         if (i === 0) ctx.moveTo(x1, y1);
         ctx.bezierCurveTo(tx1, ty1, tx2, ty2, x2, y2);
       }
     } else {
-      // バランス型：スタンダードな4枚フック刃
-      const blades = 4;
+      // 10: カイザー＝レガリア ➔ 8本の突き出る高貴クラウン王冠ブレード
+      const blades = 8;
       for (let i = 0; i < blades; i++) {
         const angle = (i / blades) * Math.PI * 2;
-        const x1 = radius * Math.cos(angle);
-        const y1 = radius * Math.sin(angle);
-        const tx = radius * outerScale * 1.1 * Math.cos(angle + 0.25);
-        const ty = radius * outerScale * 1.1 * Math.sin(angle + 0.25);
-        const x2 = radius * 0.7 * Math.cos(angle + 0.5);
-        const y2 = radius * 0.7 * Math.sin(angle + 0.5);
+        const x1 = radius * 0.8 * Math.cos(angle);
+        const y1 = radius * 0.8 * Math.sin(angle);
+        const tx = radius * outerScale * 1.2 * Math.cos(angle + 0.125);
+        const ty = radius * outerScale * 1.2 * Math.sin(angle + 0.125);
+        const x2 = radius * 0.8 * Math.cos(angle + 0.25);
+        const y2 = radius * 0.8 * Math.sin(angle + 0.25);
 
         if (i === 0) ctx.moveTo(x1, y1);
         ctx.lineTo(tx, ty);
         ctx.lineTo(x2, y2);
       }
     }
+
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+    ctx.restore();
 
-    // 4. 最上層：コアチップ (中央のシンボルマーク)
+    // ==========================================
+    // 4. 最上層：コアチップ (中央のチップ画像ロード描画 ＆ フォールバック紋章)
+    // ==========================================
+    ctx.save();
+    // チップ枠
     ctx.fillStyle = '#0a0b10';
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.shadowBlur = 0;
     ctx.beginPath();
-    ctx.arc(0, 0, radius * 0.3, 0, Math.PI * 2);
+    ctx.arc(0, 0, radius * 0.32, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    // コアチップ内の性格紋章
-    ctx.strokeStyle = neonColor;
-    ctx.lineWidth = 1.5;
+    // 円形クリッピングマスクを作成してコアチップ画像を描画
     ctx.beginPath();
-    if (chipType === 'attack') {
-      // 火/攻撃：トライアングル (炎・刃)
-      ctx.moveTo(0, -radius * 0.18);
-      ctx.lineTo(-radius * 0.14, radius * 0.1);
-      ctx.lineTo(radius * 0.14, radius * 0.1);
-      ctx.closePath();
-      ctx.stroke();
-    } else if (chipType === 'defense') {
-      // 防御：サークルプロテクター (シールド)
-      ctx.arc(0, 0, radius * 0.15, 0, Math.PI * 2);
-      ctx.stroke();
-    } else if (chipType === 'speed') {
-      // 回避/スピード：三つ巴渦巻ライン
-      for (let i = 0; i < 3; i++) {
-        const angle = (i / 3) * Math.PI * 2;
-        ctx.moveTo(0, 0);
-        ctx.quadraticCurveTo(
-          radius * 0.1 * Math.cos(angle + 0.4), 
-          radius * 0.1 * Math.sin(angle + 0.4),
-          radius * 0.18 * Math.cos(angle + 0.8),
-          radius * 0.18 * Math.sin(angle + 0.8)
-        );
+    ctx.arc(0, 0, radius * 0.29, 0, Math.PI * 2);
+    ctx.clip();
+
+    // チップ画像アセットのロードチェック (画像IDに準拠)
+    const chipImgEl = document.getElementById(`img-chip-${chipId}`) as HTMLImageElement;
+    if (chipImgEl && chipImgEl.complete && chipImgEl.naturalWidth !== 0) {
+      // ロード完了している画像を描画 (回転キャンセルせず回転させる)
+      ctx.drawImage(chipImgEl, -radius * 0.3, -radius * 0.3, radius * 0.6, radius * 0.6);
+    } else {
+      // フォールバック: 性格タイプ紋章を美しく描画
+      ctx.strokeStyle = neonColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      if (chipType === 'attack') {
+        // トライアングル
+        ctx.moveTo(0, -radius * 0.18);
+        ctx.lineTo(-radius * 0.14, radius * 0.1);
+        ctx.lineTo(radius * 0.14, radius * 0.1);
+        ctx.closePath();
+        ctx.stroke();
+      } else if (chipType === 'defense') {
+        // ダブルサークル
+        ctx.arc(0, 0, radius * 0.16, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.08, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (chipType === 'speed') {
+        // 三つ巴
+        for (let i = 0; i < 3; i++) {
+          const angle = (i / 3) * Math.PI * 2;
+          ctx.moveTo(0, 0);
+          ctx.quadraticCurveTo(
+            radius * 0.1 * Math.cos(angle + 0.4), 
+            radius * 0.1 * Math.sin(angle + 0.4),
+            radius * 0.18 * Math.cos(angle + 0.8),
+            radius * 0.18 * Math.sin(angle + 0.8)
+          );
+          ctx.stroke();
+        }
+      } else {
+        // 十字
+        ctx.moveTo(-radius * 0.18, 0);
+        ctx.lineTo(radius * 0.18, 0);
+        ctx.moveTo(0, -radius * 0.18);
+        ctx.lineTo(0, radius * 0.18);
         ctx.stroke();
       }
-    } else {
-      // バランス：シンプル十字マーカー
-      ctx.moveTo(-radius * 0.18, 0);
-      ctx.lineTo(radius * 0.18, 0);
-      ctx.moveTo(0, -radius * 0.18);
-      ctx.lineTo(0, radius * 0.18);
-      ctx.stroke();
     }
 
     ctx.restore();
+    ctx.restore();
   }
 
-  // ==========================================
-  // 7. 【バトル画面】2D Canvas リアルタイムバトルのコア
-  // ==========================================
   private setupCanvas() {
     this.battleCanvas = document.getElementById('main-battle-canvas') as HTMLCanvasElement;
     if (this.battleCanvas) {
