@@ -350,6 +350,63 @@ class GameApp {
   private currentTalkIndex: number = 0;
   private talkOnCompleteAll: (() => void) | null = null;
 
+  // アセット画像プリロードキャッシュ (日本語ファイル名・拡張子自動フォールバック対応)
+  private chipImages: { [id: string]: HTMLImageElement } = {};
+  private charaImages: { [name: string]: HTMLImageElement } = {};
+
+  private preloadChipImages() {
+    this.チップマスタ.forEach(chip => {
+      const chipId = chip.チップID;
+      const chipName = chip.チップ名;
+      if (!chipName) return;
+
+      const img = new Image();
+      // ユーザーの保存形式 .jpeg でのロード試行
+      img.src = `./images/chips/${chipName}.jpeg`;
+      img.onload = () => {
+        this.chipImages[chipId] = img;
+      };
+      img.onerror = () => {
+        // 失敗した場合は .png で試行
+        const imgPng = new Image();
+        imgPng.src = `./images/chips/${chipName}.png`;
+        imgPng.onload = () => {
+          this.chipImages[chipId] = imgPng;
+        };
+      };
+    });
+  }
+
+  private preloadCharaImages() {
+    // 主要アバターおよびマスタに登録されている全エネミー/システムNPCイラストID（日本語名）のリスト
+    const charNames = ['主人公', 'ナビィ', '店長'];
+    this.エネミーマスタ.forEach(e => {
+      if (e.イラストID && !charNames.includes(e.イラストID)) {
+        charNames.push(e.イラストID);
+      }
+    });
+    this.システムNPCマスタ.forEach(e => {
+      if (e.イラストID && !charNames.includes(e.イラストID)) {
+        charNames.push(e.イラストID);
+      }
+    });
+
+    charNames.forEach(name => {
+      const img = new Image();
+      img.src = `./images/chara/${name}.jpeg`;
+      img.onload = () => {
+        this.charaImages[name] = img;
+      };
+      img.onerror = () => {
+        const imgPng = new Image();
+        imgPng.src = `./images/chara/${name}.png`;
+        imgPng.onload = () => {
+          this.charaImages[name] = imgPng;
+        };
+      };
+    });
+  }
+
   // コマンドフェーズ選択用変数
   private selectedCommandIndex: number = 0;
   private activeCommandButtons: HTMLButtonElement[] = [];
@@ -364,6 +421,8 @@ class GameApp {
     window.addEventListener('DOMContentLoaded', async () => {
       // データのロード
       await this.loadAllMasters();
+      this.preloadChipImages();
+      this.preloadCharaImages();
       this.loadGameFromStorage();
 
       // DOMバインド
@@ -3437,10 +3496,10 @@ class GameApp {
     ctx.arc(0, 0, radius * 0.29, 0, Math.PI * 2);
     ctx.clip();
 
-    // チップ画像アセットのロードチェック (画像IDに準拠)
-    const chipImgEl = document.getElementById(`img-chip-${chipId}`) as HTMLImageElement;
+    // キャッシュからチップ画像を取得 (画像名に準拠)
+    const chipImgEl = this.chipImages[chipId];
     if (chipImgEl && chipImgEl.complete && chipImgEl.naturalWidth !== 0) {
-      // ロード完了している画像を描画 (回転キャンセルせず回転させる)
+      // ロード完了している画像を描画
       ctx.drawImage(chipImgEl, -radius * 0.3, -radius * 0.3, radius * 0.6, radius * 0.6);
     } else {
       // フォールバック: 性格タイプ紋章を美しく描画
@@ -5801,7 +5860,7 @@ class GameApp {
     // ==========================================
   // 8. ADV演出エンジン
   // ==========================================
-  public playScenario(scenarioId: string, onComplete: () => void) {
+    public playScenario(scenarioId: string, onComplete: () => void) {
     // 既に別の会話が実行中の場合、クリーンアップして古いコールバックを安全に回収する (監査バグ4)
     if (document.getElementById('talk-dialog')?.classList.contains('active')) {
       if (this.talkOnCompleteAll) {
@@ -5829,21 +5888,33 @@ class GameApp {
       const avatarLeft = document.getElementById('talk-avatar-left');
       const avatarRight = document.getElementById('talk-avatar-right');
 
-      // このシナリオに登場する「対戦相手/対話相手」のイラストIDを事前にスキャン (常時表示のセットアップ)
-      let opponentIllustId = 'sn_001'; // デフォルトはナビィ
+      // このシナリオに登場する「対戦相手/対話相手」のイラストID（日本語名）を事前にスキャン
+      let opponentIllustId = 'ナビィ';
       for (const step of steps) {
         if (step.立ち位置 === 'right' && step.イラストID) {
-          opponentIllustId = step.イラストID;
+          opponentIllustId = step.イラストID; // イチカ, ハルト, 店長などの日本語名
           break;
         }
       }
 
       // 会話開始時に左右の立ち絵を常時表示状態でセットアップ
       if (avatarLeft) {
-        avatarLeft.className = 'talk-avatar left active avatar-hero';
+        avatarLeft.className = 'talk-avatar left active';
+        const heroImg = this.charaImages['主人公'];
+        if (heroImg) {
+          avatarLeft.style.backgroundImage = `url('${heroImg.src}')`;
+        } else {
+          avatarLeft.style.backgroundImage = 'none'; // 画像なしの場合はCSSデフォルトSVG
+        }
       }
       if (avatarRight) {
-        avatarRight.className = `talk-avatar right inactive avatar-${opponentIllustId}`;
+        avatarRight.className = 'talk-avatar right inactive';
+        const oppImg = this.charaImages[opponentIllustId];
+        if (oppImg) {
+          avatarRight.style.backgroundImage = `url('${oppImg.src}')`;
+        } else {
+          avatarRight.style.backgroundImage = 'none'; // 画像なしの場合はCSSデフォルトSVG
+        }
       }
 
       const queue = steps.map(step => {
@@ -5891,8 +5962,14 @@ class GameApp {
 
       this.startTalk(queue, () => {
         // 終了時の後片付け
-        if (avatarLeft) avatarLeft.className = 'talk-avatar left';
-        if (avatarRight) avatarRight.className = 'talk-avatar right';
+        if (avatarLeft) {
+          avatarLeft.className = 'talk-avatar left';
+          avatarLeft.style.backgroundImage = '';
+        }
+        if (avatarRight) {
+          avatarRight.className = 'talk-avatar right';
+          avatarRight.style.backgroundImage = '';
+        }
         onComplete();
       });
     } catch (err: any) {
@@ -5913,7 +5990,7 @@ class GameApp {
     this.renderCurrentTalk();
   }
 
-  private renderCurrentTalk() {
+    private renderCurrentTalk() {
     if (this.currentTalkIndex >= this.talkQueue.length) {
       document.getElementById('talk-dialog')?.classList.remove('active');
       if (this.talkOnCompleteAll) {
@@ -5936,12 +6013,20 @@ class GameApp {
     const avatarLeft = document.getElementById('talk-avatar-left');
     const avatarRight = document.getElementById('talk-avatar-right');
     if (avatarLeft && avatarRight) {
-      // クラス名にアバター画像定義がまだ含まれていない場合は、初期アバターを設定
-      if (!avatarLeft.className.includes('avatar-')) {
-        avatarLeft.className = 'talk-avatar left active avatar-hero';
+      // 立ち絵画像パスの動的設定
+      const heroImg = this.charaImages['主人公'];
+      const nabyImg = this.charaImages['ナビィ'];
+      
+      if (heroImg) {
+        avatarLeft.style.backgroundImage = `url('${heroImg.src}')`;
+      } else {
+        avatarLeft.style.backgroundImage = '';
       }
-      if (!avatarRight.className.includes('avatar-')) {
-        avatarRight.className = 'talk-avatar right inactive avatar-sn_001';
+
+      if (nabyImg) {
+        avatarRight.style.backgroundImage = `url('${nabyImg.src}')`;
+      } else {
+        avatarRight.style.backgroundImage = '';
       }
 
       // 話者名に基づいてアクティブ化

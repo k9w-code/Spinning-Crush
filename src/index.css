@@ -1786,7 +1786,7 @@ body, html {
 }
 
 .npc-avatar {
-  background-image: url('/images/shop_keeper.png');
+  background-image: url('/images/chara/店員.png');
   background-size: cover;
   background-position: center;
   position: relative;
@@ -3204,17 +3204,6 @@ body, html {
 }
 
 /* アバター立ち絵定義 */
-.adv-avatar.avatar-hero {
-  background-image: url('/images/chars/hero.png');
-}
-
-.adv-avatar.avatar-sn_001 {
-  background-image: url('/images/chars/naby.png');
-}
-
-.adv-avatar.avatar-sn_002 {
-  background-image: url('/images/shop_keeper.png');
-}
 
 /* エネミーデフォルトプレースホルダー */
 .adv-avatar.avatar-e001, .adv-avatar.avatar-e002, .adv-avatar.avatar-e003, .adv-avatar.avatar-e004, .adv-avatar.avatar-e005,
