@@ -2902,14 +2902,12 @@ class GameApp {
 
     const bladeNo = getPartNumber(bladeId);
     const bladeRank = getPartRank(bladeId);
-    const bladeType = getPartType(bladeId);
 
     const weightNo = getPartNumber(weightId);
     const weightRank = getPartRank(weightId);
     const weightType = getPartType(weightId);
 
     const soleNo = getPartNumber(soleId);
-    const soleType = getPartType(soleId);
 
     const chipType = getPartType(chipId);
 
@@ -5800,7 +5798,7 @@ class GameApp {
     ctx.restore();
   }
 
-  // ==========================================
+    // ==========================================
   // 8. ADV演出エンジン
   // ==========================================
   public playScenario(scenarioId: string, onComplete: () => void) {
@@ -5831,6 +5829,23 @@ class GameApp {
       const avatarLeft = document.getElementById('talk-avatar-left');
       const avatarRight = document.getElementById('talk-avatar-right');
 
+      // このシナリオに登場する「対戦相手/対話相手」のイラストIDを事前にスキャン (常時表示のセットアップ)
+      let opponentIllustId = 'sn_001'; // デフォルトはナビィ
+      for (const step of steps) {
+        if (step.立ち位置 === 'right' && step.イラストID) {
+          opponentIllustId = step.イラストID;
+          break;
+        }
+      }
+
+      // 会話開始時に左右の立ち絵を常時表示状態でセットアップ
+      if (avatarLeft) {
+        avatarLeft.className = 'talk-avatar left active avatar-hero';
+      }
+      if (avatarRight) {
+        avatarRight.className = `talk-avatar right inactive avatar-${opponentIllustId}`;
+      }
+
       const queue = steps.map(step => {
         return {
           speaker: step.話者名,
@@ -5852,28 +5867,23 @@ class GameApp {
               }
             }
 
-            // 立ち絵アバター表示更新
-            const illustId = step.イラストID;
+            // 立ち絵アバターの明暗（Active/Inactive）状態の更新
             const pos = step.立ち位置; // "left" | "right" | "center"
 
-            if (illustId) {
-              const avatarClass = `avatar-${illustId}`;
-              if (pos === 'left' && avatarLeft) {
-                avatarLeft.className = `talk-avatar left active ${avatarClass}`;
-                if (avatarRight) {
-                  avatarRight.classList.remove('active');
-                  avatarRight.classList.add('inactive');
-                }
-              } else if (pos === 'right' && avatarRight) {
-                avatarRight.className = `talk-avatar right active ${avatarClass}`;
-                if (avatarLeft) {
-                  avatarLeft.classList.remove('active');
-                  avatarLeft.classList.add('inactive');
-                }
+            if (pos === 'left' && avatarLeft) {
+              avatarLeft.classList.add('active');
+              avatarLeft.classList.remove('inactive');
+              if (avatarRight) {
+                avatarRight.classList.remove('active');
+                avatarRight.classList.add('inactive');
               }
-            } else {
-              if (avatarLeft) avatarLeft.className = 'talk-avatar left';
-              if (avatarRight) avatarRight.className = 'talk-avatar right';
+            } else if (pos === 'right' && avatarRight) {
+              avatarRight.classList.add('active');
+              avatarRight.classList.remove('inactive');
+              if (avatarLeft) {
+                avatarLeft.classList.remove('active');
+                avatarLeft.classList.add('inactive');
+              }
             }
           }
         };
@@ -5908,7 +5918,7 @@ class GameApp {
       document.getElementById('talk-dialog')?.classList.remove('active');
       if (this.talkOnCompleteAll) {
         const cb = this.talkOnCompleteAll;
-        this.talkOnCompleteAll = null; // 実行前にnullクリアすることで、コールバック内での新規会話の登録を上書き破壊しない (監査バグ4)
+        this.talkOnCompleteAll = null; // 実行前にnullクリア
         cb();
       }
       return;
@@ -5921,6 +5931,33 @@ class GameApp {
     
     if (speakerEl) speakerEl.textContent = current.speaker;
     if (textEl) textEl.textContent = current.text;
+
+    // 簡易会話用のフォールバック明暗切り替え (playScenario を通らない簡易 startTalk のため)
+    const avatarLeft = document.getElementById('talk-avatar-left');
+    const avatarRight = document.getElementById('talk-avatar-right');
+    if (avatarLeft && avatarRight) {
+      // クラス名にアバター画像定義がまだ含まれていない場合は、初期アバターを設定
+      if (!avatarLeft.className.includes('avatar-')) {
+        avatarLeft.className = 'talk-avatar left active avatar-hero';
+      }
+      if (!avatarRight.className.includes('avatar-')) {
+        avatarRight.className = 'talk-avatar right inactive avatar-sn_001';
+      }
+
+      // 話者名に基づいてアクティブ化
+      const isPlayer = current.speaker === 'あなた' || current.speaker === 'プレイヤー';
+      if (isPlayer) {
+        avatarLeft.classList.add('active');
+        avatarLeft.classList.remove('inactive');
+        avatarRight.classList.remove('active');
+        avatarRight.classList.add('inactive');
+      } else {
+        avatarRight.classList.add('active');
+        avatarRight.classList.remove('inactive');
+        avatarLeft.classList.remove('active');
+        avatarLeft.classList.add('inactive');
+      }
+    }
 
     // 現在のステップの演出や立ち絵のコールバックを発火
     if (current.onComplete) {
@@ -5935,6 +5972,7 @@ class GameApp {
 
   // ==========================================
   // 9. システムモーダルダイアログ
+  // ==========================================
   // ==========================================
   private showSystemModal(title: string, content: string) {
     const modal = document.getElementById('system-modal');

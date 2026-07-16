@@ -3204,8 +3204,12 @@ body, html {
 }
 
 /* アバター立ち絵定義 */
+.adv-avatar.avatar-hero {
+  background-image: url('/images/chars/hero.png');
+}
+
 .adv-avatar.avatar-sn_001 {
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="150" height="200" viewBox="0 0 150 200"><circle cx="75" cy="80" r="30" fill="%2300f3ff" opacity="0.85"/><ellipse cx="75" cy="145" rx="42" ry="25" fill="%2300f3ff" opacity="0.65"/><path d="M75,50 L65,15 L75,30 L85,15 Z" fill="%23ffd800"/><path d="M40,90 Q75,100 110,90" stroke="%2300f3ff" stroke-width="4" fill="none"/><circle cx="63" cy="80" r="5" fill="%23fff"/><circle cx="87" cy="80" r="5" fill="%23fff"/></svg>');
+  background-image: url('/images/chars/naby.png');
 }
 
 .adv-avatar.avatar-sn_002 {
