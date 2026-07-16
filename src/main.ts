@@ -380,38 +380,65 @@ class GameApp {
       }
       ctx.putImageData(imgData, 0, 0);
       
-      const transImg = new Image();
-      transImg.src = canvas.toDataURL();
-      transImg.onload = () => resolve(transImg);
-      transImg.onerror = () => resolve(img);
+      // toDataURLによる巨大なbase64文字列生成と再ロードを避け、toBlob & createObjectURLでメモリと処理速度を最適化
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          resolve(img);
+          return;
+        }
+        const blobUrl = URL.createObjectURL(blob);
+        const transImg = new Image();
+        transImg.src = blobUrl;
+        transImg.onload = () => resolve(transImg);
+        transImg.onerror = () => {
+          URL.revokeObjectURL(blobUrl);
+          resolve(img);
+        };
+      }, 'image/png');
     });
   }
 
-  private preloadChipImages() {
-    this.チップマスタ.forEach(chip => {
+  private preloadChipImages(): Promise<void> {
+    const promises = this.チップマスタ.map(chip => {
       const chipId = chip.チップID;
       const chipName = chip.チップ名;
-      if (!chipName) return;
+      if (!chipName) return Promise.resolve();
 
-      const img = new Image();
-      img.src = `./images/chips/${chipName}.jpeg`;
-      img.onload = async () => {
-        const transImg = await this.transparentizeBlack(img);
-        this.chipImages[chipId] = transImg;
-      };
-      img.onerror = () => {
-        const imgPng = new Image();
-        imgPng.src = `./images/chips/${chipName}.png`;
-        imgPng.onload = async () => {
-          const transImg = await this.transparentizeBlack(imgPng);
-          this.chipImages[chipId] = transImg;
+      return new Promise<void>((resolve) => {
+        const img = new Image();
+        img.src = `./images/chips/${chipName}.jpeg`;
+        img.onload = async () => {
+          try {
+            const transImg = await this.transparentizeBlack(img);
+            this.chipImages[chipId] = transImg;
+          } catch (e) {
+            console.error(`Failed to transparentize chip image: ${chipName}`, e);
+          }
+          resolve();
         };
-      };
+        img.onerror = () => {
+          const imgPng = new Image();
+          imgPng.src = `./images/chips/${chipName}.png`;
+          imgPng.onload = async () => {
+            try {
+              const transImg = await this.transparentizeBlack(imgPng);
+              this.chipImages[chipId] = transImg;
+            } catch (e) {
+              console.error(`Failed to transparentize chip png image: ${chipName}`, e);
+            }
+            resolve();
+          };
+          imgPng.onerror = () => {
+            console.warn(`Failed to load chip image (jpeg/png): ${chipName}`);
+            resolve(); // 読み込み失敗時もハングアップ防止
+          };
+        };
+      });
     });
+    return Promise.all(promises).then(() => {});
   }
 
-  private preloadCharaImages() {
-    // 主要アバターおよびマスタに登録されている全エネミー/システムNPCイラストID（日本語名）のリスト
+  private preloadCharaImages(): Promise<void> {
     const charNames = ['主人公', 'ナビィ', '店長'];
     this.エネミーマスタ.forEach(e => {
       if (e.イラストID && !charNames.includes(e.イラストID)) {
@@ -424,22 +451,39 @@ class GameApp {
       }
     });
 
-    charNames.forEach(name => {
-      const img = new Image();
-      img.src = `./images/chara/${name}.jpeg`;
-      img.onload = async () => {
-        const transImg = await this.transparentizeBlack(img);
-        this.charaImages[name] = transImg;
-      };
-      img.onerror = () => {
-        const imgPng = new Image();
-        imgPng.src = `./images/chara/${name}.png`;
-        imgPng.onload = async () => {
-          const transImg = await this.transparentizeBlack(imgPng);
-          this.charaImages[name] = transImg;
+    const promises = charNames.map(name => {
+      return new Promise<void>((resolve) => {
+        const img = new Image();
+        img.src = `./images/chara/${name}.jpeg`;
+        img.onload = async () => {
+          try {
+            const transImg = await this.transparentizeBlack(img);
+            this.charaImages[name] = transImg;
+          } catch (e) {
+            console.error(`Failed to transparentize chara image: ${name}`, e);
+          }
+          resolve();
         };
-      };
+        img.onerror = () => {
+          const imgPng = new Image();
+          imgPng.src = `./images/chara/${name}.png`;
+          imgPng.onload = async () => {
+            try {
+              const transImg = await this.transparentizeBlack(imgPng);
+              this.charaImages[name] = transImg;
+            } catch (e) {
+              console.error(`Failed to transparentize chara png image: ${name}`, e);
+            }
+            resolve();
+          };
+          imgPng.onerror = () => {
+            console.warn(`Failed to load chara image (jpeg/png): ${name}`);
+            resolve(); // 読み込み失敗時もハングアップ防止
+          };
+        };
+      });
     });
+    return Promise.all(promises).then(() => {});
   }
 
   // コマンドフェーズ選択用変数
@@ -456,8 +500,11 @@ class GameApp {
     window.addEventListener('DOMContentLoaded', async () => {
       // データのロード
       await this.loadAllMasters();
-      this.preloadChipImages();
-      this.preloadCharaImages();
+      // 画像アセットのプリロードを並行して実行し、完了を待つ（チラつき防止）
+      await Promise.all([
+        this.preloadChipImages(),
+        this.preloadCharaImages()
+      ]);
       this.loadGameFromStorage();
 
       // DOMバインド
