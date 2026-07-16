@@ -354,6 +354,39 @@ class GameApp {
   private chipImages: { [id: string]: HTMLImageElement } = {};
   private charaImages: { [name: string]: HTMLImageElement } = {};
 
+  private transparentizeBlack(img: HTMLImageElement): Promise<HTMLImageElement> {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(img);
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+      
+      // JPEGの圧縮ノイズを考慮したしきい値設定（RGB各値が40以下のほぼ暗闇の黒ピクセルをアルファ0で完全透明化）
+      const threshold = 40; 
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i+1];
+        const b = data[i+2];
+        if (r < threshold && g < threshold && b < threshold) {
+          data[i+3] = 0; // 不透明度を0 (透明) に設定！
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+      
+      const transImg = new Image();
+      transImg.src = canvas.toDataURL();
+      transImg.onload = () => resolve(transImg);
+      transImg.onerror = () => resolve(img);
+    });
+  }
+
   private preloadChipImages() {
     this.チップマスタ.forEach(chip => {
       const chipId = chip.チップID;
@@ -361,17 +394,17 @@ class GameApp {
       if (!chipName) return;
 
       const img = new Image();
-      // ユーザーの保存形式 .jpeg でのロード試行
       img.src = `./images/chips/${chipName}.jpeg`;
-      img.onload = () => {
-        this.chipImages[chipId] = img;
+      img.onload = async () => {
+        const transImg = await this.transparentizeBlack(img);
+        this.chipImages[chipId] = transImg;
       };
       img.onerror = () => {
-        // 失敗した場合は .png で試行
         const imgPng = new Image();
         imgPng.src = `./images/chips/${chipName}.png`;
-        imgPng.onload = () => {
-          this.chipImages[chipId] = imgPng;
+        imgPng.onload = async () => {
+          const transImg = await this.transparentizeBlack(imgPng);
+          this.chipImages[chipId] = transImg;
         };
       };
     });
@@ -394,14 +427,16 @@ class GameApp {
     charNames.forEach(name => {
       const img = new Image();
       img.src = `./images/chara/${name}.jpeg`;
-      img.onload = () => {
-        this.charaImages[name] = img;
+      img.onload = async () => {
+        const transImg = await this.transparentizeBlack(img);
+        this.charaImages[name] = transImg;
       };
       img.onerror = () => {
         const imgPng = new Image();
         imgPng.src = `./images/chara/${name}.png`;
-        imgPng.onload = () => {
-          this.charaImages[name] = imgPng;
+        imgPng.onload = async () => {
+          const transImg = await this.transparentizeBlack(imgPng);
+          this.charaImages[name] = transImg;
         };
       };
     });
@@ -5895,7 +5930,7 @@ class GameApp {
         if (heroImg) {
           avatarLeft.style.backgroundImage = `url('${heroImg.src}')`;
         } else {
-          avatarLeft.style.backgroundImage = 'none'; // 画像なしの場合はCSSデフォルトSVG
+          avatarLeft.style.backgroundImage = ''; // 画像なしの場合はCSSデフォルト
         }
       }
       if (avatarRight) {
@@ -5904,7 +5939,7 @@ class GameApp {
         if (oppImg) {
           avatarRight.style.backgroundImage = `url('${oppImg.src}')`;
         } else {
-          avatarRight.style.backgroundImage = 'none'; // 画像なしの場合はCSSデフォルトSVG
+          avatarRight.style.backgroundImage = ''; // 画像なしの場合はCSSデフォルト
         }
       }
 
@@ -5926,6 +5961,20 @@ class GameApp {
               if (overlay) {
                 overlay.classList.add('flash-active');
                 setTimeout(() => overlay.classList.remove('flash-active'), 250);
+              }
+            }
+
+            // セリフ進行時、キャッシュ画像を再適用 (非同期でのロード完了遅延に対応)
+            if (avatarLeft) {
+              const heroImg = this.charaImages['主人公'];
+              if (heroImg) {
+                avatarLeft.style.backgroundImage = `url('${heroImg.src}')`;
+              }
+            }
+            if (avatarRight) {
+              const oppImg = this.charaImages[opponentIllustId];
+              if (oppImg) {
+                avatarRight.style.backgroundImage = `url('${oppImg.src}')`;
               }
             }
 

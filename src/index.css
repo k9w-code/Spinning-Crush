@@ -1663,8 +1663,8 @@ body, html {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(3, 4, 6, 0.88); /* 不透明度を上げて背後UIを完全に隠し、誤爆も防止 */
-  z-index: 2500;
+  background: rgba(3, 4, 6, 0.94); /* 不透明度をさらに上げて完全に背後を隠蔽 */
+  z-index: 99999; /* 極限まで引き上げて他の z-index: 9999 要素より上に表示 */
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease;
@@ -2911,7 +2911,7 @@ body, html {
   position: absolute;
   right: -300px; /* 初期位置は右の画面外 */
   filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.8));
-  mix-blend-mode: screen; /* 黒背景を100%透明化し、ネオンの光だけを合成表示 */
+  mix-blend-mode: normal; /* 黒背景を100%透明化し、ネオンの光だけを合成表示 */
 }
 
 .seiju-cutin-overlay.active #seiju-cutin-img {
@@ -3168,29 +3168,29 @@ body, html {
 
 .talk-avatars-container {
   position: absolute;
-  bottom: 100px; /* 少し下げてテキストボックスと綺麗に重ねる */
+  bottom: 195px; /* 会話ボックス(bottom: 20px + 高さ約160px)の完全に「上」に突き出させてテキスト被りを完全防止 */
   left: 50%;
   transform: translateX(-50%);
   width: 90%;
   max-width: 800px;
-  height: 300px;
+  height: 240px; /* 高さを 240px にスリム化 */
   display: flex;
   justify-content: space-between;
   padding: 0 50px;
   pointer-events: none;
-  z-index: 2300; /* テキストボックス(z-index: 2200)の手前に表示させて潜り込みを完全に防止 */
+  z-index: 2100; /* テキストボックス(z-index: 2200)の奥に配置してテキスト可読性を最優先 */
 }
 
 .talk-avatar {
-  width: 225px; /* 幅を 135px -> 225px に拡大 */
-  height: 300px; /* 高さを 180px -> 300px に拡大 */
+  width: 180px; /* 幅を 180px に最適化 */
+  height: 240px; /* 高さを 240px に最適化 */
   background-size: contain;
   background-repeat: no-repeat;
   background-position: bottom;
   opacity: 0;
   transform: translateY(30px);
   transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease, filter 0.3s ease;
-  mix-blend-mode: screen; /* 黒背景を100%透明化し、ホログラムのように美しく合成表示 */
+  mix-blend-mode: normal; /* JS側でアルファチャンネル付きの透過PNGにするため通常表示でOK */
 }
 
 .talk-avatar.active {
