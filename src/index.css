@@ -1663,7 +1663,7 @@ body, html {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(3, 4, 6, 0.94); /* 不透明度をさらに上げて完全に背後を隠蔽 */
+  background: rgba(3, 4, 6, 0.65); /* 半透明に戻して背後のガレージUIをうっすら見せつつ、z-indexにより文字の貫通を完全防止 */
   z-index: 99999; /* 極限まで引き上げて他の z-index: 9999 要素より上に表示 */
   opacity: 0;
   pointer-events: none;
