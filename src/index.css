@@ -1663,7 +1663,7 @@ body, html {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(3, 4, 6, 0.88); /* 不透明度を上げて背後UIを完全に隠し、誤爆も防止 */
   z-index: 2500;
   opacity: 0;
   pointer-events: none;
@@ -2911,6 +2911,7 @@ body, html {
   position: absolute;
   right: -300px; /* 初期位置は右の画面外 */
   filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.8));
+  mix-blend-mode: screen; /* 黒背景を100%透明化し、ネオンの光だけを合成表示 */
 }
 
 .seiju-cutin-overlay.active #seiju-cutin-img {
@@ -3167,12 +3168,12 @@ body, html {
 
 .talk-avatars-container {
   position: absolute;
-  bottom: 175px; /* 会話ボックス(bottom: 20px + 高さ約150px)の直上に綺麗に乗る高さ */
+  bottom: 110px; /* 位置をやや下げてアバターの露出面積を最適化 */
   left: 50%;
   transform: translateX(-50%);
   width: 90%;
   max-width: 800px;
-  height: 180px;
+  height: 300px; /* 高さを 180px -> 300px に大幅拡大 */
   display: flex;
   justify-content: space-between;
   padding: 0 50px;
@@ -3181,14 +3182,15 @@ body, html {
 }
 
 .talk-avatar {
-  width: 135px;
-  height: 180px;
+  width: 225px; /* 幅を 135px -> 225px に拡大 */
+  height: 300px; /* 高さを 180px -> 300px に拡大 */
   background-size: contain;
   background-repeat: no-repeat;
   background-position: bottom;
   opacity: 0;
   transform: translateY(30px);
   transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease, filter 0.3s ease;
+  mix-blend-mode: screen; /* 黒背景を100%透明化し、ホログラムのように美しく合成表示 */
 }
 
 .talk-avatar.active {
