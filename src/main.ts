@@ -4598,31 +4598,22 @@ class GameApp {
     // 発動ギアのブレード属性を演出属性とする
     const gear = side === 'プレイヤー' ? this.battleManager.プレイヤーギア : this.battleManager.エネミーギア;
     const attr = gear.部位属性.ブレード || '無';
+    const chipId = gear.装備ID.チップ;
 
-    // 聖獣画像のマッピング ＆ フォールバック情報の設定 (パッケージ3)
-    let imgUrl = "";
-    let seijuName = "";
-    let neonColor = "#ffffff";
-    if (attr === '火') {
-      imgUrl = './images/seiju_dranzer.png';
-      seijuName = '火聖獣 朱雀 (DRANZER) 召喚！！';
-      neonColor = '#ff0055';
-    } else if (attr === '水') {
-      imgUrl = './images/seiju_draciel.png';
-      seijuName = '水聖獣 玄武 (DRACIEL) 召喚！！';
-      neonColor = '#00f3ff';
-    } else if (attr === '風') {
-      imgUrl = './images/seiju_dragoon.png';
-      seijuName = '風聖獣 青龍 (DRAGOON) 召喚！！';
-      neonColor = '#39ff14';
-    } else if (attr === '土' || attr === '雷') {
-      imgUrl = './images/seiju_driger.png';
-      seijuName = '地聖獣 白虎 (DRIGER) 召喚！！';
-      neonColor = '#ffaa00';
-    } else {
-      seijuName = '聖獣召喚 (ULTIMATE ATTACK) ！！';
-      neonColor = '#ffffff';
-    }
+    // 演出に用いるネオンカラーの設定
+    let neonColor = '#ffffff';
+    if (attr === '火') neonColor = '#ff0055';
+    else if (attr === '水') neonColor = '#00f3ff';
+    else if (attr === '風') neonColor = '#39ff14';
+    else if (attr === '土' || attr === '雷') neonColor = '#ffaa00';
+
+    // 聖獣画像として、現在装備しているコアチップの美麗画像をそのまま流用ロード (パッケージ3・リファクタリング)
+    const chip = this.チップマスタ.find(c => c.チップID === chipId);
+    const chipName = chip ? chip.チップ名 : '聖獣';
+    const seijuName = `${chipName} 召喚！！！`;
+
+    const chipImgEl = this.chipImages[chipId];
+    const imgUrl = chipImgEl ? chipImgEl.src : "";
 
     const cutinImg = document.getElementById('seiju-cutin-img') as HTMLImageElement;
     const cutinText = document.getElementById('seiju-cutin-fallback-text') as HTMLElement;
