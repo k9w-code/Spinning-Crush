@@ -3168,17 +3168,17 @@ body, html {
 
 .talk-avatars-container {
   position: absolute;
-  bottom: 110px; /* 位置をやや下げてアバターの露出面積を最適化 */
+  bottom: 100px; /* 少し下げてテキストボックスと綺麗に重ねる */
   left: 50%;
   transform: translateX(-50%);
   width: 90%;
   max-width: 800px;
-  height: 300px; /* 高さを 180px -> 300px に大幅拡大 */
+  height: 300px;
   display: flex;
   justify-content: space-between;
   padding: 0 50px;
   pointer-events: none;
-  z-index: 2100;
+  z-index: 2300; /* テキストボックス(z-index: 2200)の手前に表示させて潜り込みを完全に防止 */
 }
 
 .talk-avatar {
@@ -3196,7 +3196,7 @@ body, html {
 .talk-avatar.active {
   opacity: 1;
   transform: translateY(0);
-  filter: brightness(1.0) drop-shadow(0 0 12px var(--color-neon-blue));
+  filter: brightness(1.0); /* 四角い枠線が発光するのを防ぐため、drop-shadow を除去 */
 }
 
 .adv-avatar.inactive {
