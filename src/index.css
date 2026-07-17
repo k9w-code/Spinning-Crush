@@ -3678,3 +3678,11 @@ body, html {
     font-size: 1rem;
   }
 }
+
+/* ================= 会話シーン実行時の背後UI被り完全防止 ================= */
+#ui-container.in-talk .screen {
+  opacity: 0.08 !important; /* ほぼ完全に透明化し、ギア名などの文字被りを100%防止 */
+  filter: blur(4px); /* サイバーパンクなブラーエフェクト */
+  transition: opacity 0.3s ease, filter 0.3s ease;
+  pointer-events: none; /* 会話中の背面操作も完全ガード */
+}

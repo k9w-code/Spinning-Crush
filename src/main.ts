@@ -368,8 +368,8 @@ class GameApp {
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imgData.data;
       
-      // JPEGの圧縮ノイズを考慮したしきい値設定（RGB各値が40以下のほぼ暗闇の黒ピクセルをアルファ0で完全透明化）
-      const threshold = 40; 
+      // JPEGの圧縮ノイズを考慮したしきい値設定（しきい値を80に引き上げ、わずかに明るい黒背景も100%確実に完全透過）
+      const threshold = 80; 
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
         const g = data[i+1];
@@ -6088,6 +6088,9 @@ class GameApp {
           avatarRight.className = 'talk-avatar right';
           avatarRight.style.backgroundImage = '';
         }
+        // 会話終了時に in-talk クラスを削除して背後画面を復帰
+        const uiContainer = document.getElementById('ui-container');
+        if (uiContainer) uiContainer.classList.remove('in-talk');
         onComplete();
       });
     } catch (err: any) {
@@ -6104,6 +6107,10 @@ class GameApp {
     
     const dialog = document.getElementById('talk-dialog');
     if (dialog) dialog.classList.add('active');
+
+    // 会話開始時、背後の画面をフェードアウトさせるために in-talk クラスを付与
+    const uiContainer = document.getElementById('ui-container');
+    if (uiContainer) uiContainer.classList.add('in-talk');
 
     this.renderCurrentTalk();
   }
