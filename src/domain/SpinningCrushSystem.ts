@@ -183,19 +183,61 @@ export function アセンブル実行(
   チップマスタ: チップマスタ行[],
   奥義マスタ: 奥義マスタ行[]
 ): アセンブルデータ {
-  // パーツ検索 (IDは厳格に文字列比較)
-  const ブレードパーツ = パーツマスタ.find(p => p.パーツID === ブレードID);
-  const ウェイトパーツ = パーツマスタ.find(p => p.パーツID === ウェイトID);
-  const ソールパーツ = パーツマスタ.find(p => p.パーツID === ソールID);
+  // パーツ・チップ検索の安全なフォールバックヘルパー (例外をスローせず初期パーツで復元)
+  const findPartSafe = (partId: string, typeCode: string, defaultId: string): パーツマスタ行 => {
+    let part = パーツマスタ.find(p => p.パーツID === partId);
+    if (!part) {
+      part = パーツマスタ.find(p => p.パーツID === defaultId);
+    }
+    if (!part) {
+      part = パーツマスタ.find(p => p.種別 === typeCode);
+    }
+    if (!part) {
+      part = {
+        パーツID: partId || defaultId,
+        パーツ名: "初期パーツ",
+        種別: typeCode,
+        画像ID: "",
+        ランク: "1",
+        属性: "無",
+        ライフ: "100",
+        アタック: "100",
+        ディフェンス: "100",
+        スピード: "100",
+        レンジ: "100",
+        モビリティ: "100",
+        フレーバー: "フォールバック",
+        ステ確認: "",
+        メモ: ""
+      };
+    }
+    return part;
+  };
 
-  if (!ブレードパーツ || !ウェイトパーツ || !ソールパーツ) {
-    throw new Error(`指定されたパーツが見つかりません。ブレード:${ブレードID}, ウェイト:${ウェイトID}, ソール:${ソールID}`);
-  }
+  const findChipSafe = (chipId: string, defaultId: string): チップマスタ行 => {
+    let chip = チップマスタ.find(c => c.チップID === chipId);
+    if (!chip) {
+      chip = チップマスタ.find(c => c.チップID === defaultId);
+    }
+    if (!chip) {
+      chip = チップマスタ[0] || {
+        チップID: chipId || defaultId,
+        チップ名: "初期チップ",
+        画像ID: "",
+        レベル2奥義ID: "",
+        レベル3奥義ID: "",
+        レベル4奥義ID: "",
+        レベル5奥義ID: "",
+        フレーバー: ""
+      };
+    }
+    return chip;
+  };
 
-  const チップパーツ = チップマスタ.find(c => c.チップID === チップID);
-  if (!チップパーツ) {
-    throw new Error(`指定されたチップが見つかりません。チップ:${チップID}`);
-  }
+  const ブレードパーツ = findPartSafe(ブレードID, "1", "b101_n");
+  const ウェイトパーツ = findPartSafe(ウェイトID, "2", "w101_n");
+  const ソールパーツ = findPartSafe(ソールID, "3", "s101_n");
+  const チップパーツ = findChipSafe(チップID, "c001");
 
   // ステータス合算 (SUM)
   const ステータス = {
@@ -433,8 +475,8 @@ export class バトル更新マネージャー {
     // --- ②.5 すり鉢引力の適用 (スタジアム中心への緩やかな引力) ---
     const pCx = this.スタジアム中心X - this.プレイヤー位置X;
     const pCy = this.スタジアム中心Y - this.プレイヤー位置Y;
-    const pCdist = Math.sqrt(pCx * pCx + pCy * pCy);
-    if (pCdist > 0) {
+    const pCdist = Math.sqrt(pCx * pCx + pCy * pCy) || 0.0001; // ゼロ除算防止
+    {
       const gravity = 0.04;
       this.プレイヤー速度X += (pCx / pCdist) * gravity;
       this.プレイヤー速度Y += (pCy / pCdist) * gravity;
@@ -442,8 +484,8 @@ export class バトル更新マネージャー {
 
     const eCx = this.スタジアム中心X - this.エネミー位置X;
     const eCy = this.スタジアム中心Y - this.エネミー位置Y;
-    const eCdist = Math.sqrt(eCx * eCx + eCy * eCy);
-    if (eCdist > 0) {
+    const eCdist = Math.sqrt(eCx * eCx + eCy * eCy) || 0.0001; // ゼロ除算防止
+    {
       const gravity = 0.04;
       this.エネミー速度X += (eCx / eCdist) * gravity;
       this.エネミー速度Y += (eCy / eCdist) * gravity;
@@ -466,7 +508,7 @@ export class バトル更新マネージャー {
     const checkWallCollision = (posX: number, posY: number, velX: number, velY: number) => {
       const cx = posX - this.スタジアム中心X;
       const cy = posY - this.スタジアム中心Y;
-      const cdist = Math.sqrt(cx * cx + cy * cy);
+      const cdist = Math.sqrt(cx * cx + cy * cy) || 0.0001; // ゼロ除算防止
       const maxDistance = this.スタジアム半径 - this.ギア半径;
 
       if (cdist > maxDistance) {
@@ -509,10 +551,14 @@ export class バトル更新マネージャー {
     this.エネミー速度Y = eWall.velY;
 
     // --- ⑥ ギア同士の激突物理判定 (円形衝突) ---
-    const currentDist = this.get現在の間合い();
+    let currentDist = this.get現在の間合い();
     const minCollisionDist = this.ギア半径 * 2; // 50px
 
-    if (currentDist < minCollisionDist && currentDist > 0) {
+    if (currentDist < minCollisionDist) {
+      if (currentDist <= 0) {
+        currentDist = 0.1; // 完全重複時のゼロ除算・フリーズ防止
+        this.エネミー位置X += 0.1;
+      }
       // 1. 位置の押し戻し（重なり解消）
       const overlap = minCollisionDist - currentDist;
       const ox = (this.エネミー位置X - this.プレイヤー位置X) / currentDist;

@@ -672,13 +672,19 @@ class GameApp {
       });
     }
 
-    // ギアスロットの整合性チェック（パーツ欠損スロットは未編成 null に強制リセットしてクラッシュを防ぐ）
+    // ギアスロットの整合性チェック（パーツ欠損スロットは初期パーツで復元してクラッシュを防ぐ）
     if (data.ギアスロット && typeof data.ギアスロット === 'object') {
       for (let i = 1; i <= 5; i++) {
         const slotKey = i.toString();
         const slot = data.ギアスロット[slotKey];
         if (slot && typeof slot === 'object') {
-          if (slot.チップ && slot.ブレード && slot.ウェイト && slot.ソール) {
+          // 各パーツIDが実際にマスタデータに存在する有効なものか確認
+          const isValidChip = this.チップマスタ.some(c => c.チップID === slot.チップ);
+          const isValidBlade = this.パーツマスタ.some(p => p.パーツID === slot.ブレード && p.種別 === "1");
+          const isValidWeight = this.パーツマスタ.some(p => p.パーツID === slot.ウェイト && p.種別 === "2");
+          const isValidSole = this.パーツマスタ.some(p => p.パーツID === slot.ソール && p.種別 === "3");
+
+          if (isValidChip && isValidBlade && isValidWeight && isValidSole) {
             fresh.ギアスロット[slotKey] = {
               チップ: String(slot.チップ).trim(),
               ブレード: String(slot.ブレード).trim(),
@@ -688,7 +694,15 @@ class GameApp {
               EXP: isNaN(Number(slot.EXP)) ? 0 : Math.min(3, Math.max(0, Math.floor(Number(slot.EXP))))
             };
           } else {
-            fresh.ギアスロット[slotKey] = null;
+            // パーツ欠損や無効IDの場合は、初期構成パーツをセットして自動復元
+            fresh.ギアスロット[slotKey] = {
+              チップ: isValidChip ? String(slot.チップ).trim() : 'c001',
+              ブレード: isValidBlade ? String(slot.ブレード).trim() : 'b101_n',
+              ウェイト: isValidWeight ? String(slot.ウェイト).trim() : 'w101_n',
+              ソール: isValidSole ? String(slot.ソール).trim() : 's101_n',
+              レベル: 1,
+              EXP: 0
+            };
           }
         }
       }
@@ -719,9 +733,9 @@ class GameApp {
   }
 
   private loadGameFromStorage(): boolean {
-    const saved = localStorage.getItem('spinning_crush_save');
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('spinning_crush_save');
+      if (saved) {
         const raw = JSON.parse(saved);
         this.saveData = this.validateAndSanitizeSaveData(raw);
 
@@ -734,6 +748,11 @@ class GameApp {
         };
 
         this.saveData.インベントリ = this.saveData.インベントリ.map(convertOldId);
+        // インベントリの無効IDをフィルタリング（マスタにないものは排除）
+        this.saveData.インベントリ = this.saveData.インベントリ.filter(id => 
+          this.チップマスタ.some(c => c.チップID === id) || this.パーツマスタ.some(p => p.パーツID === id)
+        );
+
         Object.keys(this.saveData.ギアスロット).forEach(key => {
           const slot = this.saveData.ギアスロット[key];
           if (slot) {
@@ -751,9 +770,9 @@ class GameApp {
         }
 
         return true;
-      } catch (e) {
-        console.error(e);
       }
+    } catch (e) {
+      console.error("Failed to load save game. Resetting to initial data:", e);
     }
     this.saveData = JSON.parse(JSON.stringify(INITIAL_SAVE_DATA));
     return false;
@@ -779,6 +798,14 @@ class GameApp {
   private changeScreen(screenId: string) {
     if (this.isTransitioning) return;
     this.isTransitioning = true;
+
+    // 画面遷移時、会話表示中のダイアログがあればクローズし、関連するキューとコールバックを安全にクリーンアップしてメモリリークを防ぐ
+    const talkDialog = document.getElementById('talk-dialog');
+    if (talkDialog) {
+      talkDialog.classList.remove('active');
+    }
+    this.talkQueue = [];
+    this.talkOnCompleteAll = null;
 
     // 前画面のカウントアップ効果音タイマーが走っていれば強制クリーンアップ (Finding 4)
     if (this.resultJpIntervalId) {
@@ -1577,10 +1604,14 @@ class GameApp {
 
     // 換装シミュレーションステータス
     let nextStats = { ライフ: 0, アタック: 0, ディフェンス: 0, スピード: 0, レンジ: 0, モビリティ: 0 };
-    if (this.customGearSim.ブレード && this.customGearSim.ウェイト && this.customGearSim.ソール) {
-      const assembledNext = アセンブル実行(this.customGearSim.チップ, this.customGearSim.ブレード, this.customGearSim.ウェイト, this.customGearSim.ソール, this.customGearSim.レベル, this.パーツマスタ, this.チップマスタ, this.奥義マスタ);
-      nextStats = assembledNext.ステータス;
-    }
+    // パーツ脱着で一部が未装備であってもデフォルトパーツを補うことでnull安全にシミュレーションを行う
+    const simBlade = this.customGearSim.ブレード || 'b101_n';
+    const simWeight = this.customGearSim.ウェイト || 'w101_n';
+    const simSole = this.customGearSim.ソール || 's101_n';
+    const simChip = this.customGearSim.チップ || 'c001';
+    
+    const assembledNext = アセンブル実行(simChip, simBlade, simWeight, simSole, this.customGearSim.レベル, this.パーツマスタ, this.チップマスタ, this.奥義マスタ);
+    nextStats = assembledNext.ステータス;
 
     const keys = ['ライフ', 'アタック', 'ディフェンス', 'スピード', 'レンジ', 'モビリティ'];
     
@@ -4806,9 +4837,9 @@ class GameApp {
         
         // SP(奥義)ゲージの確定獲得 (防御した側が獲得)
         if (攻撃側判定 === 'プレイヤー') {
-          this.battleManager.エネミー奥義ゲージ = Math.min(100, this.battleManager.エネミー奥義ゲージ + 10);
+          this.battleManager.エネミー奥義ゲージ = Math.min(100, Math.max(0, this.battleManager.エネミー奥義ゲージ + 10));
         } else {
-          this.battleManager.プレイヤー奥義ゲージ = Math.min(100, this.battleManager.プレイヤー奥義ゲージ + 10);
+          this.battleManager.プレイヤー奥義ゲージ = Math.min(100, Math.max(0, this.battleManager.プレイヤー奥義ゲージ + 10));
         }
 
         advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}は防御を固め、ダメージを軽減した！ (被ダメージ: ${Math.floor(ダメージ)})`;
@@ -4816,9 +4847,9 @@ class GameApp {
       else if (防御側コマンド === '防御奥義' && 防御奥義) {
         // 防御奥義コスト消費 (防御した側が消費)
         if (攻撃側判定 === 'プレイヤー') {
-          this.battleManager.エネミー奥義ゲージ -= Number(防御奥義.消費奥義ゲージ);
+          this.battleManager.エネミー奥義ゲージ = Math.max(0, this.battleManager.エネミー奥義ゲージ - Number(防御奥義.消費奥義ゲージ));
         } else {
-          this.battleManager.プレイヤー奥義ゲージ -= Number(防御奥義.消費奥義ゲージ);
+          this.battleManager.プレイヤー奥義ゲージ = Math.max(0, this.battleManager.プレイヤー奥義ゲージ - Number(防御奥義.消費奥義ゲージ));
         }
 
         // ダメージ軽減率は奥義マスタの効果量 (例: 70%カット ➔ ダメージ0.3倍)
@@ -4841,9 +4872,9 @@ class GameApp {
         
         // SP(奥義)ゲージは成否に関わらず+10
         if (攻撃側判定 === 'プレイヤー') {
-          this.battleManager.エネミー奥義ゲージ = Math.min(100, this.battleManager.エネミー奥義ゲージ + 10);
+          this.battleManager.エネミー奥義ゲージ = Math.min(100, Math.max(0, this.battleManager.エネミー奥義ゲージ + 10));
         } else {
-          this.battleManager.プレイヤー奥義ゲージ = Math.min(100, this.battleManager.プレイヤー奥義ゲージ + 10);
+          this.battleManager.プレイヤー奥義ゲージ = Math.min(100, Math.max(0, this.battleManager.プレイヤー奥義ゲージ + 10));
         }
 
         if (乱数 < 最終回避率) {
@@ -4857,9 +4888,9 @@ class GameApp {
       else if (防御側コマンド === '回避奥義' && 防御奥義) {
         // 回避奥義コスト消費
         if (攻撃側判定 === 'プレイヤー') {
-          this.battleManager.エネミー奥義ゲージ -= Number(防御奥義.消費奥義ゲージ);
+          this.battleManager.エネミー奥義ゲージ = Math.max(0, this.battleManager.エネミー奥義ゲージ - Number(防御奥義.消費奥義ゲージ));
         } else {
-          this.battleManager.プレイヤー奥義ゲージ -= Number(防御奥義.消費奥義ゲージ);
+          this.battleManager.プレイヤー奥義ゲージ = Math.max(0, this.battleManager.プレイヤー奥義ゲージ - Number(防御奥義.消費奥義ゲージ));
         }
 
         // 基礎回避率を奥義効果量 (例: 一律60) で計算
@@ -4881,11 +4912,11 @@ class GameApp {
       else if (防御側コマンド === 'カウンター') {
         // カウンターコスト消費
         if (攻撃側判定 === 'プレイヤー') {
-          this.battleManager.エネミー攻撃ゲージ -= 30;
-          this.battleManager.エネミー奥義ゲージ -= 30;
+          this.battleManager.エネミー攻撃ゲージ = Math.max(0, this.battleManager.エネミー攻撃ゲージ - 30);
+          this.battleManager.エネミー奥義ゲージ = Math.max(0, this.battleManager.エネミー奥義ゲージ - 30);
         } else {
-          this.battleManager.プレイヤー攻撃ゲージ -= 30;
-          this.battleManager.プレイヤー奥義ゲージ -= 30;
+          this.battleManager.プレイヤー攻撃ゲージ = Math.max(0, this.battleManager.プレイヤー攻撃ゲージ - 30);
+          this.battleManager.プレイヤー奥義ゲージ = Math.max(0, this.battleManager.プレイヤー奥義ゲージ - 30);
         }
 
         const ブレード相性 = 属性相性判定(防御側ギア.部位属性.ブレード, 攻撃側ギア.部位属性.ブレード);
@@ -4915,11 +4946,11 @@ class GameApp {
         const atkCost = Number(防御奥義.消費攻撃ゲージ || 0);
 
         if (攻撃側判定 === 'プレイヤー') {
-          this.battleManager.エネミー攻撃ゲージ -= atkCost;
-          this.battleManager.エネミー奥義ゲージ -= spCost;
+          this.battleManager.エネミー攻撃ゲージ = Math.max(0, this.battleManager.エネミー攻撃ゲージ - atkCost);
+          this.battleManager.エネミー奥義ゲージ = Math.max(0, this.battleManager.エネミー奥義ゲージ - spCost);
         } else {
-          this.battleManager.プレイヤー攻撃ゲージ -= atkCost;
-          this.battleManager.プレイヤー奥義ゲージ -= spCost;
+          this.battleManager.プレイヤー攻撃ゲージ = Math.max(0, this.battleManager.プレイヤー攻撃ゲージ - atkCost);
+          this.battleManager.プレイヤー奥義ゲージ = Math.max(0, this.battleManager.プレイヤー奥義ゲージ - spCost);
         }
 
         // 成功率は通常のカウンターと同様
