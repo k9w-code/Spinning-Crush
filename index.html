@@ -123,8 +123,17 @@
             <h4 id="inventory-part-type-title">ブレード一覧</h4>
             <button id="btn-close-drawer" class="btn btn-small btn-outline">閉じる</button>
           </div>
-          <div class="inventory-items-grid" id="inventory-items-grid">
-            <!-- JSで動的生成 -->
+          <div class="drawer-body-split">
+            <div class="inventory-items-grid" id="inventory-items-grid">
+              <!-- JSで動的生成 -->
+            </div>
+            <!-- 右側：選択パーツのスペック＆フレーバー詳細表示パネル (虚無スペースの撲滅) -->
+            <div class="drawer-detail-panel" id="drawer-detail-panel">
+              <div class="detail-placeholder">
+                <span class="placeholder-icon">🔍</span>
+                <p>パーツにホバーすると詳細情報が表示されます</p>
+              </div>
+            </div>
           </div>
         </div>
 

@@ -1721,6 +1721,8 @@ class GameApp {
           <div class="item-name">${item.チップ名}</div>
           <div class="item-attributes">${item.フレーバー || 'コアパーツ'}</div>
         `;
+        // ホバーした瞬間に右側に詳細スペックを表示 (平成ホビーパッケージ風)
+        card.addEventListener('mouseenter', () => this.showPartDetailInDrawer(item, 'チップ'));
         card.addEventListener('click', () => {
           this.customGearSim.チップ = item.チップID;
           this.updateCustomAssembleArea();
@@ -1793,6 +1795,8 @@ class GameApp {
             ${statsHtml}
           </div>
         `;
+        // ホバーした瞬間に右側に詳細スペックを表示 (平成ホビーパッケージ風)
+        card.addEventListener('mouseenter', () => this.showPartDetailInDrawer(item, type));
         card.addEventListener('click', () => {
           if (type === 'ブレード') this.customGearSim.ブレード = item.パーツID;
           else if (type === 'ウェイト') this.customGearSim.ウェイト = item.パーツID;
@@ -1806,6 +1810,94 @@ class GameApp {
     }
 
     document.getElementById('inventory-drawer')?.classList.add('active');
+  }
+
+  private showPartDetailInDrawer(item: any, type: string) {
+    const detailPanel = document.getElementById('drawer-detail-panel');
+    if (!detailPanel) return;
+
+    if (type === 'チップ') {
+      detailPanel.innerHTML = `
+        <div class="detail-header-info">
+          <h4 class="detail-title">${item.チップ名}</h4>
+          <span class="detail-tag">バトルチップ</span>
+        </div>
+        <div class="detail-body">
+          <div class="detail-flavor-box">
+            <p class="detail-flavor-text">${item.フレーバー || '強力なマスターAIを内蔵したバトルチップ。'}</p>
+          </div>
+          <div class="detail-okugi-info">
+            <h5>搭載奥義</h5>
+            <p>Lv.2: ${item.レベル2奥義ID ? this.奥義マスタ.find(o => o.奥義ID === item.レベル2奥義ID)?.奥義名 || '未解放' : '未解放'}</p>
+            <p>Lv.3: ${item.レベル3奥義ID ? this.奥義マスタ.find(o => o.奥義ID === item.レベル3奥義ID)?.奥義名 || '未解放' : '未解放'}</p>
+          </div>
+        </div>
+      `;
+    } else {
+      const typeLabel = type === 'ブレード' ? 'ブレード' : (type === 'ウェイト' ? 'ウェイト' : 'ソール');
+      
+      // 各ステータスのバー表示HTMLを生成
+      const renderStatBar = (label: string, value: string) => {
+        const valNum = Number(value || 0);
+        // 最大ステータス250を基準とした進捗率
+        const pct = Math.min(100, (valNum / 250) * 100);
+        return `
+          <div class="detail-stat-row">
+            <span class="stat-label">${label}</span>
+            <div class="stat-bar-outer">
+              <div class="stat-bar-inner" style="width: ${pct}%"></div>
+            </div>
+            <span class="stat-value-num">${valNum}</span>
+          </div>
+        `;
+      };
+
+      let statsBarsHtml = '';
+      if (type === 'ブレード') {
+        statsBarsHtml = `
+          ${renderStatBar('ライフ (HP)', item.ライフ)}
+          ${renderStatBar('アタック (ATK)', item.アタック)}
+          ${renderStatBar('ディフェンス (DEF)', item.ディフェンス)}
+          ${renderStatBar('レンジ (RNG)', item.レンジ)}
+          ${renderStatBar('モビリティ (MOB)', item.モビリティ)}
+        `;
+      } else if (type === 'ウェイト') {
+        statsBarsHtml = `
+          ${renderStatBar('ライフ (HP)', item.ライフ)}
+          ${renderStatBar('アタック (ATK)', item.アタック)}
+          ${renderStatBar('ディフェンス (DEF)', item.ディフェンス)}
+          ${renderStatBar('スピード (SPD)', item.スピード)}
+        `;
+      } else {
+        statsBarsHtml = `
+          ${renderStatBar('ライフ (HP)', item.ライフ)}
+          ${renderStatBar('スピード (SPD)', item.スピード)}
+          ${renderStatBar('レンジ (RNG)', item.レンジ)}
+          ${renderStatBar('モビリティ (MOB)', item.モビリティ)}
+        `;
+      }
+
+      detailPanel.innerHTML = `
+        <div class="detail-header-info">
+          <h4 class="detail-title">${item.パーツ名}</h4>
+          <div class="detail-tags">
+            <span class="detail-tag">${typeLabel}</span>
+            <span class="detail-tag attr-${item.属性}">${item.属性}属性</span>
+            <span class="detail-tag">★${item.ランク}</span>
+          </div>
+        </div>
+        <div class="detail-body">
+          <div class="detail-flavor-box">
+            <p class="detail-flavor-text">${item.フレーバー || '最新テクノロジーによって製造された高性能ギアパーツ。'}</p>
+            ${item.メモ ? `<p class="detail-memo-text">* ${item.メモ}</p>` : ''}
+          </div>
+          <div class="detail-stats-bars">
+            <h5>パーツ性能パラメータ</h5>
+            ${statsBarsHtml}
+          </div>
+        </div>
+      `;
+    }
   }
 
   // --- ④ 全体マップ画面 ---

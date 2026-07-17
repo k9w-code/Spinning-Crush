@@ -3686,3 +3686,198 @@ body, html {
   transition: opacity 0.3s ease, filter 0.3s ease;
   pointer-events: none; /* 会話中の背面操作も完全ガード */
 }
+
+/* ================= 画面別背景画像アセット（フォールバック対応） ================= */
+#garage-screen {
+  background-image: url('/images/bg/garage.jpg'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+#custom-screen {
+  background-image: url('/images/bg/custom.jpg'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+#shop-screen {
+  background-image: url('/images/bg/shop.jpg'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+#map-screen {
+  background-image: url('/images/bg/map.jpg'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* インベントリドロワーの2カラム・スプリット構造 */
+.drawer-body-split {
+  display: flex;
+  gap: 20px;
+  height: calc(100% - 45px);
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.inventory-items-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* カスタムパーツ詳細パネル */
+.drawer-detail-panel {
+  width: 320px;
+  background: rgba(6, 12, 24, 0.65);
+  border: 1.5px solid rgba(0, 243, 255, 0.22);
+  border-radius: 8px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.05) inset;
+  backdrop-filter: blur(10px);
+}
+
+.detail-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+  gap: 10px;
+}
+
+.placeholder-icon {
+  font-size: 2.2rem;
+  animation: pulse-icon 2s infinite alternate;
+}
+
+@keyframes pulse-icon {
+  0% { transform: scale(1); opacity: 0.4; }
+  100% { transform: scale(1.1); opacity: 0.8; }
+}
+
+/* 詳細パネル内の装飾 */
+.detail-header-info {
+  border-bottom: 1.5px solid rgba(0, 243, 255, 0.3);
+  padding-bottom: 8px;
+}
+
+.detail-title {
+  font-family: var(--font-hud);
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 8px rgba(0, 243, 255, 0.4);
+  margin: 0 0 6px 0;
+}
+
+.detail-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.detail-tag {
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(0, 243, 255, 0.12);
+  color: #00f3ff;
+  border: 1px solid rgba(0, 243, 255, 0.25);
+}
+
+.detail-tag.attr-炎 { background: rgba(255, 68, 68, 0.15); color: #ff5555; border-color: rgba(255, 68, 68, 0.3); }
+.detail-tag.attr-水 { background: rgba(0, 153, 255, 0.15); color: #33aaff; border-color: rgba(0, 153, 255, 0.3); }
+.detail-tag.attr-風 { background: rgba(0, 230, 115, 0.15); color: #00ff88; border-color: rgba(0, 230, 115, 0.3); }
+.detail-tag.attr-雷 { background: rgba(255, 204, 0, 0.15); color: #ffcc00; border-color: rgba(255, 204, 0, 0.3); }
+.detail-tag.attr-土 { background: rgba(153, 102, 51, 0.15); color: #cc9966; border-color: rgba(153, 102, 51, 0.3); }
+
+.detail-flavor-box {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.detail-flavor-text {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0;
+}
+
+.detail-memo-text {
+  font-size: 0.72rem;
+  color: var(--color-neon-green);
+  margin: 6px 0 0 0;
+}
+
+.detail-stats-bars, .detail-okugi-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-stats-bars h5, .detail-okugi-info h5 {
+  font-family: var(--font-hud);
+  font-size: 0.8rem;
+  color: rgba(0, 243, 255, 0.85);
+  margin: 4px 0;
+  border-left: 3px solid var(--color-neon-blue);
+  padding-left: 6px;
+}
+
+.detail-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.72rem;
+}
+
+.detail-stat-row .stat-label {
+  width: 90px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.stat-bar-outer {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.stat-bar-inner {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-neon-blue), #00ff88);
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(0, 243, 255, 0.5);
+}
+
+.detail-stat-row .stat-value-num {
+  width: 25px;
+  text-align: right;
+  font-family: var(--font-hud);
+  font-weight: bold;
+  color: #fff;
+}
+
+.detail-okugi-info p {
+  font-size: 0.75rem;
+  color: #fff;
+  margin: 2px 0;
+}
