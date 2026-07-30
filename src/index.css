@@ -3725,7 +3725,7 @@ body, html {
 }
 
 /* ================= 会話シーン実行時の背後UI被り完全防止 ================= */
-#ui-container.in-talk .screen {
+#ui-container.in-talk .screen.active {
   opacity: 0.45 !important; /* 不透明度を0.08から0.45に引き上げ、背景画像が視認できるように調整 */
   filter: blur(4px); /* サイバーパンクなブラーエフェクト */
   transition: opacity 0.3s ease, filter 0.3s ease;
