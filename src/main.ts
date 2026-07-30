@@ -941,9 +941,17 @@ class GameApp {
       // 新規データを即時セーブ（ページ更新で消えるのを防止）
       localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
 
-      // まず自宅ガレージ画面へ遷移
-      this.changeScreen('garage-screen');
-      // シャッター演出の終了を待ってからガレージ背景の上でプロローグを再生
+      // 遷移ロックを強制解除し、確実に「自宅ガレージ画面」の背景を適用
+      this.isTransitioning = false;
+      const screens = document.querySelectorAll('.screen');
+      screens.forEach(s => s.classList.remove('active'));
+      const garageScreen = document.getElementById('garage-screen');
+      if (garageScreen) garageScreen.classList.add('active');
+      this.currentScreenId = 'garage-screen';
+      this.initGarageScreen();
+      this.snd.startGarageBGM();
+
+      // ガレージ背景の上でプロローグを即時再生
       setTimeout(() => {
         this.playScenario('prologue_intro', () => {
           this.playScenario('prologue_naby_talk', () => {
