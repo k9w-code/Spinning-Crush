@@ -2257,7 +2257,7 @@ body, html {
   clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
 }
 
-.inventory-item .item-card-info {
+.inventory-item .item-info {
   display: flex !important;
   flex-direction: column !important;
   flex: 1 !important;
@@ -2265,14 +2265,17 @@ body, html {
   justify-content: center !important;
 }
 
-.inventory-item .part-item-canvas {
-  width: 64px !important;
-  height: 64px !important;
+.inventory-item .item-visual {
+  width: 50px !important;
+  height: 50px !important;
   background: rgba(10, 12, 20, 0.6) !important;
   border: 1px solid rgba(0, 243, 255, 0.25) !important;
   border-radius: 6px !important;
   box-shadow: 0 0 8px rgba(0, 243, 255, 0.1) inset !important;
   flex-shrink: 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
 }
 
 /* ホログラム詳細展示台座 */

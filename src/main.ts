@@ -797,6 +797,10 @@ class GameApp {
   }
 
   private changeScreen(screenId: string) {
+    // 画面遷移時は必ず会話ロック(in-talk)を解除し、背面操作不能バグを防御
+    const uiContainer = document.getElementById('ui-container');
+    if (uiContainer) uiContainer.classList.remove('in-talk');
+
     if (this.isTransitioning) return;
     this.isTransitioning = true;
 
@@ -1748,9 +1752,22 @@ class GameApp {
         const card = document.createElement('div');
         card.className = `inventory-item ${isEquipped ? 'equipped' : ''}`;
         card.innerHTML = `
-          <div class="item-name">${item.チップ名}</div>
-          <div class="item-attributes">${item.フレーバー || 'コアパーツ'}</div>
+          <div class="item-visual"><canvas id="drawer-item-canvas-${item.チップID}" width="50" height="50"></canvas></div>
+          <div class="item-info">
+            <div class="item-name">${item.チップ名}</div>
+            <div class="item-attributes">${item.フレーバー || 'コアパーツ'}</div>
+          </div>
         `;
+        setTimeout(() => {
+          const cvs = document.getElementById(`drawer-item-canvas-${item.チップID}`) as HTMLCanvasElement;
+          if (cvs) {
+            const ctx = cvs.getContext('2d');
+            if (ctx) {
+              const dummy = アセンブル実行(item.チップID, 'b101_n', 'w101_n', 's101_n', 1, this.パーツマスタ, this.チップマスタ, this.奥義マスタ);
+              this.drawGear(ctx, 25, 25, 20, dummy, 0);
+            }
+          }
+        }, 10);
         // ホバーした瞬間に右側に詳細スペックを表示 (平成ホビーパッケージ風)
         card.addEventListener('mouseenter', () => this.showPartDetailInDrawer(item, 'チップ'));
         card.addEventListener('click', () => {
@@ -1816,15 +1833,31 @@ class GameApp {
         const card = document.createElement('div');
         card.className = `inventory-item ${isEquipped ? 'equipped' : ''}`;
         card.innerHTML = `
-          <div class="item-name">${item.パーツ名}</div>
-          <div class="item-attributes">
-            <span class="attr-tag">${item.属性}属性</span>
-            <span class="attr-tag">ランク${item.ランク}</span>
-          </div>
-          <div class="item-stats-summary drawer-style">
-            ${statsHtml}
+          <div class="item-visual"><canvas id="drawer-item-canvas-${item.パーツID}" width="50" height="50"></canvas></div>
+          <div class="item-info">
+            <div class="item-name">${item.パーツ名}</div>
+            <div class="item-attributes">
+              <span class="attr-tag">${item.属性}属性</span>
+              <span class="attr-tag">ランク${item.ランク}</span>
+            </div>
+            <div class="item-stats-summary drawer-style">
+              ${statsHtml}
+            </div>
           </div>
         `;
+        setTimeout(() => {
+          const cvs = document.getElementById(`drawer-item-canvas-${item.パーツID}`) as HTMLCanvasElement;
+          if (cvs) {
+            const ctx = cvs.getContext('2d');
+            if (ctx) {
+              const bId = type === 'ブレード' ? item.パーツID : 'b101_n';
+              const wId = type === 'ウェイト' ? item.パーツID : 'w101_n';
+              const sId = type === 'ソール' ? item.パーツID : 's101_n';
+              const dummy = アセンブル実行('c001', bId, wId, sId, 1, this.パーツマスタ, this.チップマスタ, this.奥義マスタ);
+              this.drawGear(ctx, 25, 25, 20, dummy, 0);
+            }
+          }
+        }, 10);
         // ホバーした瞬間に右側に詳細スペックを表示 (平成ホビーパッケージ風)
         card.addEventListener('mouseenter', () => this.showPartDetailInDrawer(item, type));
         card.addEventListener('click', () => {
@@ -6211,7 +6244,7 @@ class GameApp {
       const avatarRight = document.getElementById('talk-avatar-right');
 
       // このシナリオに登場する「対戦相手/対話相手」のイラストID（日本語名）を事前にスキャン
-      let opponentIllustId = 'ナビィ';
+      let opponentIllustId = (this.selectedNpc && this.selectedNpc.イラストID) ? this.selectedNpc.イラストID : 'ナビィ';
       for (const step of steps) {
         if (step.立ち位置 === 'right' && step.イラストID) {
           opponentIllustId = step.イラストID; // イチカ, ハルト, 店長などの日本語名
@@ -6337,6 +6370,8 @@ class GameApp {
     private renderCurrentTalk() {
     if (this.currentTalkIndex >= this.talkQueue.length) {
       document.getElementById('talk-dialog')?.classList.remove('active');
+      const uiContainer = document.getElementById('ui-container');
+      if (uiContainer) uiContainer.classList.remove('in-talk');
       if (this.talkOnCompleteAll) {
         const cb = this.talkOnCompleteAll;
         this.talkOnCompleteAll = null; // 実行前にnullクリア
