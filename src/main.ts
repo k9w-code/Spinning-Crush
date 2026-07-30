@@ -3260,6 +3260,36 @@ class GameApp {
     osc.stop(time + 0.45);
   }
 
+  // 聖獣（コアチップ）ごとの固有イメージカラー取得
+  private getSeijuThemeColor(chipIdOrName: string): string {
+    const chip = this.チップマスタ.find(c => c.チップID === chipIdOrName || c.チップ名 === chipIdOrName);
+    const name = chip ? chip.チップ名 : chipIdOrName;
+
+    if (!name) return '#00f3ff';
+    if (name.includes('ドラゴン') || name.includes('コズミック')) return '#00f3ff';
+    if (name.includes('ペガサス') || name.includes('ミラージュ')) return '#7fdbff';
+    if (name.includes('ケルベロス') || name.includes('チェイン')) return '#b537f2';
+    if (name.includes('クラーケン') || name.includes('アビス')) return '#00a8ff';
+    if (name.includes('ゴーレム') || name.includes('グラナイト')) return '#e09f3e';
+    if (name.includes('ギガント') || name.includes('アイアン')) return '#ff3366';
+    if (name.includes('イーグル') || name.includes('ソニック')) return '#00e5ff';
+    if (name.includes('スペクター') || name.includes('シャドウ')) return '#d800ff';
+    if (name.includes('ワイバーン') || name.includes('ブラスト')) return '#ff3300';
+    if (name.includes('デスサイズ') || name.includes('ルイン')) return '#9900ff';
+    if (name.includes('フェンリル') || name.includes('ハンティング')) return '#00ffff';
+    if (name.includes('ヴァルキリー') || name.includes('ファントム')) return '#ffd700';
+    if (name.includes('スフィンクス') || name.includes('カース')) return '#ffaa00';
+    if (name.includes('リリィ') || name.includes('ノーブル')) return '#ff66cc';
+    if (name.includes('コンドル') || name.includes('アサルト')) return '#39ff14';
+    if (name.includes('タイガー') || name.includes('ヴァンダル')) return '#ff6600';
+    if (name.includes('グリフォン') || name.includes('テンペスト')) return '#00ff99';
+    if (name.includes('フェニックス') || name.includes('グラビティ') || name.includes('グラヴィティ')) return '#ff0055';
+    if (name.includes('レオ') || name.includes('ゴールドファング')) return '#ffd700';
+    if (name.includes('カイザー') || name.includes('ジェネシス')) return '#ffffff';
+
+    return '#00f3ff';
+  }
+
   // 単体パーツ用の個別ビジュアル描画（スロットボタンおよび所持パーツ一覧カード用）
   private drawBladeShapePath(ctx: CanvasRenderingContext2D, radius: number, outerScale: number, bladeNo: number) {
     if (bladeNo === 1) {
@@ -5707,17 +5737,10 @@ class GameApp {
     this.osugiCutinFrames = 84; // 1.4秒 (84フレーム)
     this.onOsugiCutinComplete = onComplete;
 
-    // 発動ギアのブレード属性を演出属性とする
+    // 発動ギアのコアチップ（聖獣）固有のイメージカラーを取得
     const gear = side === 'プレイヤー' ? this.battleManager.プレイヤーギア : this.battleManager.エネミーギア;
-    const attr = gear.部位属性.ブレード || '無';
     const chipId = gear.装備ID.チップ;
-
-    // 演出に用いるネオンカラーの設定
-    let neonColor = '#ffffff';
-    if (attr === '火') neonColor = '#ff0055';
-    else if (attr === '水') neonColor = '#00f3ff';
-    else if (attr === '風') neonColor = '#39ff14';
-    else if (attr === '土' || attr === '雷') neonColor = '#ffaa00';
+    const neonColor = this.getSeijuThemeColor(chipId);
 
     // 聖獣画像として、現在装備しているコアチップの美麗画像を即座に取得
     const chip = this.チップマスタ.find(c => c.チップID === chipId || c.チップ名 === chipId);
@@ -5796,11 +5819,12 @@ class GameApp {
     const targetX = side === 'プレイヤー' ? this.battleManager.エネミー位置X : this.battleManager.プレイヤー位置X;
     const targetY = side === 'プレイヤー' ? this.battleManager.エネミー位置Y : this.battleManager.プレイヤー位置Y;
 
-    // 属性の特定
+    // パーティクル演出用のブレード属性特定
+    const bladeAttr = gear.部位属性.ブレード || '無';
     let particleType: 'fire' | 'water' | 'wind' | 'thunder' = 'fire';
-    if (attr === '水') particleType = 'water';
-    else if (attr === '風') particleType = 'wind';
-    else if (attr === '土' || attr === '雷') particleType = 'thunder';
+    if (bladeAttr === '水') particleType = 'water';
+    else if (bladeAttr === '風') particleType = 'wind';
+    else if (bladeAttr === '土' || bladeAttr === '雷') particleType = 'thunder';
 
     // 粒子を大量生成 (120個)
     for (let i = 0; i < 120; i++) {
