@@ -5719,54 +5719,33 @@ class GameApp {
     else if (attr === '風') neonColor = '#39ff14';
     else if (attr === '土' || attr === '雷') neonColor = '#ffaa00';
 
-    // 聖獣画像として、現在装備しているコアチップの美麗画像をそのまま流用ロード (パッケージ3・リファクタリング)
-    const chip = this.チップマスタ.find(c => c.チップID === chipId);
+    // 聖獣画像として、現在装備しているコアチップの美麗画像を即座に取得
+    const chip = this.チップマスタ.find(c => c.チップID === chipId || c.チップ名 === chipId);
     const chipName = chip ? chip.チップ名 : '聖獣';
+    const chipIdKey = chip ? chip.チップID : chipId;
     const seijuName = `${chipName} 召喚！！！`;
 
-    const chipImgEl = this.chipImages[chipId];
-    const imgUrl = chipImgEl ? chipImgEl.src : "";
-
+    const chipImgEl = this.chipImages[chipIdKey] || this.chipImages[chipName];
     const cutinImg = document.getElementById('seiju-cutin-img') as HTMLImageElement;
     const cutinText = document.getElementById('seiju-cutin-fallback-text') as HTMLElement;
     const cutinOverlay = document.getElementById('seiju-cutin-overlay');
+    const cutinBox = cutinOverlay?.querySelector('.seiju-cutin-box') as HTMLElement;
 
-    // 前回表示した聖獣画像が非同期ロード完了まで残ってチラつくのを防ぐ初期化 (監査バグ5)
-    if (cutinImg) {
-      cutinImg.removeAttribute('src');
-      cutinImg.style.display = 'none';
-    }
-    if (cutinText) {
-      cutinText.textContent = '';
-      cutinText.style.display = 'none';
+    // 属性に応じたダイナミックネオン背景の適用
+    if (cutinBox) {
+      cutinBox.style.background = `linear-gradient(90deg, transparent 0%, ${neonColor} 30%, ${neonColor} 70%, transparent 100%)`;
+      cutinBox.style.boxShadow = `0 0 40px ${neonColor}`;
     }
 
     if (cutinOverlay) {
-      if (imgUrl) {
-        // 画像アセットの非同期ロードチェック (404エラー防止 ➔ テキストフォールバック)
-        const testImg = new Image();
-        testImg.src = imgUrl;
-
-        testImg.onload = () => {
-          if (cutinImg) {
-            cutinImg.src = imgUrl;
-            cutinImg.style.display = 'block';
-          }
-          if (cutinText) {
-            cutinText.style.display = 'none';
-          }
-        };
-
-        testImg.onerror = () => {
-          if (cutinImg) {
-            cutinImg.style.display = 'none';
-          }
-          if (cutinText) {
-            cutinText.textContent = seijuName;
-            cutinText.style.display = 'block';
-            cutinText.style.textShadow = `0 0 10px ${neonColor}, 0 0 25px ${neonColor}, 0 0 50px ${neonColor}`;
-          }
-        };
+      if (chipImgEl && chipImgEl.complete && chipImgEl.naturalWidth !== 0) {
+        if (cutinImg) {
+          cutinImg.src = chipImgEl.src;
+          cutinImg.style.display = 'block';
+        }
+        if (cutinText) {
+          cutinText.style.display = 'none';
+        }
       } else {
         if (cutinImg) cutinImg.style.display = 'none';
         if (cutinText) {
