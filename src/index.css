@@ -3994,3 +3994,54 @@ body, html {
   color: #fff;
   margin: 2px 0;
 }
+
+/* 必殺技叫びセリフ・スキル名カットインバンナー */
+.seiju-shout-container {
+  position: absolute;
+  bottom: 22%;
+  left: 50%;
+  transform: translateX(-50%) scale(0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 5005;
+  opacity: 0;
+  pointer-events: none;
+  background: rgba(5, 8, 16, 0.88);
+  border: 2px solid #00f3ff;
+  border-radius: 8px;
+  padding: 8px 28px;
+  box-shadow: 0 0 25px rgba(0, 243, 255, 0.5), inset 0 0 15px rgba(0, 243, 255, 0.2);
+  backdrop-filter: blur(6px);
+}
+
+.seiju-cutin-overlay.active .seiju-shout-container {
+  animation: seiju-shout-pop 1.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes seiju-shout-pop {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.7) translateY(20px); }
+  15% { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); }
+  85% { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) scale(0.9) translateY(-10px); }
+}
+
+.seiju-shout-speaker {
+  font-family: var(--font-hud);
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--color-neon-cyan);
+  letter-spacing: 1.5px;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+}
+
+.seiju-shout-text {
+  font-family: var(--font-hud);
+  font-size: 1.65rem;
+  font-weight: 900;
+  font-style: italic;
+  color: #ffffff;
+  white-space: nowrap;
+  letter-spacing: 1.5px;
+}

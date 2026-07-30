@@ -5731,6 +5731,40 @@ class GameApp {
     const cutinOverlay = document.getElementById('seiju-cutin-overlay');
     const cutinBox = cutinOverlay?.querySelector('.seiju-cutin-box') as HTMLElement;
 
+    // 必殺技叫び演出データの生成
+    const osugiName = _osugi ? _osugi.奥義名 : '必殺奥義';
+    const speakerName = side === 'プレイヤー' ? '主人公' : (this.selectedNpc ? this.selectedNpc.エネミー名 : 'エネミー');
+
+    let shoutPhrase = "喰らえぇっ！";
+    if (side === 'プレイヤー') {
+      shoutPhrase = "行けぇぇッ！";
+    } else {
+      const eName = speakerName;
+      if (['イチカ', 'コトネ', 'メイ', 'クロエ', 'カレン', 'ジュリ', 'レイナ', 'シャルロット'].includes(eName)) {
+        shoutPhrase = "これで決めるよ！";
+      } else if (['ハルト', 'タイガ', 'ケンジ', 'シュン', 'テッペイ', 'シン', 'カズマ'].includes(eName)) {
+        shoutPhrase = "喰らいやがれ！";
+      } else if (['アーサー', 'カイト', 'トウヤ', 'レン', 'ラシード', 'カルロス', 'リー', 'ユリアン', 'タイラー', 'ジョナサン', 'ディラン'].includes(eName)) {
+        shoutPhrase = "見切れるか！";
+      } else if (eName.includes('店長')) {
+        shoutPhrase = "これぞ我が秘術！";
+      }
+    }
+
+    const shoutSpeakerEl = document.getElementById('seiju-shout-speaker');
+    const shoutTextEl = document.getElementById('seiju-shout-text');
+    const shoutContainer = document.getElementById('seiju-shout-container');
+
+    if (shoutSpeakerEl) shoutSpeakerEl.textContent = speakerName;
+    if (shoutTextEl) {
+      shoutTextEl.textContent = `「${shoutPhrase}【${osugiName}】！！！」`;
+      shoutTextEl.style.textShadow = `0 0 10px ${neonColor}, 0 0 25px ${neonColor}, 0 0 40px ${neonColor}`;
+    }
+    if (shoutContainer) {
+      shoutContainer.style.borderColor = neonColor;
+      shoutContainer.style.boxShadow = `0 0 25px ${neonColor}, inset 0 0 15px ${neonColor}`;
+    }
+
     // 属性に応じたダイナミックネオン背景の適用
     if (cutinBox) {
       cutinBox.style.background = `linear-gradient(90deg, transparent 0%, ${neonColor} 30%, ${neonColor} 70%, transparent 100%)`;
