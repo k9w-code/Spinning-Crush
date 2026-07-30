@@ -374,7 +374,10 @@ class GameApp {
         const r = data[i];
         const g = data[i+1];
         const b = data[i+2];
-        if (r < threshold && g < threshold && b < threshold) {
+        const isBlack = (r < threshold && g < threshold && b < threshold);
+        const isGreen = (g > 200 && r < 65 && b < 65);
+        const isMagenta = (r > 200 && b > 200 && g < 65);
+        if (isBlack || isGreen || isMagenta) {
           data[i+3] = 0; // 不透明度を0 (透明) に設定！
         }
       }
@@ -540,8 +543,20 @@ class GameApp {
     for (const sheet of sheets) {
       let csvText = '';
       
-      // gidが設定されている場合のみ Google Sheets からのダイレクトロードを試行 (空文字だと概要シートが返るのを防止)
-      if (sheet.gid !== '') {
+      // 1. ローカルの public/sheets/ から優先フェッチ（本番・最新マスタの完全反映）
+      try {
+        const localUrl = `/sheets/${sheet.name}.csv`;
+        const response = await fetch(localUrl);
+        if (response.ok) {
+          csvText = await response.text();
+          console.log(`Successfully loaded ${sheet.name} from local server.`);
+        }
+      } catch (e) {
+        console.warn(`Failed to load ${sheet.name} from local server. Falling back to Google Sheets...`, e);
+      }
+
+      // 2. ローカルにない場合のみ Google Sheets からフォールバック試行
+      if (!csvText && sheet.gid !== '') {
         try {
           const directUrl = `https://docs.google.com/spreadsheets/d/1flC4ng6qE2tFSTa9tZNZ9Pao-cMHnhkCcLn0LxODbss/gviz/tq?tqx=out:csv&gid=${sheet.gid}`;
           const response = await fetch(directUrl);
@@ -550,21 +565,7 @@ class GameApp {
             console.log(`Successfully loaded ${sheet.name} from Google Sheets.`);
           }
         } catch (e) {
-          console.warn(`CORS/Network error loading ${sheet.name} from Google Sheets. Falling back to local...`, e);
-        }
-      }
-
-      // 2. 失敗した場合、ローカルの public/sheets/ にあるコピーからフェッチ
-      if (!csvText) {
-        try {
-          const localUrl = `/sheets/${sheet.name}.csv`;
-          const response = await fetch(localUrl);
-          if (response.ok) {
-            csvText = await response.text();
-            console.log(`Successfully loaded ${sheet.name} from local server.`);
-          }
-        } catch (e) {
-          console.error(`Failed to load ${sheet.name} from local server.`, e);
+          console.error(`Network error loading ${sheet.name} from Google Sheets.`, e);
         }
       }
 
@@ -853,13 +854,34 @@ class GameApp {
       // 各画面の切り替え時にBGMをフェード切り替え (パッケージ3)
       if (screenId === 'title-screen') {
         this.snd.startOpeningBGM();
-      } else if (screenId === 'map-screen' || screenId === 'garage-screen' || screenId === 'custom-screen' || screenId === 'stage-screen' || screenId === 'vs-screen') {
+      } else if (screenId === 'map-screen') {
         this.snd.startLobbyBGM();
+      } else if (screenId === 'garage-screen') {
+        this.snd.startGarageBGM();
+      } else if (screenId === 'custom-screen') {
+        this.snd.startCustomBGM();
+      } else if (screenId === 'stage-screen') {
+        this.snd.startStageSelectBGM();
+      } else if (screenId === 'vs-screen') {
+        this.snd.startStageSelectBGM();
       } else if (screenId === 'shop-screen') {
         this.snd.startShopBGM();
+      } else if (screenId === 'result-screen') {
+        // リザルト画面のBGMは勝敗に応じて個別開始するためここでは干渉しない
       } else if (screenId === 'battle-screen') {
         this.isPinchBgmActive = false;
-        this.snd.startBattleBGM();
+        const enemyId = this.selectedNpc?.エネミーID || "";
+        if (enemyId === 'e035') {
+          this.snd.startBattleBossBGM();
+        } else if (enemyId === 'e030') {
+          this.snd.startBattleStage6BGM();
+        } else if (enemyId === 'e025') {
+          this.snd.startBattleStage5BGM();
+        } else if (enemyId === 'e015') {
+          this.snd.startBattleStage4BGM();
+        } else {
+          this.snd.startBattleBGM();
+        }
       } else {
         this.snd.stopAllBGM();
       }
@@ -2648,10 +2670,10 @@ class GameApp {
       }
     }
 
-    // --- チップ専用ガチャの表示制御 ---
+    // --- チップ専用ガチャの表示制御（店長 e035 撃破後のみ表示） ---
     const chipGachaContainer = document.getElementById('shop-gacha-chip-container');
     if (chipGachaContainer) {
-      if (this.saveData.ステージクリア状況['st007'] === true) {
+      if (this.saveData.クリア状況['e035'] === true || this.saveData.ステージクリア状況['st007'] === true) {
         chipGachaContainer.style.display = 'block';
         
         // チップ専用ガチャの活性化制御
@@ -2843,6 +2865,11 @@ class GameApp {
 
   // チップ専用ガチャの実行
   private executeShopGachaChip() {
+    // 裏ボス（店長 e035 / st007）撃破前は無効化（ボタン非表示のため発動しないが安全対策）
+    if (!this.saveData.クリア状況['e035'] && !this.saveData.ステージクリア状況['st007']) {
+      return;
+    }
+
     if (this.saveData.所持JP < 10) {
       this.showSystemModal('JP不足', 'ガチャを回すには 10 JP 必要です。');
       return;
@@ -3122,16 +3149,23 @@ class GameApp {
 
     ctx.translate(x + offsetX, y + offsetY);
 
-    // 1. 属性に応じたネオンカラーの決定 (色分け)
-    let neonColor = 'var(--color-neon-blue)';
-    const attr = assembled.部位属性.ブレード;
-    if (attr === '火') neonColor = '#ff0055';      // ネオンレッド
-    else if (attr === '水') neonColor = '#00f3ff'; // ネオンブルー
-    else if (attr === '風') neonColor = '#39ff14'; // ネオングリーン
-    else if (attr === '土') neonColor = '#ffaa00'; // ネオンオレンジ/イエロー
-    else if (attr === '無') neonColor = '#f0f3fa'; // サイバーホワイト
+    // 1. 各部位の属性（火・水・風・土・無）に応じたネオンカラーの決定 (完全属性カラーリング)
+    const getAttributeColor = (attr: string): string => {
+      if (attr === '火') return '#ff0055';      // ネオンレッド (火)
+      if (attr === '水') return '#00f3ff';      // ネオンブルー (水)
+      if (attr === '風') return '#39ff14';      // ネオングリーン (風)
+      if (attr === '土') return '#ffaa00';      // ネオンオレンジ/イエロー (土)
+      return '#f0f3fa';                         // サイバーホワイト (無)
+    };
 
-    // パーツの個性(ID末尾のタイプ)とランクを取得するヘルパー
+    const bladeColor = getAttributeColor(assembled.部位属性.ブレード);
+    const weightColor = getAttributeColor(assembled.部位属性.ウェイト);
+    const soleColor = getAttributeColor(assembled.部位属性.ソール);
+    
+    // 全体演出用 (ブレードカラー基準)
+    const neonColor = bladeColor;
+
+    // パーツの個性(ID末尾 of タイプ)とランクを取得するヘルパー
     const getPartNumber = (partId: string): number => {
       if (!partId) return 1;
       const base = partId.split('_')[0]; // 例: b101
@@ -3244,11 +3278,11 @@ class GameApp {
     // ==========================================
     ctx.save();
     ctx.shadowBlur = 10;
-    ctx.shadowColor = neonColor;
+    ctx.shadowColor = soleColor;
 
     if (soleNo === 1) {
-      // 01: ベーシック / バランス ➔ シンプル同心円 ＋ 十字スリット
-      ctx.strokeStyle = neonColor;
+      // 01: ベーシック・シャフト ➔ シンプル同心円 ＋ 十字スリット
+      ctx.strokeStyle = soleColor;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.arc(0, 0, radius * 0.28, 0, Math.PI * 2);
@@ -3258,8 +3292,8 @@ class GameApp {
       ctx.moveTo(0, -radius * 0.25); ctx.lineTo(0, radius * 0.25);
       ctx.stroke();
     } else if (soleNo === 2) {
-      // 02: 段差付き / フラつき防止 ➔ 階段状二重段差
-      ctx.strokeStyle = neonColor;
+      // 02: ステップ・ソール ➔ 階段状二重段差
+      ctx.strokeStyle = soleColor;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(0, 0, radius * 0.35, 0, Math.PI * 2);
@@ -3268,7 +3302,7 @@ class GameApp {
       ctx.arc(0, 0, radius * 0.23, 0, Math.PI * 2);
       ctx.stroke();
     } else if (soleNo === 3) {
-      // 03: シャープ / ニードル ➔ 極小摩擦の針状ライン＆先端ホワイト発光
+      // 03: ポインテッド・チップ ➔ 極小摩擦の針状ライン＆先端ホワイト発光
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 1;
       for (let i = 0; i < 4; i++) {
@@ -3285,8 +3319,8 @@ class GameApp {
       ctx.arc(0, 0, radius * 0.08, 0, Math.PI * 2);
       ctx.fill();
     } else if (soleNo === 4) {
-      // 04: アクセル / 坂道加速 ➔ 高速プロペラファン状の3枚スリット
-      ctx.strokeStyle = neonColor;
+      // 04: フラット・ハード ➔ 高速プロペラファン状の3枚スリット
+      ctx.strokeStyle = soleColor;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(0, 0, radius * 0.3, 0, Math.PI * 2);
@@ -3299,9 +3333,9 @@ class GameApp {
         ctx.stroke();
       }
     } else if (soleNo === 5) {
-      // 05: ワイド / 急制動・回避 ➔ 十字状の幅広ブレーキパッド
+      // 05: ワイド・フラット ➔ 十字状の幅広ブレーキパッド
       ctx.fillStyle = 'rgba(100, 100, 100, 0.7)';
-      ctx.strokeStyle = neonColor;
+      ctx.strokeStyle = soleColor;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.rect(-radius * 0.3, -radius * 0.08, radius * 0.6, radius * 0.16);
@@ -3309,13 +3343,13 @@ class GameApp {
       ctx.fill();
       ctx.stroke();
     } else if (soleNo === 6) {
-      // 06: ラバー / 高摩擦 ➔ ダークグレー高密度ゴム ＋ 12本トレッドスリット
+      // 06: ラバー・グリップ ➔ ダークグレー高密度ゴム ＋ 12本トレッドスリット
       ctx.strokeStyle = '#3a3d42';
       ctx.lineWidth = 3.5;
       ctx.beginPath();
       ctx.arc(0, 0, radius * 0.32, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.strokeStyle = neonColor;
+      ctx.strokeStyle = soleColor;
       ctx.lineWidth = 1;
       for (let i = 0; i < 12; i++) {
         const angle = (i / 12) * Math.PI * 2;
@@ -3325,7 +3359,7 @@ class GameApp {
         ctx.stroke();
       }
     } else if (soleNo === 7) {
-      // 07: 真鍮円盤 / 高重量 ➔ 円盤ブラス ＋ 4点ウェイトボルト
+      // 07: サークル・ベース ➔ 円盤ブラス ＋ 4点ウェイトボルト
       ctx.fillStyle = 'rgba(218, 165, 32, 0.65)';
       ctx.strokeStyle = '#ffcc00';
       ctx.lineWidth = 1.5;
@@ -3333,7 +3367,7 @@ class GameApp {
       ctx.arc(0, 0, radius * 0.35, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = soleColor;
       for (let i = 0; i < 4; i++) {
         const angle = (i / 4) * Math.PI * 2;
         ctx.beginPath();
@@ -3341,8 +3375,8 @@ class GameApp {
         ctx.fill();
       }
     } else if (soleNo === 8) {
-      // 08: 溝彫り / 滑りコントロール ➔ 美しい二重らせんスパイラル
-      ctx.strokeStyle = neonColor;
+      // 08: グルーヴ・ソール ➔ 美しい二重らせんスパイラル
+      ctx.strokeStyle = soleColor;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       for (let theta = 0; theta < Math.PI * 4; theta += 0.1) {
@@ -3354,7 +3388,7 @@ class GameApp {
       }
       ctx.stroke();
     } else if (soleNo === 9) {
-      // 09: レオ専用ゴールドブースター ➔ 黄金の獅子頭風3点ブースター噴射炎
+      // 09: レオ＝ゴールドブースター ➔ 黄金の獅子頭風3点ブースター噴射炎
       for (let i = 0; i < 3; i++) {
         const angle = (i / 3) * Math.PI * 2 + rotation * 0.5;
         ctx.save();
@@ -3371,13 +3405,13 @@ class GameApp {
         ctx.restore();
       }
     } else {
-      // 10: カイザー専用オルタナティブ ➔ 皇帝の絶対防壁・プラチナ幾何学魔術回路
+      // 10: カイザー＝オルタナティブ ➔ 皇帝の絶対防壁・プラチナ幾何学魔術回路
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.arc(0, 0, radius * 0.32, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.strokeStyle = neonColor;
+      ctx.strokeStyle = soleColor;
       ctx.beginPath();
       ctx.moveTo(-radius * 0.22, -radius * 0.22);
       ctx.lineTo(radius * 0.22, -radius * 0.22);
@@ -3432,7 +3466,7 @@ class GameApp {
       weightGrad.addColorStop(1, '#856404');
     }
 
-    // レオ専用ゴールドウェイト (`09`) / カイザー専用オーラ (`10`)
+    // レオ専用ゴールドウェイト (`09`: レオ＝ゴールドメイル) / カイザー専用オーラ (`10`: カイザー＝マジェスティ)
     if (weightNo === 9) {
       weightSides = 12; // 獅子の鬣のような12角形の波打ちリング
       weightGrad = ctx.createRadialGradient(0, 0, radius * 0.35, 0, 0, radius * 0.68);
@@ -3463,49 +3497,129 @@ class GameApp {
     ctx.closePath();
     ctx.stroke();
 
-    // ウェイト上のディテール (ボルトやスリット)
-    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-    ctx.lineWidth = 1;
-    if (weightType === 'balance') {
-      // 6つの頂点にゴールドスタッドリベット
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-      for (let i = 0; i < 6; i++) {
-        const angle = (i / 6) * Math.PI * 2;
-        ctx.beginPath();
-        ctx.arc(radius * 0.5 * Math.cos(angle), radius * 0.5 * Math.sin(angle), 2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-      }
-    } else if (weightType === 'speed') {
-      // スピードの肉抜きスリットを刻印
-      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    // ウェイト固有形状ディテール（ウェイト属性カラー「weightColor」によるネオン刻印）
+    ctx.save();
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = weightColor;
+    
+    if (weightNo === 1) {
+      // 1: ベーシック・ディスク ➔ 内側6角形のシンプルな枠線
+      ctx.strokeStyle = weightColor;
       ctx.lineWidth = 1.5;
-      for (let i = 0; i < 5; i++) {
-        const angle = (i / 5) * Math.PI * 2 + 0.3;
+      ctx.beginPath();
+      for (let i = 0; i <= 6; i++) {
+        const angle = (i / 6) * Math.PI * 2;
+        const rx = (radius * 0.42) * Math.cos(angle);
+        const ry = (radius * 0.42) * Math.sin(angle);
+        if (i === 0) ctx.moveTo(rx, ry);
+        else ctx.lineTo(rx, ry);
+      }
+      ctx.stroke();
+    } else if (weightNo === 2) {
+      // 2: カウンター・バラスト ➔ 3点に非対称の重厚バラストバンプ
+      ctx.fillStyle = weightColor;
+      for (let i = 0; i < 3; i++) {
+        const angle = (i / 3) * Math.PI * 2 + 0.2;
         ctx.beginPath();
-        ctx.arc(0, 0, radius * 0.5, angle - 0.15, angle + 0.15);
+        ctx.arc(radius * 0.5 * Math.cos(angle), radius * 0.5 * Math.sin(angle), 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (weightNo === 3) {
+      // 3: ライト・メタル ➔ 10角形の極細デジタル肉抜き穴
+      ctx.strokeStyle = weightColor;
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 10; i++) {
+        const angle = (i / 10) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(radius * 0.48 * Math.cos(angle), radius * 0.48 * Math.sin(angle), 1.5, 0, Math.PI * 2);
         ctx.stroke();
       }
-    } else if (weightType === 'attack') {
-      // アタック：4つの主要スパイク部に灼熱メタルピン
-      ctx.fillStyle = '#ff4500';
+    } else if (weightNo === 4) {
+      // 4: クアッド・ヘビー ➔ 四隅（0, 90, 180, 270度）の巨大ヘビースタッド
+      ctx.fillStyle = weightColor;
       for (let i = 0; i < 4; i++) {
         const angle = (i / 4) * Math.PI * 2;
         ctx.beginPath();
-        ctx.arc(radius * 0.55 * Math.cos(angle), radius * 0.55 * Math.sin(angle), 2.5, 0, Math.PI * 2);
+        ctx.arc(radius * 0.52 * Math.cos(angle), radius * 0.52 * Math.sin(angle), 4.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (weightNo === 5) {
+      // 5: シャープ・リング ➔ 鋭利なインナースター・スリット
+      ctx.strokeStyle = weightColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const angle = (i / 10) * Math.PI * 2;
+        const r = i % 2 === 0 ? radius * 0.4 : radius * 0.52;
+        ctx.lineTo(r * Math.cos(angle), r * Math.sin(angle));
+      }
+      ctx.closePath();
+      ctx.stroke();
+    } else if (weightNo === 6) {
+      // 6: マルチ・ブロック ➔ 8つのブロッキング境界線
+      ctx.strokeStyle = weightColor;
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(radius * 0.4 * Math.cos(angle), radius * 0.4 * Math.sin(angle));
+        ctx.lineTo(radius * 0.58 * Math.cos(angle), radius * 0.58 * Math.sin(angle));
+        ctx.stroke();
+      }
+    } else if (weightNo === 7) {
+      // 7: コア・アーマー ➔ 二重円周ガードスリット
+      ctx.strokeStyle = weightColor;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.44, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.54, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (weightNo === 8) {
+      // 8: スリム・ウエイト ➔ 細身 of インナーループ＆4つの超小リベット
+      ctx.strokeStyle = weightColor;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.46, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = weightColor;
+      for (let i = 0; i < 4; i++) {
+        const angle = (i / 4) * Math.PI * 2 + 0.78;
+        ctx.beginPath();
+        ctx.arc(radius * 0.46 * Math.cos(angle), radius * 0.46 * Math.sin(angle), 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (weightNo === 9) {
+      // 9: レオ＝ゴールドメイル ➔ 獅子の波紋・12個 of 黄金リベット
+      ctx.fillStyle = weightColor;
+      for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(radius * 0.5 * Math.cos(angle), radius * 0.5 * Math.sin(angle), 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else {
+      // 10: カイザー＝マジェスティ ➔ 16角形の王立飾り飾りボルト
+      ctx.fillStyle = weightColor;
+      for (let i = 0; i < 16; i++) {
+        const angle = (i / 16) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(radius * 0.51 * Math.cos(angle), radius * 0.51 * Math.sin(angle), 2, 0, Math.PI * 2);
         ctx.fill();
       }
     }
+    ctx.restore();
     ctx.restore();
 
     // ==========================================
     // 3. 第一層：ブレード (物理回転翼の完全差別化形状)
     // ==========================================
     ctx.save();
-    ctx.strokeStyle = neonColor;
+    ctx.strokeStyle = bladeColor;
     ctx.lineWidth = radius * 0.07;
     ctx.shadowBlur = 12;
-    ctx.shadowColor = neonColor;
+    ctx.shadowColor = bladeColor;
     ctx.fillStyle = 'rgba(10, 12, 20, 0.72)'; // スモーククリア樹脂
 
     const outerScale = 1.1 + (bladeRank * 0.035);
@@ -3514,7 +3628,7 @@ class GameApp {
     
     // ブレードID下2桁 (種類) ごとに完全描き分け
     if (bladeNo === 1) {
-      // 01: ベーシック / 流線型正円 ＋ 2枚の流れる極小ウイング
+      // 01: ベーシック・エッジ ➔ 流線型正円 ＋ 2枚の流れる極小ウイング
       const blades = 4;
       for (let i = 0; i < blades; i++) {
         const angle = (i / blades) * Math.PI * 2;
@@ -3530,7 +3644,7 @@ class GameApp {
         ctx.lineTo(x2, y2);
       }
     } else if (bladeNo === 2) {
-      // 02: ノーブル / 重厚3重ガードプレート (三角形盾ベース)
+      // 02: ノーブル・ブレード ➔ 重厚3重ガードプレート (三角形盾ベース)
       const blades = 3;
       for (let i = 0; i < blades; i++) {
         const angle = (i / blades) * Math.PI * 2;
@@ -3545,7 +3659,7 @@ class GameApp {
         ctx.quadraticCurveTo(tx, ty, x2, y2);
       }
     } else if (bladeNo === 3) {
-      // 03: クロス / 十字巨大4枚刃 (鋭利カッター)
+      // 03: クロス・フォース ➔ 十字巨大4枚刃 (鋭利カッター)
       const blades = 4;
       for (let i = 0; i < blades; i++) {
         const angle = (i / blades) * Math.PI * 2;
@@ -3561,7 +3675,7 @@ class GameApp {
         ctx.lineTo(x2, y2);
       }
     } else if (bladeNo === 4) {
-      // 04: チェイン / 16枚ギザギザノコギリ刃 (多段ヒット型)
+      // 04: チェイン・スライサー ➔ 16枚ギザギザノコギリ刃 (多段ヒット型)
       const blades = 16;
       for (let i = 0; i < blades; i++) {
         const angle = (i / blades) * Math.PI * 2;
@@ -3577,73 +3691,73 @@ class GameApp {
         ctx.lineTo(x2, y2);
       }
     } else if (bladeNo === 5) {
-      // 05: ブリザード / ワイドな湾曲2枚ガード翼プレート
+      // 05: ツイン・ランサー ➔ 左右に大きく張り出した2枚の長い刃 (巨大突起)
       const blades = 2;
       for (let i = 0; i < blades; i++) {
         const angle = (i / blades) * Math.PI * 2;
         const x1 = radius * 0.75 * Math.cos(angle);
         const y1 = radius * 0.75 * Math.sin(angle);
-        const tx1 = radius * outerScale * 1.15 * Math.cos(angle + 0.3);
-        const ty1 = radius * outerScale * 1.15 * Math.sin(angle + 0.3);
-        const tx2 = radius * outerScale * 1.2 * Math.cos(angle + 0.6);
-        const ty2 = radius * outerScale * 1.2 * Math.sin(angle + 0.6);
-        const x2 = radius * 0.75 * Math.cos(angle + 0.85);
-        const y2 = radius * 0.75 * Math.sin(angle + 0.85);
+        const tx1 = radius * outerScale * 1.35 * Math.cos(angle + 0.12);
+        const ty1 = radius * outerScale * 1.35 * Math.sin(angle + 0.12);
+        const tx2 = radius * outerScale * 1.25 * Math.cos(angle + 0.25);
+        const ty2 = radius * outerScale * 1.25 * Math.sin(angle + 0.25);
+        const x2 = radius * 0.72 * Math.cos(angle + 0.45);
+        const y2 = radius * 0.72 * Math.sin(angle + 0.45);
 
         if (i === 0) ctx.moveTo(x1, y1);
         ctx.bezierCurveTo(tx1, ty1, tx2, ty2, x2, y2);
       }
     } else if (bladeNo === 6) {
-      // 06: アーク / 3枚の引っ掛け鋭利鎌刃 (フック)
-      const blades = 3;
+      // 06: ワイド・アウター ➔ 直径を広げたアウターリング＋6つの小型外周歯
+      const blades = 6;
       for (let i = 0; i < blades; i++) {
         const angle = (i / blades) * Math.PI * 2;
-        const x1 = radius * 0.75 * Math.cos(angle);
-        const y1 = radius * 0.75 * Math.sin(angle);
-        const tx = radius * outerScale * 1.3 * Math.cos(angle + 0.4);
-        const ty = radius * outerScale * 1.3 * Math.sin(angle + 0.4);
-        const x2 = radius * 0.6 * Math.cos(angle + 0.6);
-        const y2 = radius * 0.6 * Math.sin(angle + 0.6);
+        const x1 = radius * 0.85 * Math.cos(angle);
+        const y1 = radius * 0.85 * Math.sin(angle);
+        const tx = radius * outerScale * 1.12 * Math.cos(angle + 0.2);
+        const ty = radius * outerScale * 1.12 * Math.sin(angle + 0.2);
+        const x2 = radius * 0.85 * Math.cos(angle + 0.4);
+        const y2 = radius * 0.85 * Math.sin(angle + 0.4);
 
         if (i === 0) ctx.moveTo(x1, y1);
         ctx.lineTo(tx, ty);
         ctx.lineTo(x2, y2);
       }
     } else if (bladeNo === 7) {
-      // 07: ガーディアン / 四角形極厚要塞盾 (盾・バルジ構造)
+      // 07: ソリッド・ウォール ➔ 滑らかなドーム状の要塞壁型ガード
       const blades = 4;
       for (let i = 0; i < blades; i++) {
         const angle = (i / blades) * Math.PI * 2;
-        const x1 = radius * 0.78 * Math.cos(angle);
-        const y1 = radius * 0.78 * Math.sin(angle);
-        const tx = radius * outerScale * 1.18 * Math.cos(angle + 0.25);
-        const ty = radius * outerScale * 1.18 * Math.sin(angle + 0.25);
-        const x2 = radius * 0.78 * Math.cos(angle + 0.5);
-        const y2 = radius * 0.78 * Math.sin(angle + 0.5);
+        const x1 = radius * 0.82 * Math.cos(angle);
+        const y1 = radius * 0.82 * Math.sin(angle);
+        const tx = radius * outerScale * 1.12 * Math.cos(angle + 0.25);
+        const ty = radius * outerScale * 1.12 * Math.sin(angle + 0.25);
+        const x2 = radius * 0.82 * Math.cos(angle + 0.5);
+        const y2 = radius * 0.82 * Math.sin(angle + 0.5);
 
         if (i === 0) ctx.moveTo(x1, y1);
         ctx.lineTo(tx, ty);
         ctx.lineTo(x2, y2);
       }
     } else if (bladeNo === 8) {
-      // 08: マッハ・ウイング / 鳥の翼のような流れる2枚大翼
-      const blades = 2;
+      // 08: スピード・ウイング ➔ 軽快な3枚の空気抵抗削減ウイング
+      const blades = 3;
       for (let i = 0; i < blades; i++) {
         const angle = (i / blades) * Math.PI * 2;
-        const x1 = radius * 0.7 * Math.cos(angle);
-        const y1 = radius * 0.7 * Math.sin(angle);
-        const tx1 = radius * outerScale * 1.3 * Math.cos(angle + 0.4);
-        const ty1 = radius * outerScale * 1.3 * Math.sin(angle + 0.4);
-        const tx2 = radius * outerScale * 1.1 * Math.cos(angle + 0.8);
-        const ty2 = radius * outerScale * 1.1 * Math.sin(angle + 0.8);
-        const x2 = radius * 0.65 * Math.cos(angle + 0.95);
-        const y2 = radius * 0.65 * Math.sin(angle + 0.95);
+        const x1 = radius * 0.72 * Math.cos(angle);
+        const y1 = radius * 0.72 * Math.sin(angle);
+        const tx1 = radius * outerScale * 1.25 * Math.cos(angle + 0.3);
+        const ty1 = radius * outerScale * 1.25 * Math.sin(angle + 0.3);
+        const tx2 = radius * outerScale * 1.12 * Math.cos(angle + 0.6);
+        const ty2 = radius * outerScale * 1.12 * Math.sin(angle + 0.6);
+        const x2 = radius * 0.68 * Math.cos(angle + 0.78);
+        const y2 = radius * 0.68 * Math.sin(angle + 0.78);
 
         if (i === 0) ctx.moveTo(x1, y1);
         ctx.bezierCurveTo(tx1, ty1, tx2, ty2, x2, y2);
       }
     } else if (bladeNo === 9) {
-      // 09: レオ＝ゴールドブレード ➔ 5本の鋭利ライオンファング
+      // 09: レオ＝ゴールドファング ➔ 黄金の獅子牙5枚刃 (ライオンファング)
       const blades = 5;
       for (let i = 0; i < blades; i++) {
         const angle = (i / blades) * Math.PI * 2;
@@ -3660,7 +3774,7 @@ class GameApp {
         ctx.bezierCurveTo(tx1, ty1, tx2, ty2, x2, y2);
       }
     } else {
-      // 10: カイザー＝レガリア ➔ 8本の突き出る高貴クラウン王冠ブレード
+      // 10: カイザー＝ジェネシス ➔ 皇帝の絶対王冠8枚刃 (クラウンレガリア)
       const blades = 8;
       for (let i = 0; i < blades; i++) {
         const angle = (i / blades) * Math.PI * 2;
@@ -3751,6 +3865,7 @@ class GameApp {
     ctx.restore();
     ctx.restore();
   }
+
 
   private setupCanvas() {
     this.battleCanvas = document.getElementById('main-battle-canvas') as HTMLCanvasElement;
@@ -5139,23 +5254,23 @@ class GameApp {
 
       if (pLife > 0 && eLife <= 0) {
         winner = 'player';
-        this.snd.playVictoryJingle(); // 勝利ジングル
+        // this.snd.playVictoryJingle(); // 勝利ジングル (バトル後BGMに統一するため無効化)
       } else if (pLife <= 0 && eLife > 0) {
         winner = 'enemy';
-        this.snd.playDefeatJingle(); // 敗北ジングル
+        // this.snd.playDefeatJingle(); // 敗北ジングル (同上)
       } else {
         // スピンロスにより同時に0になった場合: 攻撃ゲージが多いほうの判定勝ち
         const pAtk = this.battleManager.プレイヤー攻撃ゲージ;
         const eAtk = this.battleManager.エネミー攻撃ゲージ;
         if (pAtk > eAtk) {
           winner = 'player';
-          this.snd.playVictoryJingle();
+          // this.snd.playVictoryJingle();
         } else if (eAtk > pAtk) {
           winner = 'enemy';
-          this.snd.playDefeatJingle();
+          // this.snd.playDefeatJingle();
         } else {
           winner = 'draw';
-          this.snd.playDefeatJingle();
+          // this.snd.playDefeatJingle();
         }
       }
 
@@ -5270,6 +5385,9 @@ class GameApp {
   // リザルト画面への遷移 ＆ 事後会話シナリオの再生 ＆ パーツ獲得演出のポップアップ
   private showResultScreenAndPlayAfterScenario(winner: 'player' | 'enemy' | 'draw', acquiredPartId: string | null) {
     this.changeScreen('result-screen');
+    
+    // リザルト画面用BGMの再生 (勝敗共通ループ曲)
+    this.snd.startResultsBGM();
     
     if (!this.selectedNpc) return;
 
@@ -6142,7 +6260,8 @@ class GameApp {
               }
             }
             if (avatarRight) {
-              const oppImg = this.charaImages[opponentIllustId];
+              const currentIllustId = (step.立ち位置 === 'right' && step.イラストID) ? step.イラストID : opponentIllustId;
+              const oppImg = this.charaImages[currentIllustId];
               if (oppImg) {
                 avatarRight.style.backgroundImage = `url('${oppImg.src}')`;
               }

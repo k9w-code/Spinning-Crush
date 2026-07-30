@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Scratch & Temporary Materials
+scratch/
+GameOP_Materials*
+public/images/chara/BK/

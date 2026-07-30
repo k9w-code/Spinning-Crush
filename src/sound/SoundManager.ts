@@ -4,6 +4,9 @@ export class SoundManager {
   private bgmIntervalId: any = null;
   private bgmStep: number = 0;
 
+  private bgmVolume: number = 0.5;
+  private seVolume: number = 0.8;
+
   private constructor() {}
 
   public static getInstance(): SoundManager {
@@ -12,6 +15,17 @@ export class SoundManager {
     }
     return SoundManager.instance;
   }
+
+  public setBgmVolume(val: number) {
+    this.bgmVolume = Math.max(0, Math.min(1, val));
+  }
+
+  public setSeVolume(val: number) {
+    this.seVolume = Math.max(0, Math.min(1, val));
+  }
+
+  public getBgmVolume(): number { return this.bgmVolume; }
+  public getSeVolume(): number { return this.seVolume; }
 
   // ユーザーの最初のクリックアクション等で呼び出してオーディオコンテキストをロック解除する
   public initContext() {
@@ -431,6 +445,30 @@ export class SoundManager {
     });
   }
 
+  public startGarageBGM() {
+    this.playExternalBGM('garage.mp3').then(success => {
+      if (!success) this.startLobbyBGM_Synth();
+    });
+  }
+
+  public startCustomBGM() {
+    this.playExternalBGM('custom.mp3').then(success => {
+      if (!success) this.startLobbyBGM_Synth();
+    });
+  }
+
+  public startStageSelectBGM() {
+    this.playExternalBGM('stage_select.mp3').then(success => {
+      if (!success) this.startLobbyBGM_Synth();
+    });
+  }
+
+  public startVsMatchBGM() {
+    this.playExternalBGM('vs_match.mp3', false).then(success => {
+      if (!success) this.startBattleBGM_Synth();
+    });
+  }
+
   public startShopBGM() {
     this.playExternalBGM('shop.mp3').then(success => {
       if (!success) this.startLobbyBGM_Synth();
@@ -442,6 +480,51 @@ export class SoundManager {
     this.playExternalBGM('battle_normal.mp3').then(success => {
       if (!success) {
         this.startBattleBGM_Synth();
+      }
+    });
+  }
+
+  // ステージ4（レン）専用バトル用BGM
+  public startBattleStage4BGM() {
+    this.playExternalBGM('battle_stage4.mp3').then(success => {
+      if (!success) {
+        this.startBattleBGM_Synth();
+      }
+    });
+  }
+
+  // ユリアン専用バトル用BGM
+  public startBattleStage5BGM() {
+    this.playExternalBGM('battle_stage5.mp3').then(success => {
+      if (!success) {
+        this.startBattleBGM_Synth();
+      }
+    });
+  }
+
+  // アーサー専用バトル用BGM
+  public startBattleStage6BGM() {
+    this.playExternalBGM('battle_stage6.mp3').then(success => {
+      if (!success) {
+        this.startBattleBGM_Synth();
+      }
+    });
+  }
+
+  // 隠しボス（店長）専用バトル用BGM
+  public startBattleBossBGM() {
+    this.playExternalBGM('battle_boss.mp3').then(success => {
+      if (!success) {
+        this.startBattleBGM_Synth();
+      }
+    });
+  }
+
+  // リザルト画面用BGM (勝敗共通)
+  public startResultsBGM() {
+    this.playExternalBGM('results.mp3').then(success => {
+      if (!success) {
+        this.startLobbyBGM_Synth();
       }
     });
   }
