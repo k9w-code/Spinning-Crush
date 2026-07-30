@@ -3521,6 +3521,9 @@ body, html {
   width: 250px;
   height: 100px;
   background: linear-gradient(90deg, rgba(0, 243, 255, 0.6) 0%, transparent 100%);
+  background-size: cover;
+  background-position: center 20%;
+  background-repeat: no-repeat;
   font-family: var(--font-hud);
   font-size: 1.8rem;
   font-weight: 900;
@@ -3572,6 +3575,9 @@ body, html {
   width: 250px;
   height: 100px;
   background: linear-gradient(-90deg, rgba(255, 0, 85, 0.6) 0%, transparent 100%);
+  background-size: cover;
+  background-position: center 20%;
+  background-repeat: no-repeat;
   font-family: var(--font-hud);
   font-size: 1.8rem;
   font-weight: 900;

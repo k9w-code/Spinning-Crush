@@ -456,51 +456,100 @@ class GameApp {
     });
   }
 
+  // キャラクター画像IDキーの総合判定ヘルパー
+  private getCharaIllustKey(target: any): string {
+    if (!target) return 'ナビィ';
+
+    if (typeof target === 'string') {
+      if (target === 'あなた' || target === '主人公') return '主人公';
+      if (this.charaImages[target]) return target;
+
+      const foundEnemy = this.エネミーマスタ.find(e => e.エネミー名 === target || e.エネミーID === target);
+      if (foundEnemy) {
+        const key = (foundEnemy as any).画像ID || foundEnemy.イラストID || foundEnemy.エネミー名;
+        if (key && this.charaImages[key]) return key;
+        if (key) return key;
+      }
+
+      const foundNpc = this.システムNPCマスタ.find(n => n.システムNPC名 === target || n.システムNPCID === target);
+      if (foundNpc) {
+        const key = foundNpc.イラストID || (foundNpc as any).画像ID || foundNpc.システムNPC名;
+        if (key && this.charaImages[key]) return key;
+        if (key) return key;
+      }
+
+      return target;
+    } else if (typeof target === 'object') {
+      const key = (target as any).画像ID || target.イラストID || target.エネミー名 || target.システムNPC名 || target.名前;
+      if (key && this.charaImages[key]) return key;
+      if (key) return key;
+    }
+
+    return 'ナビィ';
+  }
+
   private preloadCharaImages(): Promise<void> {
-    const charNames = ['主人公', 'ナビィ', '店長'];
+    const charNamesSet = new Set<string>([
+      '主人公',
+      'あなた',
+      'ナビィ',
+      '店長',
+      '店長（ボス）',
+      'アーサー（ステージ6）'
+    ]);
+
     this.エネミーマスタ.forEach(e => {
-      if (e.イラストID && !charNames.includes(e.イラストID)) {
-        charNames.push(e.イラストID);
-      }
+      const imgId = (e as any).画像ID || e.イラストID || e.エネミー名;
+      if (imgId) charNamesSet.add(imgId);
+      if (e.エネミー名) charNamesSet.add(e.エネミー名);
     });
-    this.システムNPCマスタ.forEach(e => {
-      if (e.イラストID && !charNames.includes(e.イラストID)) {
-        charNames.push(e.イラストID);
-      }
+
+    this.システムNPCマスタ.forEach(n => {
+      const imgId = n.イラストID || (n as any).画像ID || n.システムNPC名;
+      if (imgId) charNamesSet.add(imgId);
+      if (n.システムNPC名) charNamesSet.add(n.システムNPC名);
     });
+
+    this.シナリオマスタ.forEach(s => {
+      if (s.話者名) charNamesSet.add(s.話者名);
+      if (s.イラストID) charNamesSet.add(s.イラストID);
+    });
+
+    const charNames = Array.from(charNamesSet);
 
     const promises = charNames.map(name => {
       return new Promise<void>((resolve) => {
-        const img = new Image();
-        img.src = `./images/chara/${name}.jpeg`;
-        img.onload = async () => {
-          try {
-            const transImg = await this.transparentizeBlack(img);
-            this.charaImages[name] = transImg;
-          } catch (e) {
-            console.error(`Failed to transparentize chara image: ${name}`, e);
-          }
-          resolve();
-        };
-        img.onerror = () => {
-          const imgPng = new Image();
-          imgPng.src = `./images/chara/${name}.png`;
-          imgPng.onload = async () => {
+        const tryLoad = (isPng: boolean) => {
+          const ext = isPng ? 'png' : 'jpeg';
+          const img = new Image();
+          img.src = `./images/chara/${name}.${ext}`;
+
+          img.onload = async () => {
             try {
-              const transImg = await this.transparentizeBlack(imgPng);
+              const transImg = await this.transparentizeBlack(img);
               this.charaImages[name] = transImg;
+              if (name === '主人公') {
+                this.charaImages['あなた'] = transImg;
+              }
             } catch (e) {
-              console.error(`Failed to transparentize chara png image: ${name}`, e);
+              console.error(`Failed to transparentize chara image: ${name}`, e);
             }
             resolve();
           };
-          imgPng.onerror = () => {
-            console.warn(`Failed to load chara image (jpeg/png): ${name}`);
-            resolve(); // 読み込み失敗時もハングアップ防止
+
+          img.onerror = () => {
+            if (!isPng) {
+              tryLoad(true);
+            } else {
+              resolve();
+            }
           };
         };
+
+        tryLoad(false);
       });
     });
+
     return Promise.all(promises).then(() => {});
   }
 
@@ -2308,9 +2357,7 @@ class GameApp {
             onComplete: () => {
               const avatarRight = document.getElementById('talk-avatar-right');
               if (avatarRight) {
-                // 右側にライバルキャラのホログラム立ち絵を表示
-                const isDefault = !['e005'].includes(npc.エネミーID);
-                avatarRight.className = `talk-avatar right active ${isDefault ? 'avatar-default' : 'avatar-' + npc.エネミーID}`;
+                avatarRight.className = 'talk-avatar right active';
               }
             }
           }
@@ -2654,6 +2701,25 @@ class GameApp {
     bubbleEl.textContent = beforeText;
     if (enemyPortraitName) {
       enemyPortraitName.textContent = this.selectedNpc.エネミー名.toUpperCase();
+    }
+
+    // 立ち絵カットイン画像動的適用
+    const playerPortrait = overlay.querySelector('.vs-portrait-player') as HTMLElement;
+    const enemyPortrait = overlay.querySelector('.vs-portrait-enemy') as HTMLElement;
+
+    if (playerPortrait) {
+      const heroImg = this.charaImages['主人公'] || this.charaImages['あなた'];
+      if (heroImg) {
+        playerPortrait.style.backgroundImage = `url('${heroImg.src}')`;
+      }
+    }
+
+    if (enemyPortrait) {
+      const oppKey = this.getCharaIllustKey(this.selectedNpc);
+      const oppImg = this.charaImages[oppKey] || this.charaImages['ナビィ'];
+      if (oppImg) {
+        enemyPortrait.style.backgroundImage = `url('${oppImg.src}')`;
+      }
     }
 
     // 演出を活性化
@@ -6928,10 +6994,10 @@ class GameApp {
       const avatarRight = document.getElementById('talk-avatar-right');
 
       // このシナリオに登場する「対戦相手/対話相手」のイラストID（日本語名）を事前にスキャン
-      let opponentIllustId = (this.selectedNpc && this.selectedNpc.イラストID) ? this.selectedNpc.イラストID : 'ナビィ';
+      let opponentIllustId = this.selectedNpc ? this.getCharaIllustKey(this.selectedNpc) : 'ナビィ';
       for (const step of steps) {
         if (step.立ち位置 === 'right' && step.イラストID) {
-          opponentIllustId = step.イラストID; // イチカ, ハルト, 店長などの日本語名
+          opponentIllustId = this.getCharaIllustKey(step.イラストID);
           break;
         }
       }
@@ -6985,8 +7051,8 @@ class GameApp {
               }
             }
             if (avatarRight) {
-              const currentIllustId = (step.立ち位置 === 'right' && step.イラストID) ? step.イラストID : opponentIllustId;
-              const oppImg = this.charaImages[currentIllustId];
+              const currentIllustId = (step.立ち位置 === 'right' && step.イラストID) ? this.getCharaIllustKey(step.イラストID) : opponentIllustId;
+              const oppImg = this.charaImages[currentIllustId] || this.charaImages['ナビィ'];
               if (oppImg) {
                 avatarRight.style.backgroundImage = `url('${oppImg.src}')`;
               }
@@ -7076,14 +7142,13 @@ class GameApp {
     const avatarLeft = document.getElementById('talk-avatar-left');
     const avatarRight = document.getElementById('talk-avatar-right');
     if (avatarLeft && avatarRight) {
-      // 対話相手のイラストID特定 (話者名 or 選択エネミー)
       const currentSpeaker = current.speaker;
-      let oppIllustKey = (this.selectedNpc && this.selectedNpc.イラストID) ? this.selectedNpc.イラストID : 'ナビィ';
-      if (this.charaImages[currentSpeaker]) {
-        oppIllustKey = currentSpeaker;
+      let oppIllustKey = this.selectedNpc ? this.getCharaIllustKey(this.selectedNpc) : 'ナビィ';
+      if (currentSpeaker && currentSpeaker !== 'あなた' && currentSpeaker !== '主人公') {
+        oppIllustKey = this.getCharaIllustKey(currentSpeaker);
       }
 
-      const heroImg = this.charaImages['主人公'];
+      const heroImg = this.charaImages['主人公'] || this.charaImages['あなた'];
       const oppImg = this.charaImages[oppIllustKey] || this.charaImages['ナビィ'];
       
       if (heroImg) {
