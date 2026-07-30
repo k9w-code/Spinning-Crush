@@ -1573,6 +1573,27 @@ class GameApp {
     );
     this.renderGearPreview('custom-gear-canvas', assembledSim);
 
+    // 4つの各パーツ部位ボタン内 Canvas への個別ビジュアル描画
+    const drawSlotPartCanvas = (canvasId: string, partId: string, partType: 'chip' | 'blade' | 'weight' | 'sole') => {
+      const cvs = document.getElementById(canvasId) as HTMLCanvasElement;
+      if (!cvs) return;
+      const ctx = cvs.getContext('2d');
+      if (!ctx) return;
+      
+      const bId = partType === 'blade' ? partId : 'b101_n';
+      const wId = partType === 'weight' ? partId : 'w101_n';
+      const sId = partType === 'sole' ? partId : 's101_n';
+      const cId = partType === 'chip' ? partId : 'c001';
+      
+      const dummy = アセンブル実行(cId, bId, wId, sId, 1, this.パーツマスタ, this.チップマスタ, this.奥義マスタ);
+      this.drawGear(ctx, 30, 30, 24, dummy, 0);
+    };
+
+    drawSlotPartCanvas('custom-slot-canvas-chip', this.customGearSim.チップ, 'chip');
+    drawSlotPartCanvas('custom-slot-canvas-blade', this.customGearSim.ブレード || 'b101_n', 'blade');
+    drawSlotPartCanvas('custom-slot-canvas-weight', this.customGearSim.ウェイト || 'w101_n', 'weight');
+    drawSlotPartCanvas('custom-slot-canvas-sole', this.customGearSim.ソール || 's101_n', 'sole');
+
     // シミュレーション計算
     this.renderAssembleSimStats();
   }
@@ -6388,13 +6409,19 @@ class GameApp {
     if (speakerEl) speakerEl.textContent = current.speaker;
     if (textEl) textEl.textContent = current.text;
 
-    // 簡易会話用のフォールバック明暗切り替え (playScenario を通らない簡易 startTalk のため)
+    // 会話時の左右アバター画像とアクティブ表示切り替え
     const avatarLeft = document.getElementById('talk-avatar-left');
     const avatarRight = document.getElementById('talk-avatar-right');
     if (avatarLeft && avatarRight) {
-      // 立ち絵画像パスの動的設定
+      // 対話相手のイラストID特定 (話者名 or 選択エネミー)
+      const currentSpeaker = current.speaker;
+      let oppIllustKey = (this.selectedNpc && this.selectedNpc.イラストID) ? this.selectedNpc.イラストID : 'ナビィ';
+      if (this.charaImages[currentSpeaker]) {
+        oppIllustKey = currentSpeaker;
+      }
+
       const heroImg = this.charaImages['主人公'];
-      const nabyImg = this.charaImages['ナビィ'];
+      const oppImg = this.charaImages[oppIllustKey] || this.charaImages['ナビィ'];
       
       if (heroImg) {
         avatarLeft.style.backgroundImage = `url('${heroImg.src}')`;
@@ -6402,8 +6429,8 @@ class GameApp {
         avatarLeft.style.backgroundImage = '';
       }
 
-      if (nabyImg) {
-        avatarRight.style.backgroundImage = `url('${nabyImg.src}')`;
+      if (oppImg) {
+        avatarRight.style.backgroundImage = `url('${oppImg.src}')`;
       } else {
         avatarRight.style.backgroundImage = '';
       }
