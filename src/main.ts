@@ -407,38 +407,53 @@ class GameApp {
       const chipName = chip.チップ名;
       if (!chipName) return Promise.resolve();
 
+      // 表記ゆれ対応 (例: グラビティ ↔ グラヴィティ)
+      const possibleNames = [chipName];
+      if (chipName.includes('グラビティ')) {
+        possibleNames.push(chipName.replace('グラビティ', 'グラヴィティ'));
+      }
+
       return new Promise<void>((resolve) => {
-        const img = new Image();
-        img.src = `./images/chips/${chipName}.jpeg`;
-        img.onload = async () => {
-          try {
-            const transImg = await this.transparentizeBlack(img);
-            this.chipImages[chipId] = transImg;
-          } catch (e) {
-            console.error(`Failed to transparentize chip image: ${chipName}`, e);
+        const tryLoad = (nameIdx: number, isPng: boolean) => {
+          if (nameIdx >= possibleNames.length) {
+            console.warn(`Failed to load chip image (jpeg/png): ${chipName}`);
+            resolve();
+            return;
           }
-          resolve();
-        };
-        img.onerror = () => {
-          const imgPng = new Image();
-          imgPng.src = `./images/chips/${chipName}.png`;
-          imgPng.onload = async () => {
+          const curName = possibleNames[nameIdx];
+          const ext = isPng ? 'png' : 'jpeg';
+          const img = new Image();
+          img.src = `./images/chips/${curName}.${ext}`;
+
+          img.onload = async () => {
             try {
-              const transImg = await this.transparentizeBlack(imgPng);
+              const transImg = await this.transparentizeBlack(img);
               this.chipImages[chipId] = transImg;
+              this.chipImages[chipName] = transImg;
             } catch (e) {
-              console.error(`Failed to transparentize chip png image: ${chipName}`, e);
+              console.error(`Failed to transparentize chip image: ${curName}`, e);
             }
             resolve();
           };
-          imgPng.onerror = () => {
-            console.warn(`Failed to load chip image (jpeg/png): ${chipName}`);
-            resolve(); // 読み込み失敗時もハングアップ防止
+
+          img.onerror = () => {
+            if (!isPng) {
+              tryLoad(nameIdx, true);
+            } else {
+              tryLoad(nameIdx + 1, false);
+            }
           };
         };
+
+        tryLoad(0, false);
       });
     });
-    return Promise.all(promises).then(() => {});
+    return Promise.all(promises).then(() => {
+      // 読み込み完了後にプレビューを更新
+      if (this.currentScreenId === 'customize-screen') {
+        this.updateCustomAssembleArea();
+      }
+    });
   }
 
   private preloadCharaImages(): Promise<void> {
@@ -1573,26 +1588,19 @@ class GameApp {
     );
     this.renderGearPreview('custom-gear-canvas', assembledSim);
 
-    // 4つの各パーツ部位ボタン内 Canvas への個別ビジュアル描画
+    // 4つの各パーツ部位ボタン内 Canvas への単体ビジュアル描画
     const drawSlotPartCanvas = (canvasId: string, partId: string, partType: 'chip' | 'blade' | 'weight' | 'sole') => {
       const cvs = document.getElementById(canvasId) as HTMLCanvasElement;
       if (!cvs) return;
       const ctx = cvs.getContext('2d');
       if (!ctx) return;
-      
-      const bId = partType === 'blade' ? partId : 'b101_n';
-      const wId = partType === 'weight' ? partId : 'w101_n';
-      const sId = partType === 'sole' ? partId : 's101_n';
-      const cId = partType === 'chip' ? partId : 'c001';
-      
-      const dummy = アセンブル実行(cId, bId, wId, sId, 1, this.パーツマスタ, this.チップマスタ, this.奥義マスタ);
-      this.drawGear(ctx, 30, 30, 24, dummy, 0);
+      this.drawPartVisual(ctx, cvs.width, cvs.height, partType, partId);
     };
 
     drawSlotPartCanvas('custom-slot-canvas-chip', this.customGearSim.チップ, 'chip');
-    drawSlotPartCanvas('custom-slot-canvas-blade', this.customGearSim.ブレード || 'b101_n', 'blade');
-    drawSlotPartCanvas('custom-slot-canvas-weight', this.customGearSim.ウェイト || 'w101_n', 'weight');
-    drawSlotPartCanvas('custom-slot-canvas-sole', this.customGearSim.ソール || 's101_n', 'sole');
+    drawSlotPartCanvas('custom-slot-canvas-blade', this.customGearSim.ブレード, 'blade');
+    drawSlotPartCanvas('custom-slot-canvas-weight', this.customGearSim.ウェイト, 'weight');
+    drawSlotPartCanvas('custom-slot-canvas-sole', this.customGearSim.ソール, 'sole');
 
     // シミュレーション計算
     this.renderAssembleSimStats();
@@ -1784,8 +1792,7 @@ class GameApp {
           if (cvs) {
             const ctx = cvs.getContext('2d');
             if (ctx) {
-              const dummy = アセンブル実行(item.チップID, 'b101_n', 'w101_n', 's101_n', 1, this.パーツマスタ, this.チップマスタ, this.奥義マスタ);
-              this.drawGear(ctx, 25, 25, 20, dummy, 0);
+              this.drawPartVisual(ctx, cvs.width, cvs.height, 'chip', item.チップID);
             }
           }
         }, 10);
@@ -1871,11 +1878,8 @@ class GameApp {
           if (cvs) {
             const ctx = cvs.getContext('2d');
             if (ctx) {
-              const bId = type === 'ブレード' ? item.パーツID : 'b101_n';
-              const wId = type === 'ウェイト' ? item.パーツID : 'w101_n';
-              const sId = type === 'ソール' ? item.パーツID : 's101_n';
-              const dummy = アセンブル実行('c001', bId, wId, sId, 1, this.パーツマスタ, this.チップマスタ, this.奥義マスタ);
-              this.drawGear(ctx, 25, 25, 20, dummy, 0);
+              const partType = type === 'ブレード' ? 'blade' : (type === 'ウェイト' ? 'weight' : 'sole');
+              this.drawPartVisual(ctx, cvs.width, cvs.height, partType, item.パーツID);
             }
           }
         }, 10);
@@ -3188,6 +3192,666 @@ class GameApp {
 
     osc.start(time);
     osc.stop(time + 0.45);
+  }
+
+  // 単体パーツ用の個別ビジュアル描画（スロットボタンおよび所持パーツ一覧カード用）
+  private drawBladeShapePath(ctx: CanvasRenderingContext2D, radius: number, outerScale: number, bladeNo: number) {
+    if (bladeNo === 1) {
+      const blades = 4;
+      for (let i = 0; i < blades; i++) {
+        const angle = (i / blades) * Math.PI * 2;
+        const x1 = radius * 0.88 * Math.cos(angle);
+        const y1 = radius * 0.88 * Math.sin(angle);
+        const tx = radius * outerScale * 0.95 * Math.cos(angle + 0.2);
+        const ty = radius * outerScale * 0.95 * Math.sin(angle + 0.2);
+        const x2 = radius * 0.82 * Math.cos(angle + 0.35);
+        const y2 = radius * 0.82 * Math.sin(angle + 0.35);
+
+        if (i === 0) ctx.moveTo(x1, y1);
+        ctx.lineTo(tx, ty);
+        ctx.lineTo(x2, y2);
+      }
+    } else if (bladeNo === 2) {
+      const blades = 3;
+      for (let i = 0; i < blades; i++) {
+        const angle = (i / blades) * Math.PI * 2;
+        const x1 = radius * 0.8 * Math.cos(angle);
+        const y1 = radius * 0.8 * Math.sin(angle);
+        const tx = radius * outerScale * 1.15 * Math.cos(angle + 0.3);
+        const ty = radius * outerScale * 1.15 * Math.sin(angle + 0.3);
+        const x2 = radius * 0.8 * Math.cos(angle + 0.6);
+        const y2 = radius * 0.8 * Math.sin(angle + 0.6);
+
+        if (i === 0) ctx.moveTo(x1, y1);
+        ctx.quadraticCurveTo(tx, ty, x2, y2);
+      }
+    } else if (bladeNo === 3) {
+      const blades = 4;
+      for (let i = 0; i < blades; i++) {
+        const angle = (i / blades) * Math.PI * 2;
+        const x1 = radius * 0.7 * Math.cos(angle);
+        const y1 = radius * 0.7 * Math.sin(angle);
+        const tx = radius * outerScale * 1.25 * Math.cos(angle + 0.12);
+        const ty = radius * outerScale * 1.25 * Math.sin(angle + 0.12);
+        const x2 = radius * 0.68 * Math.cos(angle + 0.18);
+        const y2 = radius * 0.68 * Math.sin(angle + 0.18);
+
+        if (i === 0) ctx.moveTo(x1, y1);
+        ctx.lineTo(tx, ty);
+        ctx.lineTo(x2, y2);
+      }
+    } else if (bladeNo === 4) {
+      const blades = 16;
+      for (let i = 0; i < blades; i++) {
+        const angle = (i / blades) * Math.PI * 2;
+        const x1 = radius * 0.82 * Math.cos(angle);
+        const y1 = radius * 0.82 * Math.sin(angle);
+        const tx = radius * outerScale * 1.05 * Math.cos(angle + 0.05);
+        const ty = radius * outerScale * 1.05 * Math.sin(angle + 0.05);
+        const x2 = radius * 0.8 * Math.cos(angle + 0.1);
+        const y2 = radius * 0.8 * Math.sin(angle + 0.1);
+
+        if (i === 0) ctx.moveTo(x1, y1);
+        ctx.lineTo(tx, ty);
+        ctx.lineTo(x2, y2);
+      }
+    } else if (bladeNo === 5) {
+      const blades = 2;
+      for (let i = 0; i < blades; i++) {
+        const angle = (i / blades) * Math.PI * 2;
+        const x1 = radius * 0.75 * Math.cos(angle);
+        const y1 = radius * 0.75 * Math.sin(angle);
+        const tx1 = radius * outerScale * 1.35 * Math.cos(angle + 0.12);
+        const ty1 = radius * outerScale * 1.35 * Math.sin(angle + 0.12);
+        const tx2 = radius * outerScale * 1.25 * Math.cos(angle + 0.25);
+        const ty2 = radius * outerScale * 1.25 * Math.sin(angle + 0.25);
+        const x2 = radius * 0.72 * Math.cos(angle + 0.45);
+        const y2 = radius * 0.72 * Math.sin(angle + 0.45);
+
+        if (i === 0) ctx.moveTo(x1, y1);
+        ctx.bezierCurveTo(tx1, ty1, tx2, ty2, x2, y2);
+      }
+    } else if (bladeNo === 6) {
+      const blades = 6;
+      for (let i = 0; i < blades; i++) {
+        const angle = (i / blades) * Math.PI * 2;
+        const x1 = radius * 0.85 * Math.cos(angle);
+        const y1 = radius * 0.85 * Math.sin(angle);
+        const tx = radius * outerScale * 1.12 * Math.cos(angle + 0.2);
+        const ty = radius * outerScale * 1.12 * Math.sin(angle + 0.2);
+        const x2 = radius * 0.85 * Math.cos(angle + 0.4);
+        const y2 = radius * 0.85 * Math.sin(angle + 0.4);
+
+        if (i === 0) ctx.moveTo(x1, y1);
+        ctx.lineTo(tx, ty);
+        ctx.lineTo(x2, y2);
+      }
+    } else if (bladeNo === 7) {
+      const blades = 4;
+      for (let i = 0; i < blades; i++) {
+        const angle = (i / blades) * Math.PI * 2;
+        const x1 = radius * 0.82 * Math.cos(angle);
+        const y1 = radius * 0.82 * Math.sin(angle);
+        const tx = radius * outerScale * 1.12 * Math.cos(angle + 0.25);
+        const ty = radius * outerScale * 1.12 * Math.sin(angle + 0.25);
+        const x2 = radius * 0.82 * Math.cos(angle + 0.5);
+        const y2 = radius * 0.82 * Math.sin(angle + 0.5);
+
+        if (i === 0) ctx.moveTo(x1, y1);
+        ctx.lineTo(tx, ty);
+        ctx.lineTo(x2, y2);
+      }
+    } else if (bladeNo === 8) {
+      const blades = 3;
+      for (let i = 0; i < blades; i++) {
+        const angle = (i / blades) * Math.PI * 2;
+        const x1 = radius * 0.72 * Math.cos(angle);
+        const y1 = radius * 0.72 * Math.sin(angle);
+        const tx1 = radius * outerScale * 1.25 * Math.cos(angle + 0.3);
+        const ty1 = radius * outerScale * 1.25 * Math.sin(angle + 0.3);
+        const tx2 = radius * outerScale * 1.12 * Math.cos(angle + 0.6);
+        const ty2 = radius * outerScale * 1.12 * Math.sin(angle + 0.6);
+        const x2 = radius * 0.68 * Math.cos(angle + 0.78);
+        const y2 = radius * 0.68 * Math.sin(angle + 0.78);
+
+        if (i === 0) ctx.moveTo(x1, y1);
+        ctx.bezierCurveTo(tx1, ty1, tx2, ty2, x2, y2);
+      }
+    } else if (bladeNo === 9) {
+      const blades = 5;
+      for (let i = 0; i < blades; i++) {
+        const angle = (i / blades) * Math.PI * 2;
+        const x1 = radius * 0.75 * Math.cos(angle);
+        const y1 = radius * 0.75 * Math.sin(angle);
+        const tx1 = radius * outerScale * 1.25 * Math.cos(angle + 0.22);
+        const ty1 = radius * outerScale * 1.25 * Math.sin(angle + 0.22);
+        const tx2 = radius * outerScale * 1.28 * Math.cos(angle + 0.28);
+        const ty2 = radius * outerScale * 1.28 * Math.sin(angle + 0.28);
+        const x2 = radius * 0.62 * Math.cos(angle + 0.55);
+        const y2 = radius * 0.62 * Math.sin(angle + 0.55);
+
+        if (i === 0) ctx.moveTo(x1, y1);
+        ctx.bezierCurveTo(tx1, ty1, tx2, ty2, x2, y2);
+      }
+    } else {
+      const blades = 8;
+      for (let i = 0; i < blades; i++) {
+        const angle = (i / blades) * Math.PI * 2;
+        const x1 = radius * 0.8 * Math.cos(angle);
+        const y1 = radius * 0.8 * Math.sin(angle);
+        const tx = radius * outerScale * 1.2 * Math.cos(angle + 0.125);
+        const ty = radius * outerScale * 1.2 * Math.sin(angle + 0.125);
+        const x2 = radius * 0.8 * Math.cos(angle + 0.25);
+        const y2 = radius * 0.8 * Math.sin(angle + 0.25);
+
+        if (i === 0) ctx.moveTo(x1, y1);
+        ctx.lineTo(tx, ty);
+        ctx.lineTo(x2, y2);
+      }
+    }
+  }
+
+  private drawWeightDetailPath(ctx: CanvasRenderingContext2D, radius: number, weightNo: number, weightColor: string) {
+    if (weightNo === 1) {
+      ctx.strokeStyle = weightColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = 0; i <= 6; i++) {
+        const angle = (i / 6) * Math.PI * 2;
+        const rx = (radius * 0.42) * Math.cos(angle);
+        const ry = (radius * 0.42) * Math.sin(angle);
+        if (i === 0) ctx.moveTo(rx, ry);
+        else ctx.lineTo(rx, ry);
+      }
+      ctx.stroke();
+    } else if (weightNo === 2) {
+      ctx.fillStyle = weightColor;
+      for (let i = 0; i < 3; i++) {
+        const angle = (i / 3) * Math.PI * 2 + 0.2;
+        ctx.beginPath();
+        ctx.arc(radius * 0.5 * Math.cos(angle), radius * 0.5 * Math.sin(angle), 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (weightNo === 3) {
+      ctx.strokeStyle = weightColor;
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 10; i++) {
+        const angle = (i / 10) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(radius * 0.48 * Math.cos(angle), radius * 0.48 * Math.sin(angle), 1.5, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    } else if (weightNo === 4) {
+      ctx.fillStyle = weightColor;
+      for (let i = 0; i < 4; i++) {
+        const angle = (i / 4) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(radius * 0.52 * Math.cos(angle), radius * 0.52 * Math.sin(angle), 4.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (weightNo === 5) {
+      ctx.strokeStyle = weightColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const angle = (i / 10) * Math.PI * 2;
+        const r = i % 2 === 0 ? radius * 0.4 : radius * 0.52;
+        ctx.lineTo(r * Math.cos(angle), r * Math.sin(angle));
+      }
+      ctx.closePath();
+      ctx.stroke();
+    } else if (weightNo === 6) {
+      ctx.strokeStyle = weightColor;
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(radius * 0.4 * Math.cos(angle), radius * 0.4 * Math.sin(angle));
+        ctx.lineTo(radius * 0.58 * Math.cos(angle), radius * 0.58 * Math.sin(angle));
+        ctx.stroke();
+      }
+    } else if (weightNo === 7) {
+      ctx.strokeStyle = weightColor;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.44, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.54, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (weightNo === 8) {
+      ctx.strokeStyle = weightColor;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.46, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = weightColor;
+      for (let i = 0; i < 4; i++) {
+        const angle = (i / 4) * Math.PI * 2 + 0.78;
+        ctx.beginPath();
+        ctx.arc(radius * 0.46 * Math.cos(angle), radius * 0.46 * Math.sin(angle), 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (weightNo === 9) {
+      ctx.fillStyle = weightColor;
+      for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(radius * 0.5 * Math.cos(angle), radius * 0.5 * Math.sin(angle), 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else {
+      ctx.fillStyle = weightColor;
+      for (let i = 0; i < 16; i++) {
+        const angle = (i / 16) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(radius * 0.51 * Math.cos(angle), radius * 0.51 * Math.sin(angle), 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  private drawSoleShapePath(ctx: CanvasRenderingContext2D, radius: number, soleNo: number, soleColor: string) {
+    if (soleNo === 1) {
+      ctx.strokeStyle = soleColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.28, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-radius * 0.25, 0); ctx.lineTo(radius * 0.25, 0);
+      ctx.moveTo(0, -radius * 0.25); ctx.lineTo(0, radius * 0.25);
+      ctx.stroke();
+    } else if (soleNo === 2) {
+      ctx.strokeStyle = soleColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.35, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.23, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (soleNo === 3) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 4; i++) {
+        const angle = (i / 4) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(radius * 0.4 * Math.cos(angle), radius * 0.4 * Math.sin(angle));
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#fff';
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = '#fff';
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (soleNo === 4) {
+      ctx.strokeStyle = soleColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.3, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let i = 0; i < 3; i++) {
+        const angle = (i / 3) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(radius * 0.1 * Math.cos(angle), radius * 0.1 * Math.sin(angle));
+        ctx.lineTo(radius * 0.35 * Math.cos(angle + 0.5), radius * 0.35 * Math.sin(angle + 0.5));
+        ctx.stroke();
+      }
+    } else if (soleNo === 5) {
+      ctx.fillStyle = 'rgba(100, 100, 100, 0.7)';
+      ctx.strokeStyle = soleColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.rect(-radius * 0.3, -radius * 0.08, radius * 0.6, radius * 0.16);
+      ctx.rect(-radius * 0.08, -radius * 0.3, radius * 0.16, radius * 0.6);
+      ctx.fill();
+      ctx.stroke();
+    } else if (soleNo === 6) {
+      ctx.strokeStyle = '#3a3d42';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.32, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = soleColor;
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(radius * 0.28 * Math.cos(angle), radius * 0.28 * Math.sin(angle));
+        ctx.lineTo(radius * 0.35 * Math.cos(angle), radius * 0.35 * Math.sin(angle));
+        ctx.stroke();
+      }
+    } else if (soleNo === 7) {
+      ctx.fillStyle = 'rgba(218, 165, 32, 0.65)';
+      ctx.strokeStyle = '#ffcc00';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = soleColor;
+      for (let i = 0; i < 4; i++) {
+        const angle = (i / 4) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(radius * 0.24 * Math.cos(angle), radius * 0.24 * Math.sin(angle), 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (soleNo === 8) {
+      ctx.strokeStyle = soleColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let theta = 0; theta < Math.PI * 4; theta += 0.1) {
+        const r = (radius * 0.03) * theta;
+        const sx = r * Math.cos(theta);
+        const sy = r * Math.sin(theta);
+        if (theta === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.stroke();
+    } else if (soleNo === 9) {
+      for (let i = 0; i < 3; i++) {
+        const angle = (i / 3) * Math.PI * 2;
+        ctx.save();
+        ctx.shadowColor = '#ffaa00';
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = '#ffaa00';
+        ctx.beginPath();
+        ctx.arc(radius * 0.28 * Math.cos(angle), radius * 0.28 * Math.sin(angle), radius * 0.08, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(radius * 0.28 * Math.cos(angle), radius * 0.28 * Math.sin(angle), radius * 0.04, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    } else {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.32, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = soleColor;
+      ctx.beginPath();
+      ctx.moveTo(-radius * 0.22, -radius * 0.22);
+      ctx.lineTo(radius * 0.22, -radius * 0.22);
+      ctx.lineTo(radius * 0.22, radius * 0.22);
+      ctx.lineTo(-radius * 0.22, radius * 0.22);
+      ctx.closePath();
+      ctx.stroke();
+    }
+  }
+
+  private drawPartVisual(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    partType: 'chip' | 'blade' | 'weight' | 'sole',
+    partId: string
+  ) {
+    ctx.clearRect(0, 0, width, height);
+    ctx.save();
+
+    const cx = width / 2;
+    const cy = height / 2;
+    const size = Math.min(width, height);
+    const radius = size * 0.42;
+
+    const getAttributeColor = (attr: string): string => {
+      if (attr === '火') return '#ff0055';
+      if (attr === '水') return '#00f3ff';
+      if (attr === '風') return '#39ff14';
+      if (attr === '土') return '#ffaa00';
+      return '#f0f3fa';
+    };
+
+    // 未装備・未選択時の演出
+    if (!partId || partId.trim() === '' || partId === 'none') {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 0.7, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.font = `bold ${Math.floor(size * 0.22)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('未装備', cx, cy);
+      ctx.restore();
+      return;
+    }
+
+    if (partType === 'chip') {
+      const chip = this.チップマスタ.find(c => c.チップID === partId || c.チップ名 === partId);
+      const chipIdKey = chip ? chip.チップID : partId;
+      const chipName = chip ? chip.チップ名 : partId;
+      const chipAttr = '水';
+      const neonColor = getAttributeColor(chipAttr);
+
+      ctx.save();
+      ctx.translate(cx, cy);
+
+      const cardRadius = radius * 0.95;
+      const bgGrad = ctx.createRadialGradient(0, 0, cardRadius * 0.1, 0, 0, cardRadius);
+      bgGrad.addColorStop(0, '#101424');
+      bgGrad.addColorStop(1, '#05070e');
+      ctx.fillStyle = bgGrad;
+      ctx.strokeStyle = neonColor;
+      ctx.lineWidth = 2.5;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = neonColor;
+
+      ctx.beginPath();
+      ctx.arc(0, 0, cardRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // チップ画像イラストの取得と描画
+      const chipImgEl = this.chipImages[chipIdKey] || this.chipImages[chipName];
+      if (chipImgEl && chipImgEl.complete && chipImgEl.naturalWidth !== 0) {
+        ctx.beginPath();
+        ctx.arc(0, 0, cardRadius * 0.9, 0, Math.PI * 2);
+        ctx.clip();
+        const drawSize = cardRadius * 1.85;
+        ctx.drawImage(chipImgEl, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+      } else {
+        ctx.strokeStyle = neonColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, cardRadius * 0.5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = neonColor;
+        ctx.font = `bold ${Math.floor(size * 0.22)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(chipName ? chipName.charAt(0) : 'C', 0, 0);
+      }
+      ctx.restore();
+
+    } else if (partType === 'blade') {
+      const part = this.パーツマスタ.find(p => p.パーツID === partId);
+      const attr = part ? part.属性 : '無';
+      const rank = part ? Number(part.ランク || 1) : 1;
+      const bladeColor = getAttributeColor(attr);
+
+      const getPartNumber = (id: string): number => {
+        if (!id) return 1;
+        const base = id.split('_')[0];
+        if (base.length < 4) return 1;
+        const val = parseInt(base.substring(2), 10);
+        return isNaN(val) ? 1 : val;
+      };
+      const bladeNo = getPartNumber(partId);
+
+      ctx.save();
+      ctx.translate(cx, cy);
+
+      const r = radius * 0.82;
+      const outerScale = 1.1 + (rank * 0.035);
+
+      ctx.strokeStyle = bladeColor;
+      ctx.lineWidth = r * 0.12;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = bladeColor;
+      ctx.fillStyle = 'rgba(12, 16, 28, 0.88)';
+
+      ctx.beginPath();
+      this.drawBladeShapePath(ctx, r, outerScale, bladeNo);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // 内側のドーナツ穴くり抜き
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+
+      ctx.strokeStyle = bladeColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.45, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.restore();
+
+    } else if (partType === 'weight') {
+      const part = this.パーツマスタ.find(p => p.パーツID === partId);
+      const attr = part ? part.属性 : '無';
+      const rank = part ? Number(part.ランク || 1) : 1;
+      const weightColor = getAttributeColor(attr);
+
+      const getPartNumber = (id: string): number => {
+        if (!id) return 1;
+        const base = id.split('_')[0];
+        if (base.length < 4) return 1;
+        const val = parseInt(base.substring(2), 10);
+        return isNaN(val) ? 1 : val;
+      };
+      const getPartType = (id: string): 'attack' | 'defense' | 'speed' | 'balance' => {
+        if (!id) return 'balance';
+        const parts = id.split('_');
+        if (parts.length < 2) return 'balance';
+        const suffix = parts[1].toLowerCase();
+        if (suffix === 'f') return 'attack';
+        if (suffix === 'e') return 'defense';
+        if (suffix === 'a') return 'speed';
+        if (suffix === 'w') return 'balance';
+        return 'balance';
+      };
+
+      const weightNo = getPartNumber(partId);
+      const weightType = getPartType(partId);
+
+      ctx.save();
+      ctx.translate(cx, cy);
+
+      const r = radius * 0.88;
+      let weightSides = 6;
+      let weightGrad = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, r * 0.85);
+
+      if (weightType === 'attack') {
+        weightSides = 8;
+        weightGrad.addColorStop(0, '#5e2e00');
+        weightGrad.addColorStop(0.5, '#d2691e');
+        weightGrad.addColorStop(1, '#ff8c00');
+      } else if (weightType === 'defense') {
+        weightSides = 12;
+        weightGrad.addColorStop(0, '#2b2b2b');
+        weightGrad.addColorStop(0.3, '#c0c0c0');
+        weightGrad.addColorStop(0.7, '#ffffff');
+        weightGrad.addColorStop(1, '#5c5c5c');
+      } else if (weightType === 'speed') {
+        weightSides = 10;
+        weightGrad.addColorStop(0, '#001f3f');
+        weightGrad.addColorStop(0.5, '#0074d9');
+        weightGrad.addColorStop(0.8, '#7fdbff');
+        weightGrad.addColorStop(1, '#001f3f');
+      } else {
+        weightSides = 6;
+        weightGrad.addColorStop(0, '#664d03');
+        weightGrad.addColorStop(0.4, '#ffc107');
+        weightGrad.addColorStop(0.7, '#fff3cd');
+        weightGrad.addColorStop(1, '#856404');
+      }
+
+      if (weightNo === 9) {
+        weightSides = 12;
+        weightGrad = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, r * 0.85);
+        weightGrad.addColorStop(0, '#b8860b');
+        weightGrad.addColorStop(0.5, '#ffd700');
+        weightGrad.addColorStop(0.8, '#fff');
+        weightGrad.addColorStop(1, '#ffd700');
+      } else if (weightNo === 10) {
+        weightSides = 16;
+        weightGrad = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, r * 0.85);
+        weightGrad.addColorStop(0, '#3a3a3a');
+        weightGrad.addColorStop(0.4, '#e5e5e5');
+        weightGrad.addColorStop(0.7, '#fff');
+        weightGrad.addColorStop(1, '#7f7f7f');
+      }
+
+      ctx.strokeStyle = weightGrad;
+      ctx.lineWidth = r * (0.28 + rank * 0.02);
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      for (let i = 0; i <= weightSides; i++) {
+        const angle = (i / weightSides) * Math.PI * 2;
+        const rx = (r * 0.6) * Math.cos(angle);
+        const ry = (r * 0.6) * Math.sin(angle);
+        if (i === 0) ctx.moveTo(rx, ry);
+        else ctx.lineTo(rx, ry);
+      }
+      ctx.closePath();
+      ctx.stroke();
+
+      ctx.save();
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = weightColor;
+      this.drawWeightDetailPath(ctx, r, weightNo, weightColor);
+      ctx.restore();
+
+      ctx.restore();
+
+    } else if (partType === 'sole') {
+      const part = this.パーツマスタ.find(p => p.パーツID === partId);
+      const attr = part ? part.属性 : '無';
+      const soleColor = getAttributeColor(attr);
+
+      const getPartNumber = (id: string): number => {
+        if (!id) return 1;
+        const base = id.split('_')[0];
+        if (base.length < 4) return 1;
+        const val = parseInt(base.substring(2), 10);
+        return isNaN(val) ? 1 : val;
+      };
+      const soleNo = getPartNumber(partId);
+
+      ctx.save();
+      ctx.translate(cx, cy);
+
+      const r = radius * 1.45;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = soleColor;
+
+      this.drawSoleShapePath(ctx, r, soleNo, soleColor);
+
+      ctx.fillStyle = '#fff';
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = '#fff';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.14, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    ctx.restore();
   }
 
     private drawGear(
@@ -5406,9 +6070,8 @@ class GameApp {
           dropVisual.appendChild(canvas);
           const ctx = canvas.getContext('2d');
           if (ctx) {
-            // パッキングしてダミーで描画
-            const dummyAssemble = アセンブル実行('c001', droppedPart.種別 === '1' ? droppedPart.パーツID : 'b101_n', droppedPart.種別 === '2' ? droppedPart.パーツID : 'w101_n', droppedPart.種別 === '3' ? droppedPart.パーツID : 's101_n', 1, this.パーツマスタ, this.チップマスタ, this.奥義マスタ);
-            this.drawGear(ctx, 50, 50, 40, dummyAssemble, 0);
+            const partType = droppedPart.種別 === '1' ? 'blade' : (droppedPart.種別 === '2' ? 'weight' : 'sole');
+            this.drawPartVisual(ctx, canvas.width, canvas.height, partType, droppedPart.パーツID);
           }
         }
       }
