@@ -489,6 +489,7 @@ class GameApp {
       'あなた',
       'ナビィ',
       '店長',
+      '店長（ショップ）',
       '店長（ボス）',
       'アーサー（ステージ6）'
     ]);
@@ -2760,7 +2761,7 @@ class GameApp {
     // 店長立ち絵の表示適用（グリーンバック透過処理付き）
     const shopAvatar = document.querySelector('#shop-screen .character-avatar') as HTMLElement;
     if (shopAvatar) {
-      const shopkeeperImg = this.charaImages['店長'] || this.charaImages['店員'];
+      const shopkeeperImg = this.charaImages['店長（ショップ）'] || this.charaImages['店長'] || this.charaImages['店員'];
       if (shopkeeperImg) {
         if (shopkeeperImg.complete && shopkeeperImg.naturalWidth > 0) {
           const cvs = document.createElement('canvas');
