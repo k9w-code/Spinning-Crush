@@ -425,14 +425,9 @@ class GameApp {
           const img = new Image();
           img.src = `./images/chips/${curName}.${ext}`;
 
-          img.onload = async () => {
-            try {
-              const transImg = await this.transparentizeBlack(img);
-              this.chipImages[chipId] = transImg;
-              this.chipImages[chipName] = transImg;
-            } catch (e) {
-              console.error(`Failed to transparentize chip image: ${curName}`, e);
-            }
+          img.onload = () => {
+            this.chipImages[chipId] = img;
+            this.chipImages[chipName] = img;
             resolve();
           };
 
@@ -2345,10 +2340,9 @@ class GameApp {
       card.addEventListener('click', () => {
         this.selectedNpc = npc;
         
-        // バトル前フリートークセリフをマスタから取得 (見つからない場合はフォールバック)
-        const textKey = `${npc.エネミーID}_btl`;
-        const foundSerifu = this.セリフマスタ.find(s => s.TEXT_ID === textKey);
-        const serifuContent = foundSerifu?.テキスト内容 || `「ふっ、予選第${npc.並び順}戦の相手はお前か。手加減はしないぞ！」`;
+        // バトル前フリートークセリフをマスタから取得 (eXXX_before または eXXX_btl)
+        const foundSerifu = this.セリフマスタ.find(s => s.TEXT_ID === `${npc.エネミーID}_before` || s.TEXT_ID === `${npc.エネミーID}_btl`);
+        const serifuContent = foundSerifu?.テキスト内容 || `「${npc.エネミー名}だよ！ギアバトル、全力で挑むからよろしくね！」`;
 
         this.startTalk([
           {
