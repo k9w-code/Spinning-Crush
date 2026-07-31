@@ -29,7 +29,7 @@ interface SlotData {
 }
 
 interface SaveData {
-  所持JP: number;
+  所持GP: number;
   インベントリ: string[];
   ドロップカウンタ: number;
   ギアスロット: { [key: string]: SlotData | null };
@@ -45,7 +45,7 @@ interface SaveData {
 
 // 初期セーブデータ定義
 const INITIAL_SAVE_DATA: SaveData = {
-  所持JP: 0,
+  所持GP: 0,
   インベントリ: ['c001', 'b101_n', 'w101_n', 's101_n'],
   ドロップカウンタ: 0,
   ギアスロット: {
@@ -712,8 +712,8 @@ class GameApp {
     if (!data || typeof data !== 'object') return fresh;
 
     // JPの健全性チェック
-    const jp = Number(data.所持JP);
-    fresh.所持JP = isNaN(jp) ? 0 : Math.max(0, Math.floor(jp));
+    const jp = Number(data.所持GP);
+    fresh.所持GP = isNaN(jp) ? 0 : Math.max(0, Math.floor(jp));
 
     // ドロップカウンタの範囲制限 (0〜2)
     const dc = Number(data.ドロップカウンタ);
@@ -1216,15 +1216,15 @@ class GameApp {
         );
 
         if (cmd === '1') {
-          this.saveData.所持JP += 10000;
+          this.saveData.所持GP += 10000;
           localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
           this.showSystemModal('デバッグ完了', 'JPが10000追加されました！');
           const mapJp = document.getElementById('map-jp');
-          if (mapJp) mapJp.textContent = this.saveData.所持JP.toString();
+          if (mapJp) mapJp.textContent = this.saveData.所持GP.toString();
           const customJp = document.getElementById('custom-jp');
-          if (customJp) customJp.textContent = this.saveData.所持JP.toString();
+          if (customJp) customJp.textContent = this.saveData.所持GP.toString();
           const shopJp = document.getElementById('shop-jp');
-          if (shopJp) shopJp.textContent = this.saveData.所持JP.toString();
+          if (shopJp) shopJp.textContent = this.saveData.所持GP.toString();
         } else if (cmd === '2') {
           this.パーツマスタ.forEach(p => {
             if (!this.saveData.インベントリ.includes(p.パーツID)) {
@@ -1452,7 +1452,7 @@ class GameApp {
   // --- ② 自宅ガレージ画面 ---
   private initGarageScreen() {
     const jpEl = document.getElementById('garage-jp');
-    if (jpEl) jpEl.textContent = this.saveData.所持JP.toString();
+    if (jpEl) jpEl.textContent = this.saveData.所持GP.toString();
 
     const currentSlot = this.saveData.ギアスロット[this.saveData.最後使用スロット.toString()];
     if (currentSlot) {
@@ -1508,7 +1508,7 @@ class GameApp {
   // --- ③ カスタマイズ画面 ---
   private initCustomScreen() {
     const jpEl = document.getElementById('custom-jp');
-    if (jpEl) jpEl.textContent = this.saveData.所持JP.toString();
+    if (jpEl) jpEl.textContent = this.saveData.所持GP.toString();
 
     // スロットの描画
     this.renderCustomSlots();
@@ -2035,7 +2035,7 @@ class GameApp {
   // --- ④ 全体マップ画面 ---
   private initMapScreen() {
     const jpEl = document.getElementById('map-jp');
-    if (jpEl) jpEl.textContent = this.saveData.所持JP.toString();
+    if (jpEl) jpEl.textContent = this.saveData.所持GP.toString();
 
     const pinsContainer = document.getElementById('map-pins-container');
     if (!pinsContainer) return;
@@ -2758,7 +2758,7 @@ class GameApp {
   // --- ⑨ ジャンクショップ画面 ---
   private initShopScreen() {
     const jpEl = document.getElementById('shop-jp');
-    if (jpEl) jpEl.textContent = this.saveData.所持JP.toString();
+    if (jpEl) jpEl.textContent = this.saveData.所持GP.toString();
 
     const gachaMsg = document.getElementById('gacha-status-message');
     if (gachaMsg) gachaMsg.textContent = '';
@@ -2792,7 +2792,7 @@ class GameApp {
         btn.textContent = `全パーツ・通常チップ獲得済み`;
       } else {
         btn.disabled = false;
-        btn.textContent = `ガチャを回す (解禁: ランク${maxRank}以下 / チップ)`;
+        btn.textContent = `パックを開封する (解禁: ランク${maxRank}以下 / チップ)`;
       }
     }
 
@@ -2818,7 +2818,7 @@ class GameApp {
             btnChip.textContent = '全チップ獲得済み';
           } else {
             btnChip.disabled = false;
-            btnChip.textContent = 'チップガチャを回す';
+            btnChip.textContent = 'チップパックを開封する';
           }
         }
       } else {
@@ -2829,8 +2829,8 @@ class GameApp {
 
   // ガチャの実行
   private executeShopGacha() {
-    if (this.saveData.所持JP < 10) {
-      this.showSystemModal('JP不足', 'ガチャを回すには 10 JP 必要です。ライバルとバトルしてJPを獲得しましょう！');
+    if (this.saveData.所持GP < 10) {
+      this.showSystemModal('GP不足', 'パックを開封するには 10 GP 必要です。ライバルとバトルしてGPを獲得しましょう！');
       return;
     }
 
@@ -2861,7 +2861,7 @@ class GameApp {
     }
 
     // 10JP消費
-    this.saveData.所持JP -= 10;
+    this.saveData.所持GP -= 10;
     
     // ガチャ演出としてランダムで1個未所持パーツ/チップを獲得
     const randomIndex = Math.floor(Math.random() * unownedPool.length);
@@ -2996,8 +2996,8 @@ class GameApp {
       return;
     }
 
-    if (this.saveData.所持JP < 10) {
-      this.showSystemModal('JP不足', 'ガチャを回すには 10 JP 必要です。');
+    if (this.saveData.所持GP < 10) {
+      this.showSystemModal('GP不足', 'パックを開封するには 10 GP 必要です。');
       return;
     }
 
@@ -3016,7 +3016,7 @@ class GameApp {
     }
 
     // 10JP消費
-    this.saveData.所持JP -= 10;
+    this.saveData.所持GP -= 10;
     
     // ガチャ演出としてランダムで1個未所持のチップを獲得
     const randomIndex = Math.floor(Math.random() * unownedChips.length);
@@ -4700,7 +4700,7 @@ class GameApp {
   private startBattle() {
     if (!this.selectedNpc) return;
 
-    this.prevJp = this.saveData.所持JP; // バトル前のJPを記録
+    this.prevJp = this.saveData.所持GP; // バトル前のJPを記録
     this.changeScreen('battle-screen');
     
     // バトル初期化
@@ -6149,7 +6149,7 @@ class GameApp {
         this.saveData.クリア状況[npc.エネミーID] = true;
       }
       // JP + 1 獲得
-      this.saveData.所持JP += 1;
+      this.saveData.所持GP += 1;
 
       // 勝利時セリフ
       if (speakerEl) speakerEl.textContent = npc.エネミー名;
@@ -6159,7 +6159,7 @@ class GameApp {
       // ロジックC：報酬ドロップ・リサイクル
       const dropRes = 報酬ドロップ処理(
         this.saveData.ドロップカウンタ,
-        this.saveData.所持JP,
+        this.saveData.所持GP,
         this.saveData.インベントリ,
         this.パーツマスタ,
         this.セリフマスタ
@@ -6167,7 +6167,7 @@ class GameApp {
 
       // セーブデータの更新
       this.saveData.ドロップカウンタ = dropRes.更新ドロップカウンタ;
-      this.saveData.所持JP = dropRes.更新所持JP;
+      this.saveData.所持GP = dropRes.更新所持GP;
       this.saveData.インベントリ = dropRes.更新インベントリ;
       
       if (dropRes.獲得パーツID) {
@@ -6243,7 +6243,7 @@ class GameApp {
     const rewardJpEl = document.getElementById('result-reward-jp');
     if (rewardJpEl) rewardJpEl.textContent = `+0 JP`;
 
-    const diff = Math.max(0, this.saveData.所持JP - this.prevJp);
+    const diff = Math.max(0, this.saveData.所持GP - this.prevJp);
 
     // リザルト演出タイムライン
     setTimeout(() => {

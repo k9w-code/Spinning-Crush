@@ -669,6 +669,7 @@ export class バトル更新マネージャー {
 export interface リザルト報酬結果 {
   更新ドロップカウンタ: number;
   更新所持JP: number;
+  更新所持GP: number;
   更新インベントリ: string[];
   獲得パーツID: string;
   案内テキスト: string;
@@ -732,6 +733,7 @@ export function 報酬ドロップ処理(
   return {
     更新ドロップカウンタ,
     更新所持JP,
+    更新所持GP: 更新所持JP,
     更新インベントリ,
     獲得パーツID,
     案内テキスト,
