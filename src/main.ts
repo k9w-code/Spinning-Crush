@@ -2757,6 +2757,39 @@ class GameApp {
 
   // --- ⑨ ジャンクショップ画面 ---
   private initShopScreen() {
+    // 店長立ち絵の表示適用（グリーンバック透過処理付き）
+    const shopAvatar = document.querySelector('#shop-screen .character-avatar') as HTMLElement;
+    if (shopAvatar) {
+      const shopkeeperImg = this.charaImages['店長'] || this.charaImages['店員'];
+      if (shopkeeperImg) {
+        if (shopkeeperImg.complete && shopkeeperImg.naturalWidth > 0) {
+          const cvs = document.createElement('canvas');
+          cvs.width = shopkeeperImg.naturalWidth;
+          cvs.height = shopkeeperImg.naturalHeight;
+          const ctx = cvs.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(shopkeeperImg, 0, 0);
+            const imgData = ctx.getImageData(0, 0, cvs.width, cvs.height);
+            const data = imgData.data;
+            for (let i = 0; i < data.length; i += 4) {
+              const r = data[i], g = data[i+1], b = data[i+2];
+              if (g > 130 && r < 130 && b < 130) {
+                data[i+3] = 0;
+              } else if (g > 100 && g > r * 1.35 && g > b * 1.35) {
+                data[i+3] = 0;
+              }
+            }
+            ctx.putImageData(imgData, 0, 0);
+            shopAvatar.style.backgroundImage = `url('${cvs.toDataURL()}')`;
+          } else {
+            shopAvatar.style.backgroundImage = `url('${shopkeeperImg.src}')`;
+          }
+        } else {
+          shopAvatar.style.backgroundImage = `url('${shopkeeperImg.src}')`;
+        }
+      }
+    }
+
     const jpEl = document.getElementById('shop-jp');
     if (jpEl) jpEl.textContent = this.saveData.所持GP.toString();
 
