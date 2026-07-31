@@ -5224,8 +5224,10 @@ class GameApp {
         <span style="font-size: 0.8rem; color: var(--color-neon-orange);">${cmd.info}</span>
         <span class="command-btn-cost">${cmd.cost}</span>
       `;
+      btn.addEventListener('mouseenter', () => this.snd.playBleep());
       btn.addEventListener('click', () => {
         if (this.commandPhaseCooldownFrames > 0) return;
+        this.snd.playClick();
         this.executePlayerAttack(cmd.type);
       });
       container.appendChild(btn);
@@ -5596,8 +5598,10 @@ class GameApp {
         <span style="font-size: 0.8rem; color: var(--color-neon-blue);">${choice.info}</span>
         <span class="command-btn-cost">消費なし</span>
       `;
+      btn.addEventListener('mouseenter', () => this.snd.playBleep());
       btn.addEventListener('click', () => {
         if (this.commandPhaseCooldownFrames > 0) return;
+        this.snd.playClick();
         this.executePlayerDefense(choice.type as any, enemyAtkMultiplier, enemySkillName);
       });
       container.appendChild(btn);
@@ -6027,15 +6031,34 @@ class GameApp {
         this.clashResultType = 'hit';
       }
 
-      // 左右激突突進アニメーションを開始し、大爆発音を再生 (回避時は風切り音を代わりに鳴らすのも手だが一旦爆発で)
+      // 左右激突突進アニメーションを開始し、攻防結果に応じた効果音を再生
       this.isClashAnimationActive = true;
       this.clashAnimFrame = 0;
-      this.snd.playExplosion();
+
+      if (this.clashResultType === 'guard') {
+        this.snd.playGuard();
+      } else if (this.clashResultType === 'evade') {
+        this.snd.playDodge();
+      } else if (this.clashResultType === 'counter') {
+        this.snd.playCounter();
+      } else {
+        this.snd.playExplosion();
+      }
 
       this.clashOnComplete = () => {
-        // 激突完了の被弾瞬間に金属ヒット音を再生
-        if (this.clashPendingIsHit || this.clashPendingIsCounter) {
-          this.snd.playHit();
+        // 激突完了の被弾瞬間に衝撃音を再生
+        if (this.clashResultType === 'counter') {
+          this.snd.playCounter();
+        } else if (this.clashResultType === 'guard') {
+          this.snd.playGuard();
+        } else if (this.clashPendingIsHit) {
+          if (this.clashPendingSide === 'エネミー') {
+            // プレイヤー被弾
+            this.snd.playDamage();
+          } else {
+            // エネミー被弾
+            this.snd.playHit();
+          }
         }
 
         // もし防御側の奥義発動だった場合は、その奥義の聖獣カットイン演出もキック可能 (ここではシンプルにADVのみ展開)

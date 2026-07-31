@@ -172,6 +172,122 @@ export class SoundManager {
     noise.stop(time + 0.06);
   }
 
+  // 防御/ガード金属音 (キィィン！という硬質シールド音)
+  public playGuard() {
+    this.initContext();
+    this.resumeContext();
+    if (!this.ctx) return;
+
+    const time = this.ctx.currentTime;
+    const duration = 0.22;
+    const freqs = [1200, 1800, 2400];
+    const oscs: OscillatorNode[] = [];
+    const gain = this.ctx.createGain();
+
+    gain.gain.setValueAtTime(0.12, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+    freqs.forEach(f => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, time);
+      osc.connect(gain);
+      oscs.push(osc);
+    });
+
+    gain.connect(this.ctx.destination);
+    oscs.forEach(o => o.start(time));
+    oscs.forEach(o => o.stop(time + duration + 0.02));
+  }
+
+  // 回避/ドッジ風切り音 (シュッ！という高速回避音)
+  public playDodge() {
+    this.initContext();
+    this.resumeContext();
+    if (!this.ctx) return;
+
+    const time = this.ctx.currentTime;
+    const duration = 0.12;
+    const bufferSize = this.ctx.sampleRate * duration;
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(3000, time);
+    filter.frequency.exponentialRampToValueAtTime(500, time + duration);
+
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.15, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    noise.start(time);
+    noise.stop(time + duration);
+  }
+
+  // 被弾/重ダメージ音 (ガツゥン！というヘビーインパクト)
+  public playDamage() {
+    this.initContext();
+    this.resumeContext();
+    if (!this.ctx) return;
+
+    const time = this.ctx.currentTime;
+    const duration = 0.25;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(160, time);
+    osc.frequency.exponentialRampToValueAtTime(35, time + duration);
+
+    gain.gain.setValueAtTime(0.2, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(time);
+    osc.stop(time + duration);
+  }
+
+  // カウンター閃光撃砕音 (バシィィン！という強烈な反撃音)
+  public playCounter() {
+    this.initContext();
+    this.resumeContext();
+    if (!this.ctx) return;
+
+    const time = this.ctx.currentTime;
+    const duration = 0.3;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1400, time);
+    osc.frequency.exponentialRampToValueAtTime(300, time + duration);
+
+    gain.gain.setValueAtTime(0.22, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(time);
+    osc.stop(time + duration);
+
+    this.playHit();
+  }
+
   // 激突大爆発音 (サチュレートされた歪み ＆ 腹に響く45Hzサブベースによるドズゥゥン音)
   public playExplosion() {
     this.initContext();
@@ -833,10 +949,12 @@ export class SoundManager {
       clearInterval(this.bgmIntervalId);
       this.bgmIntervalId = null;
     }
+    this.bgmStep = 0;
   }
 
   // 勝利ファンファーレジングル (アセットロード対応)
   public playVictoryJingle() {
+    this.stopAllBGM();
     const audio = new Audio('/sounds/victory.mp3');
     audio.volume = 0.55;
     audio.play().catch(() => {
@@ -882,6 +1000,7 @@ export class SoundManager {
 
   // 敗北ジングル (アセットロード対応)
   public playDefeatJingle() {
+    this.stopAllBGM();
     const audio = new Audio('/sounds/defeat.mp3');
     audio.volume = 0.55;
     audio.play().catch(() => {
