@@ -2758,6 +2758,38 @@ class GameApp {
 
   // --- ⑨ ジャンクショップ画面 ---
   private initShopScreen() {
+    // 進行度連動の店長雑談（未読の会話があれば自動再生）
+    if (!(this.saveData as any).既読シナリオ) {
+      (this.saveData as any).既読シナリオ = {};
+    }
+    const readTalks = (this.saveData as any).既読シナリオ;
+
+    let targetTalkId = '';
+    if (this.saveData.ステージクリア状況['st007']) {
+      if (!readTalks['shop_talk_st007_clear']) targetTalkId = 'shop_talk_st007_clear';
+      else if (!readTalks['shop_talk_post_1']) targetTalkId = 'shop_talk_post_1';
+      else if (!readTalks['shop_talk_post_2']) targetTalkId = 'shop_talk_post_2';
+    } else if (this.saveData.ステージクリア状況['st006']) {
+      if (!readTalks['shop_talk_st006']) targetTalkId = 'shop_talk_st006';
+    } else if (this.saveData.ステージクリア状況['st005']) {
+      if (!readTalks['shop_talk_st005']) targetTalkId = 'shop_talk_st005';
+    } else if (this.saveData.ステージクリア状況['st004']) {
+      if (!readTalks['shop_talk_st004']) targetTalkId = 'shop_talk_st004';
+    } else if (this.saveData.ステージクリア状況['st003']) {
+      if (!readTalks['shop_talk_st003']) targetTalkId = 'shop_talk_st003';
+    } else if (this.saveData.ステージクリア状況['st002']) {
+      if (!readTalks['shop_talk_st002']) targetTalkId = 'shop_talk_st002';
+    } else if (this.saveData.ステージクリア状況['st001']) {
+      if (!readTalks['shop_talk_st001']) targetTalkId = 'shop_talk_st001';
+    }
+
+    if (targetTalkId) {
+      this.playScenario(targetTalkId, () => {
+        readTalks[targetTalkId] = true;
+        localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
+      });
+    }
+
     // 店長立ち絵の表示適用（グリーンバック透過処理付き）
     const shopAvatar = document.querySelector('#shop-screen .character-avatar') as HTMLElement;
     if (shopAvatar) {
