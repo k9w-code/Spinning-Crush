@@ -2658,7 +2658,7 @@ body, html {
   box-shadow: 0 10px 0 #cc3300, 0 15px 30px rgba(0,0,0,0.4);
   border-radius: 20px;
   padding: 20px;
-  text-align: center;
+  text-align: left;
   opacity: 0;
   transform: scale(0.5);
   pointer-events: none;
@@ -4044,4 +4044,25 @@ body, html {
   color: #ffffff;
   white-space: nowrap;
   letter-spacing: 1.5px;
+}
+
+
+/* ================== テキスト左詰め完全統一 (UX改善) ================== */
+.talk-box,
+.talk-text,
+.talk-speaker,
+.serifu-panel,
+.serifu-text,
+.inventory-card,
+.item-name,
+.item-attributes,
+.item-stats-summary,
+.gacha-part-stats,
+.part-get-card,
+.part-get-description,
+.part-get-stats-grid,
+.system-modal-body,
+.modal-content,
+.card-detail-box {
+  text-align: left !important;
 }
