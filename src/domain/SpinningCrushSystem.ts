@@ -107,6 +107,7 @@ export interface システムNPCマスタ行 {
 
 export interface セリフマスタ行 {
   TEXT_ID: string;
+  キャラクター名?: string;
   テキスト内容: string;
 }
 
