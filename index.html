@@ -142,7 +142,7 @@
             <!-- 右側：選択パーツのスペック＆フレーバー詳細表示パネル (虚無スペースの撲滅) -->
             <div class="drawer-detail-panel" id="drawer-detail-panel">
               <div class="detail-placeholder">
-                <span class="placeholder-icon">🔍</span>
+                <span class="placeholder-icon" style="font-family: var(--font-hud); font-weight: 900; color: var(--color-neon-blue); font-size: 1.2rem;">[DETAIL]</span>
                 <p>パーツにホバーすると詳細情報が表示されます</p>
               </div>
             </div>
@@ -159,7 +159,14 @@
       <div id="map-screen" class="screen">
         <div class="screen-header">
           <h2>バトルマップ</h2>
-          <div class="jp-display">所持GP: <span id="map-jp">0</span></div>
+          <div style="display: flex; gap: 15px; align-items: center;">
+            <div class="quick-nav-group" style="display: flex; gap: 10px;">
+              <button id="nav-map-garage" class="btn btn-small btn-secondary">ガレージ</button>
+              <button id="nav-map-custom" class="btn btn-small btn-outline">カスタム</button>
+              <button id="nav-map-shop" class="btn btn-small btn-accent">ショップ</button>
+            </div>
+            <div class="jp-display">所持GP: <span id="map-jp">0</span></div>
+          </div>
         </div>
         
         <div class="map-view-container">
@@ -450,7 +457,10 @@
             <div class="gacha-box">
               <h3>ランダムギアパック</h3>
               <div class="gacha-cost">1回: 10 GP</div>
-              <button id="btn-shop-gacha" class="btn btn-primary btn-large">パックを開封する</button>
+              <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                <button id="btn-shop-gacha" class="btn btn-primary btn-large">1連パックを開封する (10 GP)</button>
+                <button id="btn-shop-gacha-5" class="btn btn-accent btn-large">5連パックを開封する (50 GP)</button>
+              </div>
               <div class="gacha-status" id="gacha-status-message"></div>
             </div>
             <!-- スペシャルチップパック (店長撃破後に解禁) -->

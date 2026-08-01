@@ -4066,3 +4066,91 @@ body, html {
 .card-detail-box {
   text-align: left !important;
 }
+
+
+/* ================== 視認性・操作性 強化スタイルシステム ================== */
+
+/* 1. 属性タグ・カラーバッジ (絵文字完全NG対応) */
+.attr-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: var(--font-hud);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.attr-tag.attr-火 { background: rgba(255, 68, 68, 0.2); color: #ff4444; border: 1px solid #ff4444; }
+.attr-tag.attr-風 { background: rgba(57, 255, 20, 0.2); color: #39ff14; border: 1px solid #39ff14; }
+.attr-tag.attr-土 { background: rgba(255, 204, 0, 0.2); color: #ffcc00; border: 1px solid #ffcc00; }
+.attr-tag.attr-水 { background: rgba(0, 243, 255, 0.2); color: #00f3ff; border: 1px solid #00f3ff; }
+.attr-tag.attr-無 { background: rgba(180, 180, 200, 0.2); color: #d0d0e0; border: 1px solid #a0a0b0; }
+
+/* 2. ステータス増減（差分）インジケーター */
+.stat-delta {
+  font-family: var(--font-hud);
+  font-size: 0.9rem;
+  font-weight: 900;
+  margin-left: 8px;
+}
+
+.stat-delta.plus { color: #39ff14; text-shadow: 0 0 8px rgba(57, 255, 20, 0.6); }
+.stat-delta.minus { color: #ff3344; text-shadow: 0 0 8px rgba(255, 51, 68, 0.6); }
+.stat-delta.zero { color: #888888; }
+
+/* 3. バトルコマンド選択用 キーボードショートカットバッジ [1], [2], [3], [4] */
+.command-btn-key-badge {
+  font-family: var(--font-hud);
+  font-size: 0.85rem;
+  font-weight: 900;
+  background: rgba(0, 243, 255, 0.15);
+  color: var(--color-neon-blue);
+  border: 1px solid var(--color-neon-blue);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-right: 10px;
+  box-shadow: 0 0 8px rgba(0, 243, 255, 0.3);
+}
+
+/* 4. バトルHUD高視認性化 */
+.hud-value {
+  font-family: var(--font-hud);
+  font-size: 1.35rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 1.5px;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 243, 255, 0.5);
+}
+
+.hud-panel {
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+  border-width: 2px !important;
+}
+
+/* 5. まとめ5連ガチャ結果グリッド */
+.gacha-multi-result-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 15px;
+  width: 100%;
+  max-width: 950px;
+  margin-top: 20px;
+}
+
+.gacha-multi-card {
+  background: rgba(15, 20, 32, 0.95);
+  border: 2px solid var(--color-neon-blue);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: left;
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+}
+
+.gacha-multi-card-name {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #fff;
+  margin-bottom: 6px;
+}

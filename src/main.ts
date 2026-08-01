@@ -1969,9 +1969,17 @@ class GameApp {
     } else {
       const typeLabel = type === 'ブレード' ? 'ブレード' : (type === 'ウェイト' ? 'ウェイト' : 'ソール');
       
-      // 各ステータスのバー表示HTMLを生成
-      const renderStatBar = (label: string, value: string) => {
+      // 現在装備中パーツの取得
+      const currentEquippedId = (type === 'ブレード' ? this.customGearSim.ブレード : (type === 'ウェイト' ? this.customGearSim.ウェイト : this.customGearSim.ソール));
+      const currentEquippedPart = this.パーツマスタ.find(p => p.パーツID === currentEquippedId);
+
+      // 各ステータスのバー表示 ＆ 差分 (+15 / -10) 表示HTMLを生成
+      const renderStatBar = (label: string, value: string, statKey: string) => {
         const valNum = Number(value || 0);
+        const currVal = Number((currentEquippedPart as any)?.[statKey] || 0);
+        const diff = valNum - currVal;
+        const diffText = diff > 0 ? `<span class="stat-delta plus">(+${diff})</span>` : (diff < 0 ? `<span class="stat-delta minus">(${diff})</span>` : `<span class="stat-delta zero">(±0)</span>`);
+
         // 最大ステータス250を基準とした進捗率
         const pct = Math.min(100, (valNum / 250) * 100);
         return `
@@ -1980,7 +1988,7 @@ class GameApp {
             <div class="stat-bar-outer">
               <div class="stat-bar-inner" style="width: ${pct}%"></div>
             </div>
-            <span class="stat-value-num">${valNum}</span>
+            <span class="stat-value-num">${valNum} ${diffText}</span>
           </div>
         `;
       };
@@ -1988,25 +1996,25 @@ class GameApp {
       let statsBarsHtml = '';
       if (type === 'ブレード') {
         statsBarsHtml = `
-          ${renderStatBar('ライフ (HP)', item.ライフ)}
-          ${renderStatBar('アタック (ATK)', item.アタック)}
-          ${renderStatBar('ディフェンス (DEF)', item.ディフェンス)}
-          ${renderStatBar('レンジ (RNG)', item.レンジ)}
-          ${renderStatBar('モビリティ (MOB)', item.モビリティ)}
+          ${renderStatBar('ライフ (HP)', item.ライフ, 'ライフ')}
+          ${renderStatBar('アタック (ATK)', item.アタック, 'アタック')}
+          ${renderStatBar('ディフェンス (DEF)', item.ディフェンス, 'ディフェンス')}
+          ${renderStatBar('レンジ (RNG)', item.レンジ, 'レンジ')}
+          ${renderStatBar('モビリティ (MOB)', item.モビリティ, 'モビリティ')}
         `;
       } else if (type === 'ウェイト') {
         statsBarsHtml = `
-          ${renderStatBar('ライフ (HP)', item.ライフ)}
-          ${renderStatBar('アタック (ATK)', item.アタック)}
-          ${renderStatBar('ディフェンス (DEF)', item.ディフェンス)}
-          ${renderStatBar('スピード (SPD)', item.スピード)}
+          ${renderStatBar('ライフ (HP)', item.ライフ, 'ライフ')}
+          ${renderStatBar('アタック (ATK)', item.アタック, 'アタック')}
+          ${renderStatBar('ディフェンス (DEF)', item.ディフェンス, 'ディフェンス')}
+          ${renderStatBar('スピード (SPD)', item.スピード, 'スピード')}
         `;
       } else {
         statsBarsHtml = `
-          ${renderStatBar('ライフ (HP)', item.ライフ)}
-          ${renderStatBar('スピード (SPD)', item.スピード)}
-          ${renderStatBar('レンジ (RNG)', item.レンジ)}
-          ${renderStatBar('モビリティ (MOB)', item.モビリティ)}
+          ${renderStatBar('ライフ (HP)', item.ライフ, 'ライフ')}
+          ${renderStatBar('スピード (SPD)', item.スピード, 'スピード')}
+          ${renderStatBar('レンジ (RNG)', item.レンジ, 'レンジ')}
+          ${renderStatBar('モビリティ (MOB)', item.モビリティ, 'モビリティ')}
         `;
       }
 
@@ -2016,7 +2024,7 @@ class GameApp {
           <div class="detail-tags">
             <span class="detail-tag">${typeLabel}</span>
             <span class="detail-tag attr-${item.属性}">${item.属性}属性</span>
-            <span class="detail-tag">★${item.ランク}</span>
+            <span class="detail-tag">[WIN]${item.ランク}</span>
           </div>
         </div>
         <div class="detail-body">
@@ -2317,7 +2325,7 @@ class GameApp {
             <span style="font-size: 0.8rem; color: var(--color-neon-pink);">通常ライバルを全員撃破すると挑戦可能になります</span>
           </div>
           <div class="npc-win-status">
-            🔒 LOCKED
+            [LOCK] LOCKED
           </div>
         `;
         listEl.appendChild(card);
@@ -2334,7 +2342,7 @@ class GameApp {
           <span style="font-size: 0.8rem; color: var(--color-text-sub);">登場ステージID: ${npc.登場ステージID} | 並び順: ${npc.並び順}</span>
         </div>
         <div class="npc-win-status ${isCleared ? 'cleared' : ''}">
-          ${isCleared ? `★ WIN (${wins}/${reqWins})` : `☆ CHALLENGE (${wins}/${reqWins})`}
+          ${isCleared ? `[WIN] WIN (${wins}/${reqWins})` : `[VS] CHALLENGE (${wins}/${reqWins})`}
         </div>
       `;
 
@@ -2756,6 +2764,53 @@ class GameApp {
     return maxRank;
   }
 
+  // 5連パック一括開封の実行処理
+  private execute5PackGacha(targetPool: { id: string; name: string; type: string }[]) {
+    const cost = 50;
+    if (this.saveData.所持GP < cost) {
+      this.showSystemModal('GP不足', `5連パックを開封するには ${cost} GP が必要です。（所持: ${this.saveData.所持GP} GP）`);
+      return;
+    }
+
+    // 未所持アイテムの抽出
+    let unowned = targetPool.filter(item => !this.saveData.インベントリ.includes(item.id));
+    if (unowned.length === 0) unowned = targetPool;
+
+    const obtained: { id: string; name: string; type: string }[] = [];
+    const count = Math.min(5, unowned.length);
+
+    for (let i = 0; i < count; i++) {
+      const randIdx = Math.floor(Math.random() * unowned.length);
+      const picked = unowned.splice(randIdx, 1)[0];
+      obtained.push(picked);
+      if (!this.saveData.インベントリ.includes(picked.id)) {
+        this.saveData.インベントリ.push(picked.id);
+      }
+    }
+
+    this.saveData.所持GP -= cost;
+    localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
+
+    const shopJp = document.getElementById('shop-jp');
+    if (shopJp) shopJp.textContent = this.saveData.所持GP.toString();
+
+    // 獲得完了表示
+    const itemsListHtml = obtained.map((item, idx) => `
+      <div style="background: rgba(0,243,255,0.08); border: 1px solid var(--color-neon-blue); border-radius: 8px; padding: 10px; margin-bottom: 8px; text-align: left;">
+        <span style="color: var(--color-neon-blue); font-family: var(--font-hud); font-weight: 800; margin-right: 8px;">[${idx + 1}]</span>
+        <strong style="color: #fff;">${item.name}</strong>
+        <span style="font-size: 0.8rem; color: var(--color-text-sub); margin-left: 10px;">(${item.type === 'chip' ? 'チップ' : 'パーツ'})</span>
+      </div>
+    `).join('');
+
+    this.showSystemModal('5連パック獲得結果！', `
+      <p style="margin-bottom: 15px; color: var(--color-neon-blue); font-family: var(--font-hud); font-weight: bold;">5つの新規パーツ・チップを獲得しました！</p>
+      ${itemsListHtml}
+    `);
+
+    this.initShopScreen();
+  }
+
   // --- ⑨ ジャンクショップ画面 ---
   private initShopScreen() {
     // 進行度連動の店長雑談（未読の会話があれば自動再生）
@@ -2851,6 +2906,18 @@ class GameApp {
 
     const isAllOwned = targetPool.every(item => this.saveData.インベントリ.includes(item.id));
     
+    // 5連パック開封ボタンのバインド
+    const btn5 = document.getElementById('btn-shop-gacha-5') as HTMLButtonElement;
+    if (btn5) {
+      if (isAllOwned) {
+        btn5.disabled = true;
+        btn5.textContent = `全獲得済み`;
+      } else {
+        btn5.disabled = false;
+        btn5.onclick = () => this.execute5PackGacha(targetPool);
+      }
+    }
+
     const btn = document.getElementById('btn-shop-gacha') as HTMLButtonElement;
     if (btn) {
       if (isAllOwned) {
