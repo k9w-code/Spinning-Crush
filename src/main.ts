@@ -1968,6 +1968,7 @@ class GameApp {
       const lv2Name = item.レベル2奥義ID ? (this.奥義マスタ.find(o => o.奥義ID === item.レベル2奥義ID)?.奥義名 || '未解放') : 'なし';
       const lv3Name = item.レベル3奥義ID ? (this.奥義マスタ.find(o => o.奥義ID === item.レベル3奥義ID)?.奥義名 || '未解放') : 'なし';
       const lv4Name = item.レベル4奥義ID ? (this.奥義マスタ.find(o => o.奥義ID === item.レベル4奥義ID)?.奥義名 || '未解放') : 'なし';
+      const lv5Name = item.レベル5奥義ID ? (this.奥義マスタ.find(o => o.奥義ID === item.レベル5奥義ID)?.奥義名 || '未解放') : 'なし';
 
       const getSkillStatusHtml = (reqLv: number, skillName: string) => {
         if (chipLevel >= reqLv) {
@@ -2002,9 +2003,10 @@ class GameApp {
 
           <div class="detail-okugi-info" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 10px 14px;">
             <h5 style="color: var(--color-neon-blue); font-family: var(--font-hud); margin-bottom: 8px; border-bottom: 1px dashed rgba(0,243,255,0.2); padding-bottom: 4px;">習得奥義</h5>
-            <p style="font-size: 0.85rem; margin-bottom: 4px;"><strong>Lv.2 奥義:</strong> ${getSkillStatusHtml(2, lv2Name)}</p>
-            <p style="font-size: 0.85rem; margin-bottom: 4px;"><strong>Lv.3 奥義:</strong> ${getSkillStatusHtml(3, lv3Name)}</p>
-            <p style="font-size: 0.85rem;"><strong>Lv.4 奥義:</strong> ${getSkillStatusHtml(4, lv4Name)}</p>
+            <p style="font-size: 0.85rem; margin-bottom: 3px;"><strong>Lv.2 奥義:</strong> ${getSkillStatusHtml(2, lv2Name)}</p>
+            <p style="font-size: 0.85rem; margin-bottom: 3px;"><strong>Lv.3 奥義:</strong> ${getSkillStatusHtml(3, lv3Name)}</p>
+            <p style="font-size: 0.85rem; margin-bottom: 3px;"><strong>Lv.4 奥義:</strong> ${getSkillStatusHtml(4, lv4Name)}</p>
+            <p style="font-size: 0.85rem;"><strong>Lv.5 奥義:</strong> ${getSkillStatusHtml(5, lv5Name)}</p>
           </div>
         </div>
       `;
