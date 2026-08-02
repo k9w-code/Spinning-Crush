@@ -49,6 +49,7 @@ export interface チップマスタ行 {
   レベル4奥義ID: string;
   レベル5奥義ID: string;
   フレーバー: string;
+  フレーバーテキスト?: string;
 }
 
 export interface 奥義マスタ行 {
@@ -78,6 +79,7 @@ export interface パーツマスタ行 {
   レンジ: string;
   モビリティ: string;
   フレーバー: string;
+  フレーバーテキスト?: string;
   ステ確認: string;
   メモ: string;
 }

@@ -1829,7 +1829,7 @@ class GameApp {
           <div class="item-visual"><canvas id="drawer-item-canvas-${item.チップID}" width="100" height="100"></canvas></div>
           <div class="item-info">
             <div class="item-name">${item.チップ名}</div>
-            <div class="item-attributes">${item.フレーバー || 'コアパーツ'}</div>
+            <div class="item-attributes">${item.フレーバーテキスト || item.フレーバー || 'コアパーツ'}</div>
           </div>
         `;
         setTimeout(() => {
@@ -1960,19 +1960,51 @@ class GameApp {
     if (!detailPanel) return;
 
     if (type === 'チップ') {
+      const chipLevel = Number(this.customGearSim.レベル || 1);
+      const currExp = (this.saveData as any).チップEXP ? ((this.saveData as any).チップEXP[item.チップID] || 0) : 0;
+      const nextExp = chipLevel * 100;
+      const expPct = Math.min(100, Math.floor((currExp / nextExp) * 100));
+
+      const lv2Name = item.レベル2奥義ID ? (this.奥義マスタ.find(o => o.奥義ID === item.レベル2奥義ID)?.奥義名 || '未解放') : 'なし';
+      const lv3Name = item.レベル3奥義ID ? (this.奥義マスタ.find(o => o.奥義ID === item.レベル3奥義ID)?.奥義名 || '未解放') : 'なし';
+      const lv4Name = item.レベル4奥義ID ? (this.奥義マスタ.find(o => o.奥義ID === item.レベル4奥義ID)?.奥義名 || '未解放') : 'なし';
+
+      const getSkillStatusHtml = (reqLv: number, skillName: string) => {
+        if (chipLevel >= reqLv) {
+          return `<span style="color: #39ff14; font-weight: bold;">${skillName} (修得済み)</span>`;
+        }
+        return `<span style="color: #888899;">未習得 (Lv.${reqLv}で解放)</span>`;
+      };
+
       detailPanel.innerHTML = `
         <div class="detail-header-info">
           <h4 class="detail-title">${item.チップ名}</h4>
-          <span class="detail-tag">バトルチップ</span>
+          <div class="detail-tags">
+            <span class="detail-tag">バトルチップ</span>
+            <span class="detail-tag" style="background: rgba(0,243,255,0.2); color: var(--color-neon-blue);">Lv.${chipLevel}</span>
+          </div>
         </div>
         <div class="detail-body">
-          <div class="detail-flavor-box">
-            <p class="detail-flavor-text">${item.フレーバー || '強力なマスターAIを内蔵したバトルチップ。'}</p>
+          <!-- 経験値 (EXP) バー表示 -->
+          <div class="detail-exp-box" style="margin-bottom: 12px; padding: 12px; background: rgba(0, 243, 255, 0.05); border: 1px solid rgba(0, 243, 255, 0.2); border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="font-family: var(--font-hud); font-weight: 800; color: var(--color-neon-blue); font-size: 0.85rem;">チップ経験値 (EXP)</span>
+              <span style="font-family: var(--font-hud); font-weight: 900; color: #fff; font-size: 1rem;">${currExp} / ${nextExp}</span>
+            </div>
+            <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-top: 4px;">
+              <div style="width: ${expPct}%; height: 100%; background: linear-gradient(90deg, #00f3ff, #39ff14); box-shadow: 0 0 8px rgba(0, 243, 255, 0.6); transition: width 0.3s ease;"></div>
+            </div>
           </div>
-          <div class="detail-okugi-info">
-            <h5>搭載奥義</h5>
-            <p>Lv.2: ${item.レベル2奥義ID ? this.奥義マスタ.find(o => o.奥義ID === item.レベル2奥義ID)?.奥義名 || '未解放' : '未解放'}</p>
-            <p>Lv.3: ${item.レベル3奥義ID ? this.奥義マスタ.find(o => o.奥義ID === item.レベル3奥義ID)?.奥義名 || '未解放' : '未解放'}</p>
+
+          <div class="detail-flavor-box" style="margin-bottom: 12px;">
+            <p class="detail-flavor-text">${item.フレーバーテキスト || item.フレーバー || '強力なマスターAIを内蔵したバトルチップ。'}</p>
+          </div>
+
+          <div class="detail-okugi-info" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 10px 14px;">
+            <h5 style="color: var(--color-neon-blue); font-family: var(--font-hud); margin-bottom: 8px; border-bottom: 1px dashed rgba(0,243,255,0.2); padding-bottom: 4px;">習得奥義</h5>
+            <p style="font-size: 0.85rem; margin-bottom: 4px;"><strong>Lv.2 奥義:</strong> ${getSkillStatusHtml(2, lv2Name)}</p>
+            <p style="font-size: 0.85rem; margin-bottom: 4px;"><strong>Lv.3 奥義:</strong> ${getSkillStatusHtml(3, lv3Name)}</p>
+            <p style="font-size: 0.85rem;"><strong>Lv.4 奥義:</strong> ${getSkillStatusHtml(4, lv4Name)}</p>
           </div>
         </div>
       `;
@@ -2039,7 +2071,7 @@ class GameApp {
         </div>
         <div class="detail-body">
           <div class="detail-flavor-box">
-            <p class="detail-flavor-text">${item.フレーバー || '最新テクノロジーによって製造された高性能ギアパーツ。'}</p>
+            <p class="detail-flavor-text">${item.フレーバーテキスト || item.フレーバー || '最新テクノロジーによって製造された高性能ギアパーツ。'}</p>
             ${item.メモ ? `<p class="detail-memo-text">* ${item.メモ}</p>` : ''}
           </div>
           <div class="detail-stats-bars">
@@ -3868,33 +3900,29 @@ class GameApp {
       ctx.save();
       ctx.translate(cx, cy);
 
-      const cardRadius = radius * 0.95;
-      const bgGrad = ctx.createRadialGradient(0, 0, cardRadius * 0.1, 0, 0, cardRadius);
-      bgGrad.addColorStop(0, '#101424');
-      bgGrad.addColorStop(1, '#05070e');
-      ctx.fillStyle = bgGrad;
-      ctx.strokeStyle = neonColor;
-      ctx.lineWidth = 2.5;
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = neonColor;
+      const cardRadius = radius * 0.98;
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
 
-      ctx.beginPath();
-      ctx.arc(0, 0, cardRadius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // チップ画像イラストの取得と描画
+      // チップ画像イラストの取得と高精細描画
       const chipImgEl = this.chipImages[chipIdKey] || this.chipImages[chipName];
       if (chipImgEl && chipImgEl.complete && chipImgEl.naturalWidth !== 0) {
-        ctx.save();
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
         ctx.beginPath();
-        ctx.arc(0, 0, cardRadius * 0.92, 0, Math.PI * 2);
+        ctx.arc(0, 0, cardRadius, 0, Math.PI * 2);
         ctx.clip();
-        const drawSize = cardRadius * 1.95;
+        const drawSize = cardRadius * 2.1;
         ctx.drawImage(chipImgEl, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+        
+        // 鮮やかなネオン光沢リング枠
         ctx.restore();
+        ctx.strokeStyle = neonColor;
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = neonColor;
+        ctx.beginPath();
+        ctx.arc(0, 0, cardRadius, 0, Math.PI * 2);
+        ctx.stroke();
       } else {
         ctx.strokeStyle = neonColor;
         ctx.lineWidth = 2;
