@@ -4154,3 +4154,21 @@ body, html {
   color: #fff;
   margin-bottom: 6px;
 }
+
+
+/* ================== 会話ADVモード中の背面UI完全非表示 (文字透け防止) ================== */
+#ui-container.in-talk .screen-header,
+#ui-container.in-talk .garage-content,
+#ui-container.in-talk .custom-layout,
+#ui-container.in-talk .navigation-menu,
+#ui-container.in-talk .gear-name-display,
+#ui-container.in-talk .stats-panel,
+#ui-container.in-talk .shop-content,
+#ui-container.in-talk .vs-layout,
+#ui-container.in-talk .map-view-container,
+#ui-container.in-talk .inventory-drawer {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
