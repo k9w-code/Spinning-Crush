@@ -1826,7 +1826,7 @@ class GameApp {
         const card = document.createElement('div');
         card.className = `inventory-item ${isEquipped ? 'equipped' : ''}`;
         card.innerHTML = `
-          <div class="item-visual"><canvas id="drawer-item-canvas-${item.チップID}" width="50" height="50"></canvas></div>
+          <div class="item-visual"><canvas id="drawer-item-canvas-${item.チップID}" width="100" height="100"></canvas></div>
           <div class="item-info">
             <div class="item-name">${item.チップ名}</div>
             <div class="item-attributes">${item.フレーバー || 'コアパーツ'}</div>
@@ -1850,6 +1850,11 @@ class GameApp {
         });
         grid.appendChild(card);
       });
+
+      // チップ一覧ドロワーオープン時、先頭アイテムの詳細を自動表示
+      if (list.length > 0) {
+        this.showPartDetailInDrawer(list[0], 'チップ');
+      }
     } else {
       // パーツIDマッピング用の種別コード ("1": ブレード, "2": ウェイト, "3": ソール)
       const typeCode = type === 'ブレード' ? '1' : (type === 'ウェイト' ? '2' : '3');
@@ -1906,7 +1911,7 @@ class GameApp {
         const card = document.createElement('div');
         card.className = `inventory-item ${isEquipped ? 'equipped' : ''}`;
         card.innerHTML = `
-          <div class="item-visual"><canvas id="drawer-item-canvas-${item.パーツID}" width="50" height="50"></canvas></div>
+          <div class="item-visual"><canvas id="drawer-item-canvas-${item.パーツID}" width="100" height="100"></canvas></div>
           <div class="item-info">
             <div class="item-name">${item.パーツ名}</div>
             <div class="item-attributes">
@@ -1940,6 +1945,11 @@ class GameApp {
         });
         grid.appendChild(card);
       });
+
+      // パーツ一覧ドロワーオープン時、先頭アイテムの詳細を自動表示
+      if (list.length > 0) {
+        this.showPartDetailInDrawer(list[0], type);
+      }
     }
 
     document.getElementById('inventory-drawer')?.classList.add('active');
@@ -3876,11 +3886,15 @@ class GameApp {
       // チップ画像イラストの取得と描画
       const chipImgEl = this.chipImages[chipIdKey] || this.chipImages[chipName];
       if (chipImgEl && chipImgEl.complete && chipImgEl.naturalWidth !== 0) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.beginPath();
-        ctx.arc(0, 0, cardRadius * 0.9, 0, Math.PI * 2);
+        ctx.arc(0, 0, cardRadius * 0.92, 0, Math.PI * 2);
         ctx.clip();
-        const drawSize = cardRadius * 1.85;
+        const drawSize = cardRadius * 1.95;
         ctx.drawImage(chipImgEl, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+        ctx.restore();
       } else {
         ctx.strokeStyle = neonColor;
         ctx.lineWidth = 2;
