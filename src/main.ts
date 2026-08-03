@@ -1824,12 +1824,13 @@ class GameApp {
       list.forEach(item => {
         const isEquipped = this.customGearSim.チップ === item.チップID;
         const card = document.createElement('div');
-        card.className = `inventory-item ${isEquipped ? 'equipped' : ''}`;
+        card.className = `inventory-item chip-card-item ${isEquipped ? 'equipped' : ''}`;
         card.innerHTML = `
-          <div class="item-visual"><canvas id="drawer-item-canvas-${item.チップID}" width="100" height="100"></canvas></div>
-          <div class="item-info">
-            <div class="item-name">${item.チップ名}</div>
-            <div class="item-attributes">${item.フレーバーテキスト || item.フレーバー || 'コアパーツ'}</div>
+          <div class="item-visual-chip"><canvas id="drawer-item-canvas-${item.チップID}" width="280" height="280"></canvas></div>
+          <div class="item-info-chip">
+            <div class="item-name" style="font-size: 1.15rem; font-family: var(--font-hud); color: var(--color-neon-blue); margin-bottom: 4px;">${item.チップ名}</div>
+            <div class="item-attributes" style="margin-bottom: 6px;"><span class="attr-tag attr-水">水属性</span></div>
+            <div class="item-flavor" style="font-size: 0.8rem; color: var(--color-text-sub); line-height: 1.4;">${item.フレーバーテキスト || item.フレーバー || '強力なマスターAIを内蔵したバトルチップ。'}</div>
           </div>
         `;
         setTimeout(() => {
@@ -1864,62 +1865,34 @@ class GameApp {
       const currentEquippedId = type === 'ブレード' ? this.customGearSim.ブレード 
                                : (type === 'ウェイト' ? this.customGearSim.ウェイト 
                                : this.customGearSim.ソール);
-      const currentPart = this.パーツマスタ.find(p => p.パーツID === currentEquippedId);
 
-      // 差分テキスト生成ヘルパー
-      const getDiffSpan = (currValStr: string | undefined, newValStr: string) => {
-        const currVal = Number(currValStr || 0);
-        const newVal = Number(newValStr || 0);
-        const diff = newVal - currVal;
-        if (diff > 0) {
-          return `<span class="stat-val">${newVal} <span class="stat-diff plus">(+${diff})</span></span>`;
-        } else if (diff < 0) {
-          return `<span class="stat-val">${newVal} <span class="stat-diff minus">(${diff})</span></span>`;
-        } else {
-          return `<span class="stat-val">${newVal} <span class="stat-diff zero">(±0)</span></span>`;
-        }
-      };
 
       list.forEach(item => {
         const isEquipped = currentEquippedId === item.パーツID;
 
-        // 各部位固有の4ステータスを抽出
-        let statsHtml = '';
+
+
+        // 綺麗でシンプルなステータス表示 (カード内の重複差分表示をカット)
+        let cleanStatsHtml = '';
         if (type === 'ブレード') {
-          statsHtml = `
-            <span>ATK:${getDiffSpan(currentPart?.アタック, item.アタック)}</span>
-            <span>DEF:${getDiffSpan(currentPart?.ディフェンス, item.ディフェンス)}</span>
-            <span>RNG:${getDiffSpan(currentPart?.レンジ, item.レンジ)}</span>
-            <span>MOB:${getDiffSpan(currentPart?.モビリティ, item.モビリティ)}</span>
-          `;
+          cleanStatsHtml = `<span>ATK: ${item.アタック}</span><span>DEF: ${item.ディフェンス}</span><span>RNG: ${item.レンジ}</span><span>MOB: ${item.モビリティ}</span>`;
         } else if (type === 'ウェイト') {
-          statsHtml = `
-            <span>HP:${getDiffSpan(currentPart?.ライフ, item.ライフ)}</span>
-            <span>ATK:${getDiffSpan(currentPart?.アタック, item.アタック)}</span>
-            <span>DEF:${getDiffSpan(currentPart?.ディフェンス, item.ディフェンス)}</span>
-            <span>SPD:${getDiffSpan(currentPart?.スピード, item.スピード)}</span>
-          `;
-        } else { // ソール
-          statsHtml = `
-            <span>HP:${getDiffSpan(currentPart?.ライフ, item.ライフ)}</span>
-            <span>SPD:${getDiffSpan(currentPart?.スピード, item.スピード)}</span>
-            <span>RNG:${getDiffSpan(currentPart?.レンジ, item.レンジ)}</span>
-            <span>MOB:${getDiffSpan(currentPart?.モビリティ, item.モビリティ)}</span>
-          `;
+          cleanStatsHtml = `<span>HP: ${item.ライフ}</span><span>ATK: ${item.アタック}</span><span>DEF: ${item.ディフェンス}</span><span>SPD: ${item.スピード}</span>`;
+        } else {
+          cleanStatsHtml = `<span>HP: ${item.ライフ}</span><span>SPD: ${item.スピード}</span><span>RNG: ${item.レンジ}</span><span>MOB: ${item.モビリティ}</span>`;
         }
 
         const card = document.createElement('div');
         card.className = `inventory-item ${isEquipped ? 'equipped' : ''}`;
         card.innerHTML = `
-          <div class="item-visual"><canvas id="drawer-item-canvas-${item.パーツID}" width="100" height="100"></canvas></div>
+          <div class="item-visual"><canvas id="drawer-item-canvas-${item.パーツID}" width="120" height="120"></canvas></div>
           <div class="item-info">
             <div class="item-name">${item.パーツ名}</div>
             <div class="item-attributes">
-              <span class="attr-tag">${item.属性}属性</span>
-              <span class="attr-tag">ランク${item.ランク}</span>
+              <span class="attr-tag attr-${item.属性}">${item.属性}属性</span>
             </div>
             <div class="item-stats-summary drawer-style">
-              ${statsHtml}
+              ${cleanStatsHtml}
             </div>
           </div>
         `;
@@ -2040,25 +2013,25 @@ class GameApp {
       let statsBarsHtml = '';
       if (type === 'ブレード') {
         statsBarsHtml = `
-          ${renderStatBar('ライフ (HP)', item.ライフ, 'ライフ')}
-          ${renderStatBar('アタック (ATK)', item.アタック, 'アタック')}
-          ${renderStatBar('ディフェンス (DEF)', item.ディフェンス, 'ディフェンス')}
-          ${renderStatBar('レンジ (RNG)', item.レンジ, 'レンジ')}
-          ${renderStatBar('モビリティ (MOB)', item.モビリティ, 'モビリティ')}
+          ${renderStatBar('ライフ', item.ライフ, 'ライフ')}
+          ${renderStatBar('アタック', item.アタック, 'アタック')}
+          ${renderStatBar('ディフェンス', item.ディフェンス, 'ディフェンス')}
+          ${renderStatBar('レンジ', item.レンジ, 'レンジ')}
+          ${renderStatBar('モビリティ', item.モビリティ, 'モビリティ')}
         `;
       } else if (type === 'ウェイト') {
         statsBarsHtml = `
-          ${renderStatBar('ライフ (HP)', item.ライフ, 'ライフ')}
-          ${renderStatBar('アタック (ATK)', item.アタック, 'アタック')}
-          ${renderStatBar('ディフェンス (DEF)', item.ディフェンス, 'ディフェンス')}
-          ${renderStatBar('スピード (SPD)', item.スピード, 'スピード')}
+          ${renderStatBar('ライフ', item.ライフ, 'ライフ')}
+          ${renderStatBar('アタック', item.アタック, 'アタック')}
+          ${renderStatBar('ディフェンス', item.ディフェンス, 'ディフェンス')}
+          ${renderStatBar('スピード', item.スピード, 'スピード')}
         `;
       } else {
         statsBarsHtml = `
-          ${renderStatBar('ライフ (HP)', item.ライフ, 'ライフ')}
-          ${renderStatBar('スピード (SPD)', item.スピード, 'スピード')}
-          ${renderStatBar('レンジ (RNG)', item.レンジ, 'レンジ')}
-          ${renderStatBar('モビリティ (MOB)', item.モビリティ, 'モビリティ')}
+          ${renderStatBar('ライフ', item.ライフ, 'ライフ')}
+          ${renderStatBar('スピード', item.スピード, 'スピード')}
+          ${renderStatBar('レンジ', item.レンジ, 'レンジ')}
+          ${renderStatBar('モビリティ', item.モビリティ, 'モビリティ')}
         `;
       }
 
@@ -2068,13 +2041,13 @@ class GameApp {
           <div class="detail-tags">
             <span class="detail-tag">${typeLabel}</span>
             <span class="detail-tag attr-${item.属性}">${item.属性}属性</span>
-            <span class="detail-tag">[WIN]${item.ランク}</span>
+            
           </div>
         </div>
         <div class="detail-body">
           <div class="detail-flavor-box">
             <p class="detail-flavor-text">${item.フレーバーテキスト || item.フレーバー || '最新テクノロジーによって製造された高性能ギアパーツ。'}</p>
-            ${item.メモ ? `<p class="detail-memo-text">* ${item.メモ}</p>` : ''}
+            
           </div>
           <div class="detail-stats-bars">
             <h5>パーツ性能パラメータ</h5>

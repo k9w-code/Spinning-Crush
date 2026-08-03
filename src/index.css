@@ -4172,3 +4172,57 @@ body, html {
   pointer-events: none !important;
   transition: opacity 0.2s ease, visibility 0.2s ease;
 }
+
+
+/* ================== チップ専用 2倍大型カード横並びレイアウト ＆ カタカナステータス表示最適化 ================== */
+.inventory-item.chip-card-item {
+  grid-column: span 2;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 16px !important;
+  padding: 12px 18px !important;
+  background: rgba(12, 16, 28, 0.95) !important;
+  border: 2px solid var(--color-neon-blue) !important;
+  border-radius: 12px !important;
+  min-height: 120px !important;
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+}
+
+.item-visual-chip {
+  width: 90px;
+  height: 90px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.item-visual-chip canvas {
+  width: 90px !important;
+  height: 90px !important;
+}
+
+.item-info-chip {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  text-align: left;
+}
+
+/* ステータスラベルの改行防止（改行バグの完全修正） */
+.detail-stat-row .stat-label {
+  white-space: nowrap !important;
+  min-width: 75px !important;
+  font-family: var(--font-hud);
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--color-neon-blue);
+}
+
+/* 不要なカード右上絶対配置テキストの削除 */
+.inventory-card .stat-diff {
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+}
