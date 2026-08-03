@@ -1826,11 +1826,10 @@ class GameApp {
         const card = document.createElement('div');
         card.className = `inventory-item chip-card-item ${isEquipped ? 'equipped' : ''}`;
         card.innerHTML = `
-          <div class="item-visual-chip"><canvas id="drawer-item-canvas-${item.チップID}" width="280" height="280"></canvas></div>
+          <div class="item-visual-chip"><canvas id="drawer-item-canvas-${item.チップID}" width="360" height="360"></canvas></div>
           <div class="item-info-chip">
-            <div class="item-name" style="font-size: 1.15rem; font-family: var(--font-hud); color: var(--color-neon-blue); margin-bottom: 4px;">${item.チップ名}</div>
-            <div class="item-attributes" style="margin-bottom: 6px;"><span class="attr-tag attr-水">水属性</span></div>
-            <div class="item-flavor" style="font-size: 0.8rem; color: var(--color-text-sub); line-height: 1.4;">${item.フレーバーテキスト || item.フレーバー || '強力なマスターAIを内蔵したバトルチップ。'}</div>
+            <div class="item-name" style="font-size: 1.35rem; font-family: var(--font-hud); font-weight: 900; color: var(--color-neon-blue); margin-bottom: 8px;">${item.チップ名}</div>
+            <div class="item-flavor" style="font-size: 0.88rem; color: var(--color-text-main); line-height: 1.5; text-align: left;">${item.フレーバーテキスト || item.フレーバー || '強力なマスターAIを内蔵したコアチップ。'}</div>
           </div>
         `;
         setTimeout(() => {
@@ -1943,43 +1942,50 @@ class GameApp {
       const lv4Name = item.レベル4奥義ID ? (this.奥義マスタ.find(o => o.奥義ID === item.レベル4奥義ID)?.奥義名 || '未解放') : 'なし';
       const lv5Name = item.レベル5奥義ID ? (this.奥義マスタ.find(o => o.奥義ID === item.レベル5奥義ID)?.奥義名 || '未解放') : 'なし';
 
-      const getSkillStatusHtml = (reqLv: number, skillName: string) => {
+      const getSkillRowHtml = (reqLv: number, skillName: string) => {
         if (chipLevel >= reqLv) {
-          return `<span style="color: #39ff14; font-weight: bold;">${skillName} (修得済み)</span>`;
+          return `
+            <div style="display: flex; justify-content: space-between; align-items: center; white-space: nowrap; font-size: 0.82rem; margin-bottom: 6px;">
+              <span style="color: var(--color-neon-blue); font-family: var(--font-hud); font-weight: 800;">Lv.${reqLv}:</span>
+              <strong style="color: #fff; margin: 0 6px; flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis;">【${skillName}】</strong>
+              <span style="color: #39ff14; font-weight: bold;">(修得済み)</span>
+            </div>
+          `;
         }
-        return `<span style="color: #888899;">未習得 (Lv.${reqLv}で解放)</span>`;
+        return `
+          <div style="display: flex; justify-content: space-between; align-items: center; white-space: nowrap; font-size: 0.82rem; margin-bottom: 6px;">
+            <span style="color: var(--color-neon-blue); font-family: var(--font-hud); font-weight: 800;">Lv.${reqLv}:</span>
+            <span style="color: #888899; margin: 0 6px; flex: 1; text-align: left;">未習得</span>
+            <span style="color: #888899; font-size: 0.78rem;">(Lv.${reqLv}で解放)</span>
+          </div>
+        `;
       };
 
       detailPanel.innerHTML = `
         <div class="detail-header-info">
           <h4 class="detail-title">${item.チップ名}</h4>
           <div class="detail-tags">
-            <span class="detail-tag">バトルチップ</span>
             <span class="detail-tag" style="background: rgba(0,243,255,0.2); color: var(--color-neon-blue);">Lv.${chipLevel}</span>
           </div>
         </div>
         <div class="detail-body">
           <!-- 経験値 (EXP) バー表示 -->
-          <div class="detail-exp-box" style="margin-bottom: 12px; padding: 12px; background: rgba(0, 243, 255, 0.05); border: 1px solid rgba(0, 243, 255, 0.2); border-radius: 8px;">
+          <div class="detail-exp-box" style="margin-bottom: 15px; padding: 12px; background: rgba(0, 243, 255, 0.05); border: 1px solid rgba(0, 243, 255, 0.2); border-radius: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <span style="font-family: var(--font-hud); font-weight: 800; color: var(--color-neon-blue); font-size: 0.85rem;">チップ経験値 (EXP)</span>
               <span style="font-family: var(--font-hud); font-weight: 900; color: #fff; font-size: 1rem;">${currExp} / ${nextExp}</span>
             </div>
             <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-top: 4px;">
-              <div style="width: ${expPct}%; height: 100%; background: linear-gradient(90deg, #00f3ff, #39ff14); box-shadow: 0 0 8px rgba(0, 243, 255, 0.6); transition: width 0.3s ease;"></div>
+              <div style="width: ${expPct}%; height: 100%; background: linear-gradient(90deg, #00f3ff, #39ff14); box-shadow: 0 0 8px rgba(0, 243, 255, 0.6);"></div>
             </div>
           </div>
 
-          <div class="detail-flavor-box" style="margin-bottom: 12px;">
-            <p class="detail-flavor-text">${item.フレーバーテキスト || item.フレーバー || '強力なマスターAIを内蔵したバトルチップ。'}</p>
-          </div>
-
-          <div class="detail-okugi-info" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 10px 14px;">
-            <h5 style="color: var(--color-neon-blue); font-family: var(--font-hud); margin-bottom: 8px; border-bottom: 1px dashed rgba(0,243,255,0.2); padding-bottom: 4px;">習得奥義</h5>
-            <p style="font-size: 0.85rem; margin-bottom: 3px;"><strong>Lv.2 奥義:</strong> ${getSkillStatusHtml(2, lv2Name)}</p>
-            <p style="font-size: 0.85rem; margin-bottom: 3px;"><strong>Lv.3 奥義:</strong> ${getSkillStatusHtml(3, lv3Name)}</p>
-            <p style="font-size: 0.85rem; margin-bottom: 3px;"><strong>Lv.4 奥義:</strong> ${getSkillStatusHtml(4, lv4Name)}</p>
-            <p style="font-size: 0.85rem;"><strong>Lv.5 奥義:</strong> ${getSkillStatusHtml(5, lv5Name)}</p>
+          <div class="detail-okugi-info" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 12px 14px;">
+            <h5 style="color: var(--color-neon-blue); font-family: var(--font-hud); font-size: 0.95rem; margin-bottom: 10px; border-bottom: 1px dashed rgba(0,243,255,0.25); padding-bottom: 6px;">習得奥義</h5>
+            ${getSkillRowHtml(2, lv2Name)}
+            ${getSkillRowHtml(3, lv3Name)}
+            ${getSkillRowHtml(4, lv4Name)}
+            ${getSkillRowHtml(5, lv5Name)}
           </div>
         </div>
       `;
@@ -2013,7 +2019,6 @@ class GameApp {
       let statsBarsHtml = '';
       if (type === 'ブレード') {
         statsBarsHtml = `
-          ${renderStatBar('ライフ', item.ライフ, 'ライフ')}
           ${renderStatBar('アタック', item.アタック, 'アタック')}
           ${renderStatBar('ディフェンス', item.ディフェンス, 'ディフェンス')}
           ${renderStatBar('レンジ', item.レンジ, 'レンジ')}
@@ -3837,7 +3842,7 @@ class GameApp {
     const cx = width / 2;
     const cy = height / 2;
     const size = Math.min(width, height);
-    const radius = size * 0.42;
+    const radius = size * 0.38;
 
     const getAttributeColor = (attr: string): string => {
       if (attr === '火') return '#ff0055';
