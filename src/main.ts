@@ -4921,7 +4921,14 @@ class GameApp {
 
     const battleScreen = document.getElementById('battle-screen');
     if (battleScreen && this.selectedNpc) {
-      const stadiumBg = `/images/bg/${this.selectedNpc.登場ステージID}_stadium.webp`;
+      let stadiumBg = `/images/bg/${this.selectedNpc.登場ステージID}_stadium.webp`;
+      
+      // 通信対戦(PvP)またはランダム対戦指定の場合、stadium1~3からランダム選出
+      if ((this as any).isPvPMode || (this.selectedNpc as any).isPvP) {
+        const randIndex = Math.floor(Math.random() * 3) + 1;
+        stadiumBg = `/images/bg/stadium${randIndex}.webp`;
+      }
+
       battleScreen.style.backgroundImage = `url('${stadiumBg}'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%)`;
       battleScreen.style.backgroundSize = 'cover';
       battleScreen.style.backgroundPosition = 'center';
