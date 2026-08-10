@@ -6607,26 +6607,30 @@ class GameApp {
     osc2.stop(time + 0.45);
   }
 
-  // チップの経験値獲得ロジック (レベルに応じた段階的な必要EXP)
+  // チップの経験値獲得ロジック (1ステージ15戦/全93戦スケールに適合した段階的EXP)
   private addChipExp() {
     const activeSlot = this.saveData.ギアスロット[this.vsSlotIndex.toString()];
     if (!activeSlot) return;
 
-    // レベルごとの必要EXPテーブル (Lv1->2: 3, Lv2->3: 5, Lv3->4: 8, Lv4->5: 12)
+    // 1ステージ5人x3勝=15戦、全7ステージ(約90~100戦)の進行スケールに合わせた必要EXPテーブル
+    // Lv1->2: 6戦 (St1中盤)
+    // Lv2->3: 12戦 (累計18戦: St2クリア前後)
+    // Lv3->4: 24戦 (累計42戦: St3~4日本選手権)
+    // Lv4->5: 40戦 (累計82戦: St6世界王者~St7店長戦直前カンスト)
     const reqExpTable: { [lv: number]: number } = {
-      1: 3,
-      2: 5,
-      3: 8,
-      4: 12
+      1: 6,
+      2: 12,
+      3: 24,
+      4: 40
     };
 
     if (activeSlot.レベル >= 5) {
-      activeSlot.EXP = 12; // レベル5カンスト
+      activeSlot.EXP = 40; // レベル5カンスト
       return;
     }
 
     activeSlot.EXP += 1;
-    const reqExp = reqExpTable[activeSlot.レベル] || 5;
+    const reqExp = reqExpTable[activeSlot.レベル] || 10;
 
     if (activeSlot.EXP >= reqExp) {
       activeSlot.レベル += 1;
