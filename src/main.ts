@@ -6607,20 +6607,31 @@ class GameApp {
     osc2.stop(time + 0.45);
   }
 
-  // チップの経験値獲得ロジック (勝敗問わず1EXP、3EXPごとにレベルアップ)
+  // チップの経験値獲得ロジック (レベルに応じた段階的な必要EXP)
   private addChipExp() {
     const activeSlot = this.saveData.ギアスロット[this.vsSlotIndex.toString()];
     if (!activeSlot) return;
 
+    // レベルごとの必要EXPテーブル (Lv1->2: 3, Lv2->3: 5, Lv3->4: 8, Lv4->5: 12)
+    const reqExpTable: { [lv: number]: number } = {
+      1: 3,
+      2: 5,
+      3: 8,
+      4: 12
+    };
+
+    if (activeSlot.レベル >= 5) {
+      activeSlot.EXP = 12; // レベル5カンスト
+      return;
+    }
+
     activeSlot.EXP += 1;
-    if (activeSlot.EXP >= 3) {
-      if (activeSlot.レベル < 5) {
-        activeSlot.レベル += 1;
-        activeSlot.EXP = 0;
-        this.showSystemModal('レベルアップ！', `スロット ${this.vsSlotIndex} のチップ「${this.チップマスタ.find(c => c.チップID === activeSlot.チップ)?.チップ名}」がレベル ${activeSlot.レベル} に上がりました！`);
-      } else {
-        activeSlot.EXP = 3; // カンスト
-      }
+    const reqExp = reqExpTable[activeSlot.レベル] || 5;
+
+    if (activeSlot.EXP >= reqExp) {
+      activeSlot.レベル += 1;
+      activeSlot.EXP = 0;
+      this.showSystemModal('レベルアップ！', `スロット ${this.vsSlotIndex} のチップ「${this.チップマスタ.find(c => c.チップID === activeSlot.チップ)?.チップ名}」がレベル ${activeSlot.レベル} に上がりました！`);
     }
   }
 
