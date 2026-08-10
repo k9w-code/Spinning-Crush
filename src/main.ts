@@ -990,6 +990,7 @@ class GameApp {
     // ① タイトル画面
     document.getElementById('btn-new-game')?.addEventListener('click', () => {
       this.snd.initContext();
+      this.snd.stopAllBGM();
 
       // セーブデータが存在する場合は誤消去防止の警告を出す
       const saved = localStorage.getItem('spinning_crush_save');
@@ -1005,27 +1006,26 @@ class GameApp {
       // 新規データを即時セーブ（ページ更新で消えるのを防止）
       localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
 
-      // 遷移ロックを強制解除し、確実に「自宅ガレージ画面」の背景を適用
+      // ガレージデータとBGMの準備（画面遷移はプロローグ完了時に実施）
       this.isTransitioning = false;
-      const screens = document.querySelectorAll('.screen');
-      screens.forEach(s => s.classList.remove('active'));
-      const garageScreen = document.getElementById('garage-screen');
-      if (garageScreen) garageScreen.classList.add('active');
-      this.currentScreenId = 'garage-screen';
       this.initGarageScreen();
-      this.snd.startGarageBGM();
+      this.changeScreen('garage-screen');
 
-      // ガレージ背景の上でプロローグを即時再生
-      setTimeout(() => {
+      this.snd.startPrologueBGM();
+      // プロローグナレーション（黒サイバー背景 prologue_bg.webp）-> ガレージ覚悟モノローグ -> ナビィ会話のフル再生
+      this.playScenario('prologue_narration', () => {
+        this.changeScreen('garage-screen');
         this.playScenario('prologue_intro', () => {
           this.playScenario('prologue_naby_talk', () => {
             // アセンブル画面へ強制遷移
+            this.currentScreenId = 'garage-screen';
+            this.snd.startGarageBGM();
             this.editingSlotId = '1';
             this.customOriginScreen = 'garage-screen';
             this.changeScreen('custom-screen');
           });
         });
-      }, 550);
+      });
     });
 
     document.getElementById('btn-load-game')?.addEventListener('click', () => {
@@ -1112,6 +1112,17 @@ class GameApp {
     // ④ マップ画面
     document.getElementById('btn-map-to-garage')?.addEventListener('click', () => {
       this.changeScreen('garage-screen');
+    });
+    document.getElementById('nav-map-garage')?.addEventListener('click', () => {
+      this.changeScreen('garage-screen');
+    });
+    document.getElementById('nav-map-custom')?.addEventListener('click', () => {
+      this.editingSlotId = '1';
+      this.customOriginScreen = 'map-screen';
+      this.changeScreen('custom-screen');
+    });
+    document.getElementById('nav-map-shop')?.addEventListener('click', () => {
+      this.changeScreen('shop-screen');
     });
 
     // ⑤ ステージ詳細画面
@@ -1444,6 +1455,16 @@ class GameApp {
     document.getElementById('btn-modal-close')?.addEventListener('click', () => {
       document.getElementById('system-modal')?.classList.remove('active');
     });
+
+    document.getElementById('btn-chip-zoom-close')?.addEventListener('click', () => {
+      document.getElementById('chip-zoom-modal')?.classList.add('hidden');
+    });
+
+    document.getElementById('chip-zoom-modal')?.addEventListener('click', (e) => {
+      if (e.target === document.getElementById('chip-zoom-modal')) {
+        document.getElementById('chip-zoom-modal')?.classList.add('hidden');
+      }
+    });
   }
 
   // ==========================================
@@ -1568,7 +1589,7 @@ class GameApp {
   private prevCustomGearSim: any = null;
   private updateCustomAssembleArea() {
     const nameEl = document.getElementById('custom-active-slot-name');
-    if (nameEl) nameEl.textContent = `スロット ${this.editingSlotId} の編集 (レベル: ${this.customGearSim.レベル})`;
+    if (nameEl) nameEl.textContent = `スロット ${this.editingSlotId} の編集`;
 
     // パーツ換装の変更検知
     const isChanged = this.prevCustomGearSim && (
@@ -1826,7 +1847,7 @@ class GameApp {
         const card = document.createElement('div');
         card.className = `inventory-item chip-card-item ${isEquipped ? 'equipped' : ''}`;
         card.innerHTML = `
-          <div class="item-visual-chip"><canvas id="drawer-item-canvas-${item.チップID}" width="360" height="360"></canvas></div>
+          <div class="item-visual-chip" id="chip-visual-${item.チップID}" title="クリックで特大鑑賞"><canvas id="drawer-item-canvas-${item.チップID}" width="360" height="360"></canvas></div>
           <div class="item-info-chip">
             <div class="item-name" style="font-size: 1.35rem; font-family: var(--font-hud); font-weight: 900; color: var(--color-neon-blue); margin-bottom: 8px;">${item.チップ名}</div>
             <div class="item-flavor" style="font-size: 0.88rem; color: var(--color-text-main); line-height: 1.5; text-align: left;">${item.フレーバーテキスト || item.フレーバー || '強力なマスターAIを内蔵したコアチップ。'}</div>
@@ -1839,6 +1860,13 @@ class GameApp {
             if (ctx) {
               this.drawPartVisual(ctx, cvs.width, cvs.height, 'chip', item.チップID);
             }
+          }
+          const visualEl = document.getElementById(`chip-visual-${item.チップID}`);
+          if (visualEl) {
+            visualEl.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this.openChipZoomModal(item.チップID);
+            });
           }
         }, 10);
         // ホバーした瞬間に右側に詳細スペックを表示 (平成ホビーパッケージ風)
@@ -1943,45 +1971,38 @@ class GameApp {
       const lv5Name = item.レベル5奥義ID ? (this.奥義マスタ.find(o => o.奥義ID === item.レベル5奥義ID)?.奥義名 || '未解放') : 'なし';
 
       const getSkillRowHtml = (reqLv: number, skillName: string) => {
-        if (chipLevel >= reqLv) {
-          return `
-            <div style="display: flex; justify-content: space-between; align-items: center; white-space: nowrap; font-size: 0.82rem; margin-bottom: 6px;">
-              <span style="color: var(--color-neon-blue); font-family: var(--font-hud); font-weight: 800;">Lv.${reqLv}:</span>
-              <strong style="color: #fff; margin: 0 6px; flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis;">【${skillName}】</strong>
-              <span style="color: #39ff14; font-weight: bold;">(修得済み)</span>
-            </div>
-          `;
-        }
+        const isUnlocked = chipLevel >= reqLv;
         return `
-          <div style="display: flex; justify-content: space-between; align-items: center; white-space: nowrap; font-size: 0.82rem; margin-bottom: 6px;">
-            <span style="color: var(--color-neon-blue); font-family: var(--font-hud); font-weight: 800;">Lv.${reqLv}:</span>
-            <span style="color: #888899; margin: 0 6px; flex: 1; text-align: left;">未習得</span>
-            <span style="color: #888899; font-size: 0.78rem;">(Lv.${reqLv}で解放)</span>
+          <div style="display: flex; justify-content: space-between; align-items: center; white-space: nowrap; font-size: 0.86rem; margin-bottom: 5px;">
+            <span style="color: var(--color-neon-blue); font-family: var(--font-hud); font-weight: 800; min-width: 36px;">Lv.${reqLv}:</span>
+            <strong style="color: ${isUnlocked ? '#fff' : '#8899aa'}; margin: 0 6px; flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; font-size: 0.88rem;">${skillName}</strong>
+            <span style="color: ${isUnlocked ? '#39ff14' : '#667788'}; font-weight: bold; font-size: 0.78rem; padding: 1px 6px; background: ${isUnlocked ? 'rgba(57,255,20,0.12)' : 'rgba(255,255,255,0.04)'}; border-radius: 4px;">${isUnlocked ? '修得' : '未修得'}</span>
           </div>
         `;
       };
 
       detailPanel.innerHTML = `
-        <div class="detail-header-info">
-          <h4 class="detail-title">${item.チップ名}</h4>
-          <div class="detail-tags">
-            <span class="detail-tag" style="background: rgba(0,243,255,0.2); color: var(--color-neon-blue);">Lv.${chipLevel}</span>
-          </div>
+        <div class="detail-header-info" style="padding-bottom: 6px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+          <h4 class="detail-title" style="font-size: 1.18rem; margin: 0; display: flex; align-items: center; gap: 10px;">
+            ${item.チップ名}
+            <span style="font-size: 0.78rem; padding: 2px 8px; border-radius: 4px; background: rgba(0, 243, 255, 0.2); color: var(--color-neon-blue); font-weight: bold; border: 1px solid rgba(0, 243, 255, 0.3);">Lv.${chipLevel}</span>
+          </h4>
+          <button id="btn-detail-chip-zoom" class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.78rem; cursor: pointer;">拡大表示</button>
         </div>
-        <div class="detail-body">
+        <div class="detail-body" style="gap: 8px; display: flex; flex-direction: column;">
           <!-- 経験値 (EXP) バー表示 -->
-          <div class="detail-exp-box" style="margin-bottom: 15px; padding: 12px; background: rgba(0, 243, 255, 0.05); border: 1px solid rgba(0, 243, 255, 0.2); border-radius: 8px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <span style="font-family: var(--font-hud); font-weight: 800; color: var(--color-neon-blue); font-size: 0.85rem;">チップ経験値 (EXP)</span>
-              <span style="font-family: var(--font-hud); font-weight: 900; color: #fff; font-size: 1rem;">${currExp} / ${nextExp}</span>
+          <div class="detail-exp-box" style="margin-bottom: 4px; padding: 8px 12px; background: rgba(0, 243, 255, 0.05); border: 1px solid rgba(0, 243, 255, 0.2); border-radius: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+              <span style="font-family: var(--font-hud); font-weight: 800; color: var(--color-neon-blue); font-size: 0.82rem;">チップ経験値 (EXP)</span>
+              <span style="font-family: var(--font-hud); font-weight: 900; color: #fff; font-size: 0.9rem;">${currExp} / ${nextExp}</span>
             </div>
-            <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-top: 4px;">
-              <div style="width: ${expPct}%; height: 100%; background: linear-gradient(90deg, #00f3ff, #39ff14); box-shadow: 0 0 8px rgba(0, 243, 255, 0.6);"></div>
+            <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+              <div style="width: ${expPct}%; height: 100%; background: linear-gradient(90deg, #00f3ff, #39ff14); box-shadow: 0 0 6px rgba(0, 243, 255, 0.6);"></div>
             </div>
           </div>
 
-          <div class="detail-okugi-info" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 12px 14px;">
-            <h5 style="color: var(--color-neon-blue); font-family: var(--font-hud); font-size: 0.95rem; margin-bottom: 10px; border-bottom: 1px dashed rgba(0,243,255,0.25); padding-bottom: 6px;">習得奥義</h5>
+          <div class="detail-okugi-info" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; padding: 8px 12px;">
+            <h5 style="color: var(--color-neon-blue); font-family: var(--font-hud); font-size: 0.88rem; margin: 0 0 6px 0; border-bottom: 1px dashed rgba(0,243,255,0.25); padding-bottom: 4px;">習得奥義 (全4種)</h5>
             ${getSkillRowHtml(2, lv2Name)}
             ${getSkillRowHtml(3, lv3Name)}
             ${getSkillRowHtml(4, lv4Name)}
@@ -1989,6 +2010,12 @@ class GameApp {
           </div>
         </div>
       `;
+
+      setTimeout(() => {
+        document.getElementById('btn-detail-chip-zoom')?.addEventListener('click', () => {
+          this.openChipZoomModal(item.チップID);
+        });
+      }, 10);
     } else {
       const typeLabel = type === 'ブレード' ? 'ブレード' : (type === 'ウェイト' ? 'ウェイト' : 'ソール');
       
@@ -2061,6 +2088,33 @@ class GameApp {
         </div>
       `;
     }
+  }
+
+  public openChipZoomModal(chipId: string) {
+    const chip = this.チップマスタ.find(c => c.チップID === chipId);
+    if (!chip) return;
+
+    const modal = document.getElementById('chip-zoom-modal');
+    const titleEl = document.getElementById('chip-zoom-title');
+    const attrEl = document.getElementById('chip-zoom-attr');
+    const descEl = document.getElementById('chip-zoom-desc');
+    const cvs = document.getElementById('chip-zoom-canvas') as HTMLCanvasElement;
+
+    if (titleEl) titleEl.textContent = chip.チップ名;
+    if (attrEl) {
+      attrEl.textContent = `MASTER CHIP AI`;
+      attrEl.className = `detail-tag`;
+    }
+    if (descEl) descEl.textContent = chip.フレーバーテキスト || chip.フレーバー || '未知のエネルギーを秘めたバトルチップ。';
+
+    if (cvs) {
+      const ctx = cvs.getContext('2d');
+      if (ctx) {
+        this.drawPartVisual(ctx, cvs.width, cvs.height, 'chip', chip.チップID);
+      }
+    }
+
+    if (modal) modal.classList.remove('hidden');
   }
 
   // --- ④ 全体マップ画面 ---
@@ -2288,8 +2342,15 @@ class GameApp {
     // アクティブなステージ情報をバインド
     const stage = this.ステージマスタ.find(s => s.ステージID === this.selectedStageId);
     const stageTitle = document.getElementById('stage-title');
+    const stageScreen = document.getElementById('stage-screen');
+    if (stage && stageScreen) {
+      const bgPath = `/images/bg/${stage.ステージID}_bg.webp`;
+      stageScreen.style.backgroundImage = `url('${bgPath}'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%)`;
+      stageScreen.style.backgroundSize = 'cover';
+      stageScreen.style.backgroundPosition = 'center';
+    }
     if (stageTitle && stage) {
-      stageTitle.textContent = `${stage.ステージ名}: ${stage.フレーバー || ''}`;
+      stageTitle.innerHTML = `<div class="stage-name-text">${stage.ステージ名}</div><div class="stage-flavor-text">${stage.フレーバー || ''}</div>`;
     }
 
     // 選択されたステージIDのエネミーを並び順の昇順で抽出
@@ -3842,7 +3903,7 @@ class GameApp {
     const cx = width / 2;
     const cy = height / 2;
     const size = Math.min(width, height);
-    const radius = size * 0.38;
+    const radius = size * 0.30; // 枠内に収めてテキスト被りを防止する統一スケール
 
     const getAttributeColor = (attr: string): string => {
       if (attr === '火') return '#ff0055';
@@ -4857,6 +4918,14 @@ class GameApp {
 
     this.prevJp = this.saveData.所持GP; // バトル前のJPを記録
     this.changeScreen('battle-screen');
+
+    const battleScreen = document.getElementById('battle-screen');
+    if (battleScreen && this.selectedNpc) {
+      const stadiumBg = `/images/bg/${this.selectedNpc.登場ステージID}_stadium.webp`;
+      battleScreen.style.backgroundImage = `url('${stadiumBg}'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%)`;
+      battleScreen.style.backgroundSize = 'cover';
+      battleScreen.style.backgroundPosition = 'center';
+    }
     
     // バトル初期化
     const playerSlot = this.saveData.ギアスロット[this.vsSlotIndex.toString()] as SlotData;
@@ -6355,22 +6424,52 @@ class GameApp {
       this.addChipExp();
 
     } else {
-      // 敗北 / 引き分け
+      // 敗北 / 引き分けでも参加賞GPとパーツドロップ（救済・参加賞）を付与
       if (outcomeEl) {
         outcomeEl.textContent = winner === 'draw' ? 'DRAW' : 'DEFEAT';
         outcomeEl.className = 'text-lose';
       }
       
-      // 敗北時セリフ
-      if (speakerEl) speakerEl.textContent = npc.エネミー名;
-      const foundSerifu = this.セリフマスタ.find(s => s.TEXT_ID === `${npc.エネミーID}_win`);
-      if (textEl) textEl.textContent = foundSerifu?.テキスト内容 || "「ふっ、まだまだ修行が足りないようだな。再戦を待っているぞ！」";
+      const loseGamerPoints = 50;
+      this.saveData.所持GP += loseGamerPoints;
 
-      // 報酬はなし
+      // 敗北時でも報酬ドロップ処理を実行
+      const dropRes = 報酬ドロップ処理(
+        this.saveData.ドロップカウンタ,
+        this.saveData.所持GP,
+        this.saveData.インベントリ,
+        this.パーツマスタ,
+        this.セリフマスタ
+      );
+
+      this.saveData.ドロップカウンタ = dropRes.更新ドロップカウンタ;
+      this.saveData.インベントリ = dropRes.更新インベントリ;
+
+      if (dropRes.獲得パーツID) {
+        acquiredPartId = dropRes.獲得パーツID;
+      }
+
       const dropTextEl = document.getElementById('drop-part-text');
       const dropVisual = document.getElementById('drop-part-visual');
-      if (dropTextEl) dropTextEl.textContent = 'パーツドロップなし (バトル敗北のため)';
-      if (dropVisual) dropVisual.innerHTML = '❌';
+      if (dropTextEl) dropTextEl.textContent = dropRes.獲得パーツID ? dropRes.案内テキスト : '参加賞GPを獲得！';
+
+      if (dropVisual) {
+        dropVisual.innerHTML = '';
+        if (dropRes.獲得パーツID) {
+          const droppedPart = this.パーツマスタ.find(p => p.パーツID === dropRes.獲得パーツID);
+          if (droppedPart) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 100;
+            canvas.height = 100;
+            dropVisual.appendChild(canvas);
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              const partType = droppedPart.種別 === '1' ? 'blade' : (droppedPart.種別 === '2' ? 'weight' : 'sole');
+              this.drawPartVisual(ctx, canvas.width, canvas.height, partType, droppedPart.パーツID);
+            }
+          }
+        }
+      }
 
       this.addChipExp();
     }
@@ -6378,20 +6477,20 @@ class GameApp {
     // セーブ保存
     localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
 
-    // 直接、リザルト画面表示 ＆ 事後シナリオ再生処理へ移行する（獲得したパーツIDを引数で渡す）
+    // リザルト画面表示へ移行
     this.showResultScreenAndPlayAfterScenario(winner, acquiredPartId);
   }
 
-  // リザルト画面への遷移 ＆ 事後会話シナリオの再生 ＆ パーツ獲得演出のポップアップ
+  // 新フロー：リザルト画面表示 ➔ ボタンでステージ背景へ切替 ➔ 事後会話シナリオ再生 ➔ 帰還
   private showResultScreenAndPlayAfterScenario(winner: 'player' | 'enemy' | 'draw', acquiredPartId: string | null) {
     this.changeScreen('result-screen');
     
-    // リザルト画面用BGMの再生 (勝敗共通ループ曲)
+    // リザルト画面用BGM再生
     this.snd.startResultsBGM();
     
     if (!this.selectedNpc) return;
 
-    // 初期化：ポップアップを一旦非表示に (パッケージ5)
+    // ドロップパネルとGPの初期化
     const dropPanel = document.querySelector('.result-drop-panel');
     if (dropPanel) dropPanel.classList.remove('pop-active');
 
@@ -6400,56 +6499,66 @@ class GameApp {
 
     const diff = Math.max(0, this.saveData.所持GP - this.prevJp);
 
-    // リザルト演出タイムライン
+    // JPカウントアップ ＆ ドロップパネルアニメーション
     setTimeout(() => {
-      // 1. JP獲得カウントアップ (パッケージ5)
       if (rewardJpEl && diff > 0) {
         let current = 0;
         this.resultJpIntervalId = setInterval(() => {
           current++;
           rewardJpEl.textContent = `+${current} JP`;
-          this.snd.playBleep(); // カチカチ音
+          this.snd.playBleep();
           if (current >= diff) {
             clearInterval(this.resultJpIntervalId);
             this.resultJpIntervalId = null;
           }
-        }, 120);
+        }, 80);
       }
 
-      // 2. ドロップパネルのバウンス出現 (パッケージ5)
       setTimeout(() => {
         if (dropPanel) {
           dropPanel.classList.add('pop-active');
-          this.playRewardGetSound(); // ピピピピロン！SE
+          this.playRewardGetSound();
         }
-      }, Math.max(200, diff * 120 + 50));
 
-    }, 600); // 画面シャッターが開ききった頃
+        // パーツ獲得があった場合、ド派手演出をリザルト上で発動
+        if (acquiredPartId) {
+          setTimeout(() => {
+            this.startPartGetPerformance(acquiredPartId, () => {});
+          }, 800);
+        }
+      }, Math.max(200, diff * 80 + 50));
 
-    const enemyId = this.selectedNpc.エネミーID;
-    const suffix = winner === 'player' ? 'win' : 'lose';
-    const scenarioId = `${enemyId}_after_${suffix}`;
-    const hasScenario = this.シナリオマスタ.some(s => s.シナリオID === scenarioId);
+    }, 400);
 
-    if (hasScenario) {
-      // 画面切り替え（シャッター）が落ち着くのを少し待ってから事後会話シナリオを再生
-      setTimeout(() => {
-        this.playScenario(scenarioId, () => {
-          // 事後会話シナリオをプレイヤーが読み終えた「その瞬間」に、ド派手なパーツ獲得演出を起動する！！！
-          if (acquiredPartId) {
-            this.startPartGetPerformance(acquiredPartId, () => {
-              // 獲得演出完了
-            });
+    // リザルト画面の決定ボタン（次へ）のイベント設定
+    const btnOk = document.getElementById('btn-result-ok') as HTMLButtonElement;
+    if (btnOk) {
+      btnOk.textContent = '次へ';
+      btnOk.onclick = () => {
+        const enemyId = this.selectedNpc!.エネミーID;
+        const stageId = this.selectedNpc!.登場ステージID;
+        const suffix = winner === 'player' ? 'win' : 'lose';
+        const scenarioId = `${enemyId}_after_${suffix}`;
+        const hasScenario = this.シナリオマスタ.some(s => s.シナリオID === scenarioId);
+
+        if (hasScenario) {
+          // ステージ固有の背景（例: st001_bg.webp）を適用して事後会話シナリオを再生！
+          const talkOverlay = document.getElementById('talk-overlay');
+          if (talkOverlay) {
+            talkOverlay.style.backgroundImage = `url('/images/bg/${stageId}_bg.webp')`;
+            talkOverlay.style.backgroundSize = 'cover';
+            talkOverlay.style.backgroundPosition = 'center';
           }
-        });
-      }, 550);
-    } else {
-      // 事後シナリオがない通常NPCなどの場合：リザルト画面に入った直後（少し待って）にパーツ獲得演出を起動
-      if (acquiredPartId) {
-        setTimeout(() => {
-          this.startPartGetPerformance(acquiredPartId, () => {});
-        }, 1500); // カウントアップとポップアップ出現が終わった後に起動
-      }
+
+          this.playScenario(scenarioId, () => {
+            // 会話終了後はステージ選択画面へ復帰
+            this.changeScreen('stage-screen');
+          });
+        } else {
+          // 会話シナリオがない場合はそのままステージ画面へ復帰
+          this.changeScreen('stage-screen');
+        }
+      };
     }
   }
 
@@ -7199,6 +7308,30 @@ class GameApp {
         return;
       }
 
+      // プロローグ専用の背景制御
+      const talkOverlay = document.getElementById('talk-dialog');
+      if (talkOverlay) {
+        if (scenarioId === 'prologue_narration') {
+          talkOverlay.classList.add('prologue-narration-mode');
+          talkOverlay.style.backgroundImage = "url('/images/bg/prologue_bg.webp')";
+          talkOverlay.style.backgroundSize = "100% 100%";
+          talkOverlay.style.backgroundPosition = "center";
+          talkOverlay.style.backgroundRepeat = "no-repeat";
+        } else if (scenarioId === 'prologue_intro' || scenarioId === 'prologue_naby_talk') {
+          talkOverlay.classList.remove('prologue-narration-mode');
+          talkOverlay.style.backgroundImage = "url('/images/bg/ガレージ.webp')";
+          talkOverlay.style.backgroundSize = "cover";
+          talkOverlay.style.backgroundPosition = "center";
+          talkOverlay.style.backgroundRepeat = "no-repeat";
+        } else {
+          talkOverlay.classList.remove('prologue-narration-mode');
+          talkOverlay.style.backgroundImage = '';
+          talkOverlay.style.backgroundSize = '';
+          talkOverlay.style.backgroundPosition = '';
+          talkOverlay.style.backgroundRepeat = '';
+        }
+      }
+
       const avatarLeft = document.getElementById('talk-avatar-left');
       const avatarRight = document.getElementById('talk-avatar-right');
 
@@ -7319,18 +7452,26 @@ class GameApp {
     const dialog = document.getElementById('talk-dialog');
     if (dialog) dialog.classList.add('active');
 
-    // 会話開始時、背後の画面をフェードアウトさせるために in-talk クラスを付与
+    // 会話開始時、背後の画面をフェードアウトさせ、すべてのシステムUI（ヘッダー・ボタン等）を完全に非表示化
     const uiContainer = document.getElementById('ui-container');
     if (uiContainer) uiContainer.classList.add('in-talk');
+
+    const systemUiTargets = document.querySelectorAll('.location-header, .location-actions, #garage-menu-container, .screen-header, #map-header');
+    systemUiTargets.forEach(el => el.classList.add('scenario-ui-hidden'));
 
     this.renderCurrentTalk();
   }
 
-    private renderCurrentTalk() {
+  private renderCurrentTalk() {
     if (this.currentTalkIndex >= this.talkQueue.length) {
       document.getElementById('talk-dialog')?.classList.remove('active');
       const uiContainer = document.getElementById('ui-container');
       if (uiContainer) uiContainer.classList.remove('in-talk');
+
+      // 会話終了時、システムUIを完全復元
+      const systemUiTargets = document.querySelectorAll('.scenario-ui-hidden');
+      systemUiTargets.forEach(el => el.classList.remove('scenario-ui-hidden'));
+
       if (this.talkOnCompleteAll) {
         const cb = this.talkOnCompleteAll;
         this.talkOnCompleteAll = null; // 実行前にnullクリア

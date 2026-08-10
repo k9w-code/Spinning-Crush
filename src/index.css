@@ -654,48 +654,75 @@ body, html {
   color: var(--color-neon-pink);
 }
 
-/* パーツ選択ドロワー */
+/* 会話演出用オーバーレイ (下の画面の透けバグを完全防止) */
+.talk-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(5, 7, 14, 0.96) !important;
+  backdrop-filter: blur(12px) !important;
+  z-index: 9000 !important;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.talk-overlay.active {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* パーツ選択ドロワー (下部ポップアップレイアウトの正常化) */
 .inventory-drawer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 420px; /* 380pxから420pxへ拡張して視認性アップ */
-  background: rgba(10, 11, 16, 0.98);
-  border-top: 2px solid var(--color-neon-blue);
-  z-index: 100;
-  padding: 20px 30px;
-  display: flex;
-  flex-direction: column;
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100vw !important;
+  max-width: 100% !important;
+  height: 400px !important;
+  background: rgba(6, 10, 20, 0.98) !important;
+  border-top: 3px solid var(--color-neon-blue) !important;
+  box-shadow: 0 -10px 35px rgba(0, 243, 255, 0.3) !important;
+  backdrop-filter: blur(20px) !important;
+  z-index: 9999 !important;
+  padding: 12px 24px 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
   transform: translateY(100%);
-  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-  box-shadow: 0 -10px 35px rgba(0, 0, 0, 0.85);
+  transition: transform 0.35s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+  box-sizing: border-box !important;
 }
 
 .inventory-drawer.active {
-  transform: translateY(0);
+  transform: translateY(0) !important;
 }
 
 .drawer-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
 }
 
 .drawer-header h4 {
   font-family: var(--font-hud);
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   color: var(--color-neon-blue);
+  margin: 0;
 }
 
 .inventory-items-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); /* 自動折り返しでカード幅をゆったり確保 */
-  gap: 15px;
-  height: 310px; /* 高さを明示的に固定し、Flexboxバグによるカード潰れを100%防止 */
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 12px;
+  flex: 1;
   overflow-y: auto;
-  padding: 4px 4px 15px;
+  padding: 4px 6px 15px;
+  box-sizing: border-box;
 }
 
 .inventory-card {
@@ -1702,6 +1729,49 @@ body, html {
   pointer-events: auto;
 }
 
+/* プロローグ ナレーション専用レイアウト（中央配置＆枠線被り完全防止） */
+.talk-overlay.prologue-narration-mode {
+  background-image: url('/images/bg/prologue_bg.webp') !important;
+  background-size: 100% 100% !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.talk-overlay.prologue-narration-mode .talk-avatars-container {
+  display: none !important;
+}
+
+.talk-overlay.prologue-narration-mode .talk-box {
+  position: relative;
+  bottom: auto;
+  left: auto;
+  transform: none;
+  width: 80%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 35px 45px;
+  background: rgba(8, 10, 18, 0.88);
+  border: 1.5px solid rgba(0, 243, 255, 0.5);
+  box-shadow: 0 0 35px rgba(0, 243, 255, 0.35);
+  backdrop-filter: blur(10px);
+  text-align: center;
+}
+
+.talk-overlay.prologue-narration-mode .talk-speaker {
+  display: none !important;
+}
+
+.talk-overlay.prologue-narration-mode .talk-text {
+  font-size: 1.25rem;
+  line-height: 1.8;
+  font-weight: 500;
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+}
+
 .talk-box {
   background: rgba(10, 11, 16, 0.96);
   border: 1.5px solid var(--color-neon-blue);
@@ -2251,50 +2321,86 @@ body, html {
   100% { opacity: 1.0; box-shadow: 0 0 12px rgba(255, 0, 85, 0.9); }
 }
 
-/* 2. インベントリドロワーのサイバーカード化 (文字潰れ解消 ＆ UI/UX向上パッケージ) */
+/* 2. インベントリドロワーのサイバーカード化 (1列に4個配置 ＆ 画像とテキストの完全分離) */
 .inventory-drawer {
-  background: rgba(6, 10, 20, 0.96) !important;
+  background: rgba(6, 10, 20, 0.98) !important;
   border-top: 3px solid var(--color-neon-blue) !important;
   box-shadow: 0 -10px 35px rgba(0, 243, 255, 0.25) !important;
   backdrop-filter: blur(25px) !important;
 }
 
+.inventory-items-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+  gap: 12px !important;
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 4px 6px 20px !important;
+}
+
 .inventory-item {
   background: rgba(255, 255, 255, 0.03) !important;
-  border: 1px solid rgba(0, 243, 255, 0.18) !important;
+  border: 1px solid rgba(0, 243, 255, 0.2) !important;
   border-radius: 10px !important;
-  padding: 10px !important;
-  min-height: 90px !important;
+  padding: 10px 12px !important;
+  min-height: 135px !important;
+  max-height: 145px !important;
   display: flex !important;
-  flex-direction: row !important; /* 横並びフレックスへ変更 */
+  flex-direction: row !important; /* 横並びレイアウトを強制 */
   align-items: center !important;
   gap: 12px !important;
-  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
   cursor: pointer;
   position: relative;
   overflow: hidden;
-  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  box-sizing: border-box !important;
 }
 
-.inventory-item .item-info {
+.inventory-item .item-visual,
+.inventory-item .item-visual-chip {
+  width: 110px !important;
+  height: 110px !important;
+  min-width: 110px !important;
+  min-height: 110px !important;
+  background: rgba(8, 14, 28, 0.85) !important;
+  border: 2px solid rgba(0, 243, 255, 0.4) !important;
+  border-radius: 50% !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  margin: 0 !important;
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.25), inset 0 0 15px rgba(0, 243, 255, 0.15) !important;
+}
+
+.inventory-item .item-visual canvas,
+.inventory-item .item-visual-chip canvas {
+  width: 100px !important;
+  height: 100px !important;
+  border-radius: 50% !important;
+  display: block !important;
+}
+
+.inventory-item .item-info,
+.inventory-item .item-info-chip {
   display: flex !important;
   flex-direction: column !important;
   flex: 1 !important;
   min-width: 0 !important;
   justify-content: center !important;
+  text-align: left !important;
 }
 
-.inventory-item .item-visual {
-  width: 50px !important;
-  height: 50px !important;
-  background: rgba(10, 12, 20, 0.6) !important;
-  border: 1px solid rgba(0, 243, 255, 0.25) !important;
-  border-radius: 6px !important;
-  box-shadow: 0 0 8px rgba(0, 243, 255, 0.1) inset !important;
-  flex-shrink: 0 !important;
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
+.inventory-item .item-name {
+  font-family: var(--font-hud) !important;
+  font-size: 0.86rem !important;
+  font-weight: 800 !important;
+  color: #fff !important;
+  text-shadow: 0 0 6px rgba(255,255,255,0.15) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  margin: 0 0 2px 0 !important;
 }
 
 /* ホログラム詳細展示台座 */
@@ -3776,29 +3882,45 @@ body, html {
 }
 
 #shop-screen {
-  background-image: url('./images/bg/ショップ.jpeg'), url('./images/bg/ショップ.webp'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%) !important;
+  background-image: url('/images/bg/ショップ.jpeg'), url('/images/bg/ショップ.webp'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%) !important;
   background-size: cover !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
 }
 
 #map-screen {
-  background-image: radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background-image: url('/images/bg/バトルマップ.webp'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
 }
 
 #stage-screen {
-  background-image: url('./images/bg/bg_park.webp'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%);
+  background-image: url('/images/bg/st001_stadium.webp'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   transition: background-image 0.4s ease;
 }
 
+.stage-name-text {
+  font-size: 1.6rem !important;
+  font-family: var(--font-hud) !important;
+  color: var(--color-neon-blue) !important;
+  font-weight: 900 !important;
+  text-shadow: 0 0 10px rgba(0, 243, 255, 0.5) !important;
+  line-height: 1.2 !important;
+}
+
+.stage-flavor-text {
+  font-size: 0.88rem !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-weight: 500 !important;
+  margin-top: 2px !important;
+}
+
 .town-map {
-  background-image: url('./images/bg/バトルマップ.webp') !important;
+  background-image: url('/images/bg/バトルマップ.webp') !important;
   background-size: 100% 100% !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
@@ -3807,15 +3929,14 @@ body, html {
 }
 
 #vs-screen {
-  background-image: url('./images/bg/st001_stadium.webp'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  transition: background-image 0.4s ease;
+  background-image: url('/images/bg/VS画面.webp'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
 }
 
 #battle-screen {
-  background-image: url('./images/bg/st001_stadium.webp'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%);
+  background-image: url('/images/bg/st001_stadium.webp'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -3823,10 +3944,10 @@ body, html {
 }
 
 #result-screen {
-  background-image: url('./images/bg/リザルト.webp'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background-image: url('/images/bg/リザルト画面.webp'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
 }
 
 /* インベントリドロワーの2カラム・スプリット構造 */
@@ -3847,19 +3968,70 @@ body, html {
   padding-right: 8px;
 }
 
-/* カスタムパーツ詳細パネル */
+/* ドロワーヘッダー＆閉じるボタン小型化 */
+.drawer-header {
+  margin-bottom: 8px !important;
+}
+
+#btn-close-drawer {
+  padding: 6px 16px !important;
+  font-size: 0.85rem !important;
+  font-weight: 800 !important;
+  border-radius: 6px !important;
+  min-height: 32px !important;
+  cursor: pointer !important;
+}
+
+/* カスタムパーツ詳細パネルのワンビュー化（スクロール完全追放） */
 .drawer-detail-panel {
-  width: 320px;
-  background: rgba(6, 12, 24, 0.65);
-  border: 1.5px solid rgba(0, 243, 255, 0.22);
-  border-radius: 8px;
-  padding: 15px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  overflow-y: auto;
-  box-shadow: 0 0 15px rgba(0, 243, 255, 0.05) inset;
-  backdrop-filter: blur(10px);
+  width: 380px !important;
+  background: rgba(6, 12, 24, 0.88) !important;
+  border: 1.5px solid rgba(0, 243, 255, 0.3) !important;
+  border-radius: 8px !important;
+  padding: 12px 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  overflow-y: hidden !important; /* スクロールバー削除 */
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.1) inset !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+.detail-header-info {
+  border-bottom: 1px dashed rgba(0, 243, 255, 0.3) !important;
+  padding-bottom: 3px !important;
+  margin-bottom: 2px !important;
+}
+
+.detail-title {
+  font-family: var(--font-hud) !important;
+  font-size: 1.05rem !important;
+  font-weight: 900 !important;
+  color: #fff !important;
+  text-shadow: 0 0 8px rgba(0, 243, 255, 0.4) !important;
+  margin: 0 0 2px 0 !important;
+}
+
+.detail-flavor-box {
+  margin-bottom: 2px !important;
+}
+
+.detail-flavor-text {
+  font-size: 0.76rem !important;
+  line-height: 1.35 !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  margin: 0 !important;
+}
+
+.detail-stats-bars h5 {
+  font-size: 0.75rem !important;
+  margin: 2px 0 3px 0 !important;
+  padding-left: 4px !important;
+}
+
+.detail-stat-row {
+  margin-bottom: 2px !important;
+  font-size: 0.78rem !important;
 }
 
 .detail-placeholder {
@@ -3955,46 +4127,255 @@ body, html {
 }
 
 .detail-stat-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.72rem;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  font-size: 0.8rem !important;
+  margin-bottom: 6px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 
-.detail-stat-row .stat-label {
-  width: 170px;
-  height: 170px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.item-visual-chip canvas {
-  width: 170px !important;
-  height: 170px !important;
-}
-
-.item-info-chip {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  text-align: left;
-}
-
-/* ステータスラベルの改行防止（改行バグの完全修正） */
 .detail-stat-row .stat-label {
   white-space: nowrap !important;
-  min-width: 75px !important;
-  font-family: var(--font-hud);
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: var(--color-neon-blue);
+  width: 70px !important;
+  min-width: 70px !important;
+  height: auto !important;
+  font-family: var(--font-hud) !important;
+  font-size: 0.82rem !important;
+  font-weight: 800 !important;
+  color: var(--color-neon-blue) !important;
+  text-align: left !important;
 }
 
-/* 不要なカード右上絶対配置テキストの削除 */
-.inventory-card .stat-diff {
-  position: static !important;
-  top: auto !important;
-  right: auto !important;
+.detail-stat-row .stat-bar-outer {
+  flex: 1 !important;
+  height: 8px !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+  margin: 0 6px !important;
+}
+
+.detail-stat-row .stat-bar-inner {
+  height: 100% !important;
+  background: linear-gradient(90deg, #00f3ff, #39ff14) !important;
+  box-shadow: 0 0 8px rgba(0, 243, 255, 0.5) !important;
+  border-radius: 4px !important;
+}
+
+.detail-stat-row .stat-value-num {
+  white-space: nowrap !important;
+  min-width: 85px !important;
+  text-align: right !important;
+  font-family: var(--font-hud) !important;
+  font-size: 0.82rem !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+}
+
+.detail-stat-row .stat-delta {
+  font-size: 0.78rem !important;
+  margin-left: 4px !important;
+}
+
+.detail-stat-row .stat-delta.plus { color: #39ff14 !important; }
+.detail-stat-row .stat-delta.minus { color: #ff0055 !important; }
+.detail-stat-row .stat-delta.zero { color: rgba(255, 255, 255, 0.4) !important; }
+
+/* パラメータの縦横の隙間・間伸び解消 */
+.parts-slots-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 10px !important;
+  margin-bottom: 12px !important;
+}
+
+.part-select-btn {
+  background: rgba(12, 18, 30, 0.85) !important;
+  border: 1px solid rgba(0, 243, 255, 0.25) !important;
+  border-radius: 8px !important;
+  padding: 8px 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  min-height: 64px !important;
+  transition: all 0.2s ease !important;
+}
+
+.part-select-btn:hover {
+  background: rgba(0, 243, 255, 0.12) !important;
+  border-color: rgba(0, 243, 255, 0.6) !important;
+  transform: translateY(-2px) !important;
+}
+
+.part-btn-canvas-wrap {
+  width: 54px !important;
+  height: 54px !important;
+  border-radius: 50% !important;
+  background: rgba(8, 14, 28, 0.9) !important;
+  border: 1.5px solid rgba(0, 243, 255, 0.4) !important;
+  box-shadow: 0 0 10px rgba(0, 243, 255, 0.3), inset 0 0 8px rgba(0, 243, 255, 0.2) !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+  overflow: hidden !important;
+}
+
+.part-btn-canvas-wrap canvas {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 50% !important;
+}
+
+.part-btn-header {
+  display: flex !important;
+  flex-direction: column !important;
+  text-align: left !important;
+}
+
+.part-btn-header .part-type {
+  font-size: 0.72rem !important;
+  color: rgba(0, 243, 255, 0.75) !important;
+  font-family: var(--font-hud) !important;
+}
+
+.part-btn-header .part-name {
+  font-size: 0.92rem !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+}
+
+/* シミュレーションメーターの引き締め */
+.sim-stats-panel {
+  margin-top: 8px !important;
+}
+
+.lcd-meter-container {
+  gap: 6px !important; /* 12pxから6pxに引き締め */
+}
+
+.sim-stats-row {
+  gap: 8px !important;
+}
+
+/* シナリオ再生時のシステムUI隠蔽用 */
+.scenario-ui-hidden {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* 特大チップイラストホログラム鑑賞モーダル */
+#chip-zoom-modal {
+  z-index: 100000 !important;
+  background: rgba(3, 6, 14, 0.92) !important;
+  backdrop-filter: blur(25px) !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+#chip-zoom-modal.hidden {
+  display: none !important;
+}
+
+.chip-zoom-content {
+  background: rgba(10, 16, 30, 0.95);
+  border: 2px solid var(--color-neon-blue);
+  box-shadow: 0 0 45px rgba(0, 243, 255, 0.4), inset 0 0 25px rgba(0, 243, 255, 0.15);
+  border-radius: 16px;
+  padding: 28px 36px;
+  width: 90%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  animation: modal-hologram-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes modal-hologram-pop {
+  0% { transform: scale(0.7) translateY(30px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.chip-zoom-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  background: rgba(255, 0, 85, 0.15);
+  border: 1px solid rgba(255, 0, 85, 0.5);
+  color: #ff3377;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chip-zoom-close-btn:hover {
+  background: rgba(255, 0, 85, 0.35);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(255, 0, 85, 0.5);
+}
+
+.chip-zoom-visual {
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle at center, rgba(0, 243, 255, 0.15) 0%, rgba(5, 8, 16, 0.9) 75%);
+  border: 2px solid rgba(0, 243, 255, 0.4);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 10px 0 20px 0;
+  box-shadow: 0 0 35px rgba(0, 243, 255, 0.3);
+}
+
+#chip-zoom-canvas {
+  width: 260px !important;
+  height: 260px !important;
+  filter: drop-shadow(0 0 16px rgba(0, 243, 255, 0.6));
+}
+
+.chip-zoom-info {
+  text-align: center;
+  width: 100%;
+}
+
+.chip-zoom-title {
+  font-family: var(--font-hud);
+  font-size: 1.45rem;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 12px rgba(0, 243, 255, 0.6);
+  margin: 0 0 6px 0;
+}
+
+.chip-zoom-attr {
+  display: inline-block;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--color-neon-blue);
+  background: rgba(0, 243, 255, 0.12);
+  border: 1px solid rgba(0, 243, 255, 0.3);
+  padding: 3px 12px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.chip-zoom-desc {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: #d0e0ff;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px 16px;
+  text-align: left;
+  margin: 0;
 }

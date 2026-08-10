@@ -85,7 +85,7 @@
             
             <!-- カスタマイズプレビュー用 Canvas -->
             <div class="custom-preview-area">
-              <canvas id="custom-gear-canvas" width="220" height="220"></canvas>
+              <canvas id="custom-gear-canvas" width="280" height="280"></canvas>
             </div>
             
             <div class="parts-slots-grid">
@@ -94,28 +94,28 @@
                   <span class="part-type">バトルチップ</span>
                   <span class="part-name" id="equipped-chip-name">未装備</span>
                 </div>
-                <div class="part-btn-canvas-wrap"><canvas id="custom-slot-canvas-chip" width="60" height="60"></canvas></div>
+                <div class="part-btn-canvas-wrap"><canvas id="custom-slot-canvas-chip" width="75" height="75"></canvas></div>
               </button>
               <button class="part-select-btn" data-part-type="ブレード">
                 <div class="part-btn-header">
                   <span class="part-type">ブレード</span>
                   <span class="part-name" id="equipped-blade-name">未装備</span>
                 </div>
-                <div class="part-btn-canvas-wrap"><canvas id="custom-slot-canvas-blade" width="60" height="60"></canvas></div>
+                <div class="part-btn-canvas-wrap"><canvas id="custom-slot-canvas-blade" width="75" height="75"></canvas></div>
               </button>
               <button class="part-select-btn" data-part-type="ウェイト">
                 <div class="part-btn-header">
                   <span class="part-type">ウェイト</span>
                   <span class="part-name" id="equipped-weight-name">未装備</span>
                 </div>
-                <div class="part-btn-canvas-wrap"><canvas id="custom-slot-canvas-weight" width="60" height="60"></canvas></div>
+                <div class="part-btn-canvas-wrap"><canvas id="custom-slot-canvas-weight" width="75" height="75"></canvas></div>
               </button>
               <button class="part-select-btn" data-part-type="ソール">
                 <div class="part-btn-header">
                   <span class="part-type">ソール</span>
                   <span class="part-name" id="equipped-sole-name">未装備</span>
                 </div>
-                <div class="part-btn-canvas-wrap"><canvas id="custom-slot-canvas-sole" width="60" height="60"></canvas></div>
+                <div class="part-btn-canvas-wrap"><canvas id="custom-slot-canvas-sole" width="75" height="75"></canvas></div>
               </button>
             </div>
 
@@ -151,7 +151,7 @@
 
         <div class="navigation-menu">
           <button id="btn-custom-cancel" class="btn btn-secondary">戻る</button>
-          <button id="btn-custom-confirm" class="btn btn-primary">決定（アセンブル確定）</button>
+          <button id="btn-custom-confirm" class="btn btn-primary">確定</button>
         </div>
       </div>
 
@@ -534,6 +534,21 @@
           <h3 id="modal-title">システム通知</h3>
           <p id="modal-content">データをセーブしました。</p>
           <button id="btn-modal-close" class="btn btn-primary">閉じる</button>
+        </div>
+      </div>
+
+      <!-- 特大チップイラストホログラム鑑賞モーダル -->
+      <div id="chip-zoom-modal" class="modal-overlay hidden">
+        <div class="chip-zoom-content">
+          <button id="btn-chip-zoom-close" class="chip-zoom-close-btn">✕ 閉じる</button>
+          <div class="chip-zoom-visual">
+            <canvas id="chip-zoom-canvas" width="280" height="280"></canvas>
+          </div>
+          <div class="chip-zoom-info">
+            <h3 id="chip-zoom-title" class="chip-zoom-title">コズミック・ドラゴン</h3>
+            <div id="chip-zoom-attr" class="chip-zoom-attr">水属性バトルチップ</div>
+            <p id="chip-zoom-desc" class="chip-zoom-desc"></p>
+          </div>
         </div>
       </div>
 

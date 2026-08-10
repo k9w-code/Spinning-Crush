@@ -549,6 +549,12 @@ export class SoundManager {
   }
 
   // 各画面ごとのアセット音楽のトリガー (アセット未配置ならフォールバックで自動シンセ演奏または無音)
+  public startPrologueBGM() {
+    this.playExternalBGM('prologue.mp3').then(success => {
+      if (!success) this.startLobbyBGM_Synth();
+    });
+  }
+
   public startOpeningBGM() {
     this.playExternalBGM('opening.mp3').then(success => {
       if (!success) this.startLobbyBGM_Synth();
