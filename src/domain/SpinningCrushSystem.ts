@@ -91,6 +91,7 @@ export interface エネミーマスタ行 {
   登場ステージID: string;
   並び順: string;
   ボスフラグ: string; // "1" or "0"
+  チップレベル?: string;
   チップID: string;
   ブレードID: string;
   ウェイトID: string;

@@ -4952,7 +4952,7 @@ class GameApp {
       this.selectedNpc.ブレードID,
       this.selectedNpc.ウェイトID,
       this.selectedNpc.ソールID,
-      1,
+      Number(this.selectedNpc.チップレベル || 1),
       this.パーツマスタ,
       this.チップマスタ,
       this.奥義マスタ
