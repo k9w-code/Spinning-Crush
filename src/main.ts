@@ -6558,11 +6558,27 @@ class GameApp {
           }
 
           this.playScenario(scenarioId, () => {
-            // 会話終了後はステージ選択画面へ復帰
-            this.changeScreen('stage-screen');
+            // ボス戦勝利かつ初回クリア時、対応する幕間イベントシナリオ(interlude_01~06)を自動再生！
+            const isBoss = this.selectedNpc!.ボスフラグ === '1';
+            const interludeMap: { [st: string]: string } = {
+              'st001': 'interlude_01',
+              'st002': 'interlude_02',
+              'st003': 'interlude_03',
+              'st004': 'interlude_04',
+              'st005': 'interlude_05',
+              'st006': 'interlude_06'
+            };
+            const interludeId = isBoss && winner === 'player' ? interludeMap[stageId] : null;
+
+            if (interludeId && this.シナリオマスタ.some(s => s.シナリオID === interludeId)) {
+              this.playScenario(interludeId, () => {
+                this.changeScreen('stage-screen');
+              });
+            } else {
+              this.changeScreen('stage-screen');
+            }
           });
         } else {
-          // 会話シナリオがない場合はそのままステージ画面へ復帰
           this.changeScreen('stage-screen');
         }
       };
