@@ -1912,8 +1912,9 @@ class GameApp {
           cleanStatsHtml = `<span>HP: ${item.ライフ}</span><span>SPD: ${item.スピード}</span><span>RNG: ${item.レンジ}</span><span>MOB: ${item.モビリティ}</span>`;
         }
 
+        const rankNum = Number(item.ランク || 1);
         const card = document.createElement('div');
-        card.className = `inventory-item ${isEquipped ? 'equipped' : ''}`;
+        card.className = `inventory-item part-rank-${rankNum} ${isEquipped ? 'equipped' : ''}`;
         card.innerHTML = `
           <div class="item-visual"><canvas id="drawer-item-canvas-${item.パーツID}" width="120" height="120"></canvas></div>
           <div class="item-info">
