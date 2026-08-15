@@ -5010,8 +5010,8 @@ class GameApp {
     if (!this.battleManager) return;
 
     // 被弾ヒットストップ中はフレーム停止
-    if (this.battleHitStopFrames > 0) {
-      this.battleHitStopFrames--;
+    if (this.isHitStopped || this.battleHitStopFrames > 0) {
+      if (this.battleHitStopFrames > 0) this.battleHitStopFrames--;
       return;
     }
 
@@ -6041,6 +6041,14 @@ class GameApp {
         }
       }
       cutinOverlay.classList.add('active');
+
+      // 画面タップ・クリックでカットイン演出を一瞬でスキップ！
+      const skipCutin = () => {
+        cutinOverlay.classList.remove('active');
+        cutinOverlay.removeEventListener('click', skipCutin);
+      };
+      cutinOverlay.removeEventListener('click', skipCutin);
+      cutinOverlay.addEventListener('click', skipCutin, { once: true });
     }
 
     // 必殺エフェクト用パーティクルの生成
@@ -6277,6 +6285,10 @@ class GameApp {
       }
 
       this.clashOnComplete = () => {
+        // 激突被弾の瞬間にヒットストップ (0.08秒フリーズ) ＆ 大振動シェイクを発動！
+        this.triggerHitStop(0.08);
+        this.triggerScreenShake(is攻撃奥義 ? 15 : 8);
+
         // 激突完了の被弾瞬間に衝撃音を再生
         if (this.clashResultType === 'counter') {
           this.snd.playCounter();
@@ -6307,6 +6319,28 @@ class GameApp {
       console.error("resolveCombatResult error:", e);
       this.showSystemModal('エラー', 'ダメージ判定処理中にエラーが発生しました: ' + e.message);
     }
+  }
+
+  private isHitStopped: boolean = false;
+
+  private triggerHitStop(durationSec: number) {
+    if (this.isHitStopped) return;
+    this.isHitStopped = true;
+    setTimeout(() => {
+      this.isHitStopped = false;
+    }, durationSec * 1000);
+  }
+
+  private triggerScreenShake(intensity: number = 10) {
+    const arena = document.getElementById('battle-screen') || document.body;
+    if (!arena) return;
+    arena.style.transition = 'transform 0.04s ease-in-out';
+    const offsetX = (Math.random() - 0.5) * intensity * 2;
+    const offsetY = (Math.random() - 0.5) * intensity * 2;
+    arena.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+    setTimeout(() => {
+      arena.style.transform = 'translate(0px, 0px)';
+    }, 80);
   }
 
   // バトルの勝敗判定
