@@ -494,6 +494,15 @@ class GameApp {
       'アーサー（ステージ6）'
     ]);
 
+    // スタジアム画像のロード予約
+    ['st001', 'st002', 'st003', 'st004', 'st005', 'st006', 'st007'].forEach(st => {
+      const stImg = new Image();
+      stImg.src = `./images/bg/${st}_stadium.webp`;
+      stImg.onload = () => {
+        this.charaImages[`stadium_${st}`] = stImg;
+      };
+    });
+
     this.エネミーマスタ.forEach(e => {
       const imgId = (e as any).画像ID || e.イラストID || e.エネミー名;
       if (imgId) charNamesSet.add(imgId);
@@ -1762,13 +1771,7 @@ class GameApp {
       const nextPct = Math.min(100, (next / maxVal) * 100);
       const diffPct = Math.abs(nextPct - currPct);
 
-      // 短縮ラベル名
-      let shortLabel = 'HP';
-      if (key === 'アタック') shortLabel = 'ATK';
-      else if (key === 'ディフェンス') shortLabel = 'DEF';
-      else if (key === 'スピード') shortLabel = 'SPD';
-      else if (key === 'レンジ') shortLabel = 'RNG';
-      else if (key === 'モビリティ') shortLabel = 'MOB';
+      let shortLabel = key;
 
       const row = document.createElement('div');
       row.className = 'sim-stats-row';
@@ -2418,20 +2421,38 @@ class GameApp {
       const wins = this.saveData.勝利数[npc.エネミーID] || 0;
       const reqWins = Number(npc.クリア必要勝利数 || 3);
 
+      const charaKey = this.getCharaIllustKey(npc);
+      const bladeData = this.パーツマスタ.find(p => p.パーツID === npc.ブレードID);
+      const attr = bladeData ? bladeData.属性 : '無';
+
       card.className = `npc-card ${isBoss ? 'boss' : ''}`;
       card.innerHTML = `
-        <div class="npc-card-info">
-          <h4>${npc.エネミー名}${isBoss ? '<span class="npc-boss-badge">BOSS</span>' : ''}</h4>
-          <span style="font-size: 0.8rem; color: var(--color-text-sub);">登場ステージID: ${npc.登場ステージID} | 並び順: ${npc.並び順}</span>
+        <div class="npc-card-avatar" style="width:50px; height:50px; border-radius:8px; overflow:hidden; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; border:1px solid var(--color-neon-blue); flex-shrink:0;">
+          <img src="./images/chara/${charaKey}.png" onerror="this.onerror=null; this.src='./images/chara/${charaKey}.jpeg';" style="width:100%; height:100%; object-fit:cover;" />
+        </div>
+        <div class="npc-card-info" style="flex:1; margin-left:12px;">
+          <h4 style="margin:0; font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">
+            ${npc.エネミー名} ${isBoss ? '<span class="npc-boss-badge">BOSS</span>' : ''}
+            <span class="attr-badge attr-${attr}" style="font-size:0.75rem; padding:2px 6px; border-radius:4px;">${attr}</span>
+          </h4>
+          <span style="font-size: 0.8rem; color: var(--color-text-sub);">勝利数: ${wins} / ${reqWins}</span>
         </div>
         <div class="npc-win-status ${isCleared ? 'cleared' : ''}">
-          ${isCleared ? `[WIN] WIN (${wins}/${reqWins})` : `[VS] CHALLENGE (${wins}/${reqWins})`}
+          ${isCleared ? `WIN (${wins}/${reqWins})` : `CHALLENGE (${wins}/${reqWins})`}
         </div>
       `;
 
       card.addEventListener('click', () => {
         this.selectedNpc = npc;
         
+        // 対戦前会話の背景を必ずこのステージの背景画像にセット！
+        const talkOverlay = document.getElementById('talk-overlay');
+        if (talkOverlay) {
+          talkOverlay.style.backgroundImage = `url('/images/bg/${this.selectedStageId}_bg.webp')`;
+          talkOverlay.style.backgroundSize = 'cover';
+          talkOverlay.style.backgroundPosition = 'center';
+        }
+
         // バトル前フリートークセリフをマスタから取得 (eXXX_before または eXXX_btl)
         const foundSerifu = this.セリフマスタ.find(s => s.TEXT_ID === `${npc.エネミーID}_before` || s.TEXT_ID === `${npc.エネミーID}_btl`);
         const serifuContent = foundSerifu?.テキスト内容 || `「${npc.エネミー名}だよ！ギアバトル、全力で挑むからよろしくね！」`;
@@ -2658,10 +2679,10 @@ class GameApp {
     el.innerHTML = `
       <div class="vs-stat-item"><span>ライフ:</span> <span>${stats.ライフ}</span></div>
       <div class="vs-stat-item"><span>アタック:</span> <span>${stats.アタック}</span></div>
-      <div class="vs-stat-item"><span>防衛:</span> <span>${stats.ディフェンス}</span></div>
-      <div class="vs-stat-item"><span>速さ:</span> <span>${stats.スピード}</span></div>
-      <div class="vs-stat-item"><span>範囲:</span> <span>${stats.レンジ}</span></div>
-      <div class="vs-stat-item"><span>機動:</span> <span>${stats.モビリティ}</span></div>
+      <div class="vs-stat-item"><span>ディフェンス:</span> <span>${stats.ディフェンス}</span></div>
+      <div class="vs-stat-item"><span>スピード:</span> <span>${stats.スピード}</span></div>
+      <div class="vs-stat-item"><span>レンジ:</span> <span>${stats.レンジ}</span></div>
+      <div class="vs-stat-item"><span>モビリティ:</span> <span>${stats.モビリティ}</span></div>
     `;
   }
 
@@ -6819,9 +6840,17 @@ class GameApp {
 
     // GBA風「左右スプリット対面＆激突突進シーン」の描画判定
     if (this.battleManager.現在フェーズ === 'コマンド' || this.isClashAnimationActive || this.isOsugiCutinActive) {
-      // 1. 背景のクリアとネオングリッド線の描画
-      ctx.fillStyle = '#020306';
-      ctx.fillRect(0, 0, 800, 600);
+      // 1. スタジアム背景の描画
+      const stageId = this.selectedNpc ? this.selectedNpc.登場ステージID : 'st001';
+      const stadiumImg = this.charaImages[`stadium_${stageId}`] || this.charaImages['stadium_st001'];
+      if (stadiumImg && stadiumImg.complete && stadiumImg.naturalWidth > 0) {
+        ctx.drawImage(stadiumImg, 0, 0, 800, 600);
+        ctx.fillStyle = 'rgba(2, 3, 6, 0.45)'; // 技・キャラクターの視認性を保つ暗転オーバーレイ
+        ctx.fillRect(0, 0, 800, 600);
+      } else {
+        ctx.fillStyle = '#020306';
+        ctx.fillRect(0, 0, 800, 600);
+      }
 
       ctx.strokeStyle = 'rgba(0, 243, 255, 0.04)';
       ctx.lineWidth = 1;
@@ -7237,11 +7266,17 @@ class GameApp {
       return;
     }
 
-    // ----------------------------------------------------
     // 通常のリアルタイムスタジアム描画
-    // ----------------------------------------------------
-    ctx.fillStyle = '#05060b';
-    ctx.fillRect(0, 0, 800, 600);
+    const stageId = this.selectedNpc ? this.selectedNpc.登場ステージID : 'st001';
+    const stadiumImg = this.charaImages[`stadium_${stageId}`] || this.charaImages['stadium_st001'];
+    if (stadiumImg && stadiumImg.complete && stadiumImg.naturalWidth > 0) {
+      ctx.drawImage(stadiumImg, 0, 0, 800, 600);
+      ctx.fillStyle = 'rgba(5, 6, 11, 0.35)'; // 暗転オーバーレイでアリーナを引きたてる
+      ctx.fillRect(0, 0, 800, 600);
+    } else {
+      ctx.fillStyle = '#05060b';
+      ctx.fillRect(0, 0, 800, 600);
+    }
 
     const centerPointX = (pX + eX) / 2;
     const centerPointY = (pY + eY) / 2;

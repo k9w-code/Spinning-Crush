@@ -820,14 +820,14 @@ body, html {
 .lcd-meter-container {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
   width: 100%;
 }
 
 .sim-stats-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
 }
 
@@ -837,8 +837,9 @@ body, html {
   font-weight: 800;
   color: var(--color-neon-blue);
   text-shadow: 0 0 5px rgba(0, 243, 255, 0.3);
-  width: 35px;
+  width: 85px;
   text-align: left;
+  white-space: nowrap;
 }
 
 .sim-bar-container {
