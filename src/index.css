@@ -666,15 +666,14 @@ body, html {
   color: var(--color-neon-pink);
 }
 
-/* 会話演出用オーバーレイ (下の画面の透けバグを完全防止) */
+/* 会話演出用オーバーレイ */
 .talk-overlay {
   position: fixed !important;
   top: 0 !important;
   left: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
-  background: rgba(5, 7, 14, 0.96) !important;
-  backdrop-filter: blur(12px) !important;
+  background-color: rgba(5, 7, 14, 0.75);
   z-index: 9000 !important;
   opacity: 0;
   pointer-events: none;
@@ -1753,6 +1752,14 @@ body, html {
   justify-content: center;
 }
 
+/* プロローグ ガレージ会話専用背景（主人公＆ナビィの掛け合い） */
+.talk-overlay.prologue-garage-mode {
+  background-image: url('/images/bg/ガレージ.webp') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
 .talk-overlay.prologue-narration-mode .talk-avatars-container {
   display: none !important;
 }
@@ -2414,6 +2421,62 @@ body, html {
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   margin: 0 0 2px 0 !important;
+}
+/* チップ一覧カード専用スタイル（横長長方形＆テキスト改行防止＆特大サークル） */
+.inventory-items-grid.chip-grid-mode {
+  grid-template-columns: repeat(auto-fit, minmax(520px, 1fr)) !important;
+}
+
+.inventory-items-grid.chip-grid-mode .inventory-item.chip-card-item {
+  width: 100% !important;
+  max-width: 680px !important;
+  min-height: 145px !important;
+  padding: 14px 20px !important;
+  gap: 20px !important;
+  background: rgba(8, 16, 32, 0.8) !important;
+  border: 1.5px solid rgba(0, 243, 255, 0.4) !important;
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.18) !important;
+}
+
+.inventory-items-grid.chip-grid-mode .item-visual-chip {
+  width: 118px !important;
+  height: 118px !important;
+  min-width: 118px !important;
+  min-height: 118px !important;
+  border: 2px solid rgba(0, 243, 255, 0.5) !important;
+  border-radius: 50% !important;
+  background: radial-gradient(circle at center, rgba(0, 243, 255, 0.15) 0%, rgba(5, 8, 18, 0.9) 70%) !important;
+  box-shadow: 0 0 16px rgba(0, 243, 255, 0.3) !important;
+}
+
+.inventory-items-grid.chip-grid-mode .item-visual-chip canvas {
+  width: 112px !important;
+  height: 112px !important;
+  border-radius: 50% !important;
+  display: block !important;
+}
+
+.inventory-items-grid.chip-grid-mode .item-info-chip {
+  flex: 1 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  text-align: left !important;
+}
+
+.inventory-items-grid.chip-grid-mode .item-info-chip .item-name {
+  font-size: 1.25rem !important;
+  margin-bottom: 6px !important;
+  color: #fff !important;
+  text-shadow: 0 0 10px rgba(0, 243, 255, 0.6) !important;
+}
+
+.inventory-items-grid.chip-grid-mode .item-info-chip .item-flavor {
+  font-size: 0.9rem !important;
+  line-height: 1.55 !important;
+  color: rgba(220, 235, 255, 0.92) !important;
+  word-break: break-word !important;
 }
 
 /* ホログラム詳細展示台座 */

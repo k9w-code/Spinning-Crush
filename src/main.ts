@@ -1841,9 +1841,8 @@ class GameApp {
     if (!grid) return;
     grid.innerHTML = '';
 
-    // 所持している該当タイプのパーツ一覧を表示
-    // チップと他のパーツでマスタが分かれている
     if (type === 'チップ') {
+      grid.classList.add('chip-grid-mode');
       const list = this.チップマスタ.filter(c => this.saveData.インベントリ.includes(c.チップID));
       list.forEach(item => {
         const isEquipped = this.customGearSim.チップ === item.チップID;
@@ -1887,6 +1886,7 @@ class GameApp {
         this.showPartDetailInDrawer(list[0], 'チップ');
       }
     } else {
+      grid.classList.remove('chip-grid-mode');
       // パーツIDマッピング用の種別コード ("1": ブレード, "2": ウェイト, "3": ソール)
       const typeCode = type === 'ブレード' ? '1' : (type === 'ウェイト' ? '2' : '3');
       const list = this.パーツマスタ.filter(p => p.種別 === typeCode && this.saveData.インベントリ.includes(p.パーツID));
@@ -3961,9 +3961,8 @@ class GameApp {
       const neonColor = getAttributeColor(chipAttr);
 
       ctx.save();
-      ctx.translate(cx, cy);
-
-      const cardRadius = radius * 0.98;
+      // チップ表示時は外枠いっぱいに拡大してイラストを潰れずに美しく表示
+      const cardRadius = (size / 2) * 0.90;
       ctx.save();
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
@@ -7421,22 +7420,14 @@ class GameApp {
       if (talkOverlay) {
         if (scenarioId === 'prologue_narration') {
           talkOverlay.classList.add('prologue-narration-mode');
-          talkOverlay.style.backgroundImage = "url('/images/bg/prologue_bg.webp')";
-          talkOverlay.style.backgroundSize = "100% 100%";
-          talkOverlay.style.backgroundPosition = "center";
-          talkOverlay.style.backgroundRepeat = "no-repeat";
+          talkOverlay.classList.remove('prologue-garage-mode');
         } else if (scenarioId === 'prologue_intro' || scenarioId === 'prologue_naby_talk') {
           talkOverlay.classList.remove('prologue-narration-mode');
-          talkOverlay.style.backgroundImage = "url('/images/bg/ガレージ.webp')";
-          talkOverlay.style.backgroundSize = "cover";
-          talkOverlay.style.backgroundPosition = "center";
-          talkOverlay.style.backgroundRepeat = "no-repeat";
+          talkOverlay.classList.add('prologue-garage-mode');
         } else {
           talkOverlay.classList.remove('prologue-narration-mode');
+          talkOverlay.classList.remove('prologue-garage-mode');
           talkOverlay.style.backgroundImage = '';
-          talkOverlay.style.backgroundSize = '';
-          talkOverlay.style.backgroundPosition = '';
-          talkOverlay.style.backgroundRepeat = '';
         }
       }
 
