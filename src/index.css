@@ -4443,10 +4443,6 @@ body, html {
 }
 
 /* --- 画面トランジション（ディープフェード） --- */
-.screen {
-  opacity: 1;
-  transition: opacity 0.22s ease-in-out;
-}
 .screen.fade-out {
   opacity: 0 !important;
   pointer-events: none;
