@@ -1234,7 +1234,7 @@ body, html {
 #battle-screen {
   padding: 0 !important;
   overflow: hidden;
-  background-color: #05060b;
+  background: radial-gradient(circle at center, #0b1426 0%, #030508 100%) !important;
 }
 
 #main-battle-canvas {

@@ -4942,18 +4942,9 @@ class GameApp {
     this.changeScreen('battle-screen');
 
     const battleScreen = document.getElementById('battle-screen');
-    if (battleScreen && this.selectedNpc) {
-      let stadiumBg = `/images/bg/${this.selectedNpc.登場ステージID}_stadium.webp`;
-      
-      // 通信対戦(PvP)またはランダム対戦指定の場合、stadium1~3からランダム選出
-      if ((this as any).isPvPMode || (this.selectedNpc as any).isPvP) {
-        const randIndex = Math.floor(Math.random() * 3) + 1;
-        stadiumBg = `/images/bg/stadium${randIndex}.webp`;
-      }
-
-      battleScreen.style.backgroundImage = `url('${stadiumBg}'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%)`;
-      battleScreen.style.backgroundSize = 'cover';
-      battleScreen.style.backgroundPosition = 'center';
+    if (battleScreen) {
+      battleScreen.style.backgroundImage = 'radial-gradient(circle at center, rgba(16, 28, 54, 0.6) 0%, #030508 100%)';
+      battleScreen.style.backgroundColor = '#030508';
     }
     
     // バトル初期化
@@ -6845,7 +6836,12 @@ class GameApp {
       const stageId = this.selectedNpc ? this.selectedNpc.登場ステージID : 'st001';
       const stadiumImg = this.charaImages[`stadium_${stageId}`] || this.charaImages['stadium_st001'];
       if (stadiumImg && stadiumImg.complete && stadiumImg.naturalWidth > 0) {
-        ctx.drawImage(stadiumImg, 0, 0, 800, 600);
+        const imgAspect = stadiumImg.naturalWidth / stadiumImg.naturalHeight;
+        const arenaRatio = 1440 / 1400; // 元画像の微小な比率差を完全な真円に正規化
+        const drawH = 600;
+        const drawW = (drawH * imgAspect) / arenaRatio;
+        const drawX = (800 - drawW) / 2;
+        ctx.drawImage(stadiumImg, drawX, 0, drawW, drawH);
         ctx.fillStyle = 'rgba(2, 3, 6, 0.45)'; // 技・キャラクターの視認性を保つ暗転オーバーレイ
         ctx.fillRect(0, 0, 800, 600);
       } else {
@@ -7271,7 +7267,13 @@ class GameApp {
     const stageId = this.selectedNpc ? this.selectedNpc.登場ステージID : 'st001';
     const stadiumImg = this.charaImages[`stadium_${stageId}`] || this.charaImages['stadium_st001'];
     if (stadiumImg && stadiumImg.complete && stadiumImg.naturalWidth > 0) {
-      ctx.drawImage(stadiumImg, 0, 0, 800, 600);
+      // 16:9元画像を4:3キャンバスで横潰れさせず、アスペクト比を完全補正して真円として描画
+      const imgAspect = stadiumImg.naturalWidth / stadiumImg.naturalHeight;
+      const arenaRatio = 1440 / 1400; // 元画像の微小な比率差を完全な真円に正規化
+      const drawH = 600;
+      const drawW = (drawH * imgAspect) / arenaRatio;
+      const drawX = (800 - drawW) / 2;
+      ctx.drawImage(stadiumImg, drawX, 0, drawW, drawH);
       ctx.fillStyle = 'rgba(5, 6, 11, 0.35)'; // 暗転オーバーレイでアリーナを引きたてる
       ctx.fillRect(0, 0, 800, 600);
     } else {
