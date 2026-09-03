@@ -2315,8 +2315,9 @@ class GameApp {
       pinsContainer.appendChild(nodeEl);
     });
 
-    // マップ背景＆コネクションラインを描画
+    // マップ背景＆コネクションラインを描画 (即時＋レイアウト確定の次フレームで確実描画)
     this.renderMapBackground();
+    requestAnimationFrame(() => this.renderMapBackground());
   }
 
   private renderMapBackground() {

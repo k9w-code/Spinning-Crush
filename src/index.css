@@ -2098,7 +2098,7 @@ body, html {
 }
 
 .npc-avatar {
-  background-image: url('/images/chara/店員.png');
+  background-image: url('/images/chara/店長（ショップ）.jpeg');
   background-size: cover;
   background-position: center;
   position: relative;
@@ -4050,14 +4050,7 @@ body, html {
 }
 
 #shop-screen {
-  background-image: url('/images/bg/ショップ.jpeg'), url('/images/bg/ショップ.webp'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%) !important;
-  background-size: cover !important;
-  background-position: center !important;
-  background-repeat: no-repeat !important;
-}
-
-#map-screen {
-  background-image: url('/images/bg/バトルマップ.webp'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%) !important;
+  background-image: url('/images/bg/ショップ.webp'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%) !important;
   background-size: cover !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
