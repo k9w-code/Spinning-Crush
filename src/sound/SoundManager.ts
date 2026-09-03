@@ -464,45 +464,78 @@ export class SoundManager {
   // =================================================================
   private currentAudio: HTMLAudioElement | null = null;
   private targetBgmFilename: string = "";
+  private bgmRequestId: number = 0;
 
   private playExternalBGM(filename: string, loop: boolean = true): Promise<boolean> {
+    const reqId = ++this.bgmRequestId;
     this.targetBgmFilename = filename;
-    // 新しいBGMを要求された瞬間に、古い外部BGMの再生を即時完全停止する
+
+    // 新しいBGMが要求された瞬間に、既存の外部Audio・シンセBGMを完全に停止・破棄
     this.stopExternalAudio();
+    this.stopBGM();
 
     return new Promise((resolve) => {
-      this.stopBGM(); // 既存のシンセBGMを停止
-
       const audio = new Audio(`/sounds/${filename}`);
       audio.loop = loop;
       audio.volume = 0.45;
+      this.currentAudio = audio;
 
-      // エラー発生時のハンドラ (アセット未配置の場合はシンセ自動演奏に流す)
+      let hasResolved = false;
+
+      const cleanupHandlers = () => {
+        audio.onerror = null;
+        audio.oncanplaythrough = null;
+      };
+
+      // エラー発生時のハンドラ (アセット未配置等の場合のみシンセにフォールバック)
       audio.onerror = () => {
-        if (this.targetBgmFilename === filename) {
-          console.warn(`[SoundManager] BGM '/sounds/${filename}' not found. Fallback to Synth.`);
-          this.stopExternalAudio();
-          resolve(false);
-        } else {
-          resolve(false);
+        if (hasResolved) return;
+        hasResolved = true;
+        cleanupHandlers();
+
+        // 別のBGMが既に要求されている場合はフォールバック不要（重複再生防止）
+        if (this.bgmRequestId !== reqId || this.targetBgmFilename !== filename) {
+          try { audio.pause(); audio.src = ''; } catch (e) {}
+          resolve(true); // キャンセルされたためフォールバックシンセを発動させない
+          return;
         }
+
+        console.warn(`[SoundManager] BGM '/sounds/${filename}' not found. Fallback to Synth.`);
+        this.stopExternalAudio();
+        resolve(false);
       };
 
       audio.oncanplaythrough = () => {
-        if (this.targetBgmFilename !== filename) {
-          try {
-            audio.pause();
-          } catch (e) {}
-          resolve(false);
+        if (hasResolved) return;
+
+        // ロード完了までに別のBGMが要求されていたら即時破棄して終了
+        if (this.bgmRequestId !== reqId || this.targetBgmFilename !== filename) {
+          hasResolved = true;
+          cleanupHandlers();
+          try { audio.pause(); audio.src = ''; } catch (e) {}
+          resolve(true); // キャンセルされたためフォールバックシンセを発動させない
           return;
         }
-        this.stopExternalAudio();
-        this.currentAudio = audio;
+
+        hasResolved = true;
+        cleanupHandlers();
+        this.stopBGM(); // 万が一シンセが動いていれば完全停止
+
         audio.play().then(() => {
-          resolve(true);
+          if (this.bgmRequestId === reqId) {
+            resolve(true);
+          } else {
+            // 再生開始までに新しい要求が来ていたら即停止
+            try { audio.pause(); audio.src = ''; } catch (e) {}
+            resolve(true);
+          }
         }).catch(err => {
           console.warn("[SoundManager] Autoplay blocked or failed:", err);
-          resolve(false);
+          if (this.bgmRequestId === reqId) {
+            resolve(false);
+          } else {
+            resolve(true);
+          }
         });
       };
     });
@@ -512,6 +545,8 @@ export class SoundManager {
     if (this.currentAudio) {
       try {
         this.currentAudio.pause();
+        this.currentAudio.currentTime = 0;
+        this.currentAudio.src = '';
       } catch (e) {}
       this.currentAudio = null;
     }
@@ -661,6 +696,7 @@ export class SoundManager {
   }
 
   public stopAllBGM() {
+    this.bgmRequestId++;
     this.targetBgmFilename = "";
     this.stopBGM();
     this.stopExternalAudio();
@@ -670,6 +706,7 @@ export class SoundManager {
   // シンセサイザー自動演奏BGM (フォールバック用)
   // ==========================================
   private startBattleBGM_Synth() {
+    this.stopExternalAudio();
     this.initContext();
     this.resumeContext();
     if (!this.ctx) return;
@@ -762,6 +799,7 @@ export class SoundManager {
   }
 
   private startPinchBGM_Synth() {
+    this.stopExternalAudio();
     this.initContext();
     this.resumeContext();
     const ctx = this.ctx;
@@ -877,6 +915,7 @@ export class SoundManager {
   }
 
   private startLobbyBGM_Synth() {
+    this.stopExternalAudio();
     this.initContext();
     this.resumeContext();
     const ctx = this.ctx;

@@ -865,7 +865,7 @@ class GameApp {
     }
   }
 
-  private changeScreen(screenId: string) {
+  private changeScreen(screenId: string, options?: { skipBgm?: boolean }) {
     // 画面遷移時は必ず会話ロック(in-talk)を解除し、背面操作不能バグを防御
     const uiContainer = document.getElementById('ui-container');
     if (uiContainer) uiContainer.classList.remove('in-talk');
@@ -924,39 +924,41 @@ class GameApp {
         this.initShopScreen();
       }
 
-      // 各画面の切り替え時にBGMをフェード切り替え (パッケージ3)
-      if (screenId === 'title-screen') {
-        this.snd.startOpeningBGM();
-      } else if (screenId === 'map-screen') {
-        this.snd.startLobbyBGM();
-      } else if (screenId === 'garage-screen') {
-        this.snd.startGarageBGM();
-      } else if (screenId === 'custom-screen') {
-        this.snd.startCustomBGM();
-      } else if (screenId === 'stage-screen') {
-        this.snd.startStageSelectBGM();
-      } else if (screenId === 'vs-screen') {
-        this.snd.startStageSelectBGM();
-      } else if (screenId === 'shop-screen') {
-        this.snd.startShopBGM();
-      } else if (screenId === 'result-screen') {
-        // リザルト画面のBGMは勝敗に応じて個別開始するためここでは干渉しない
-      } else if (screenId === 'battle-screen') {
-        this.isPinchBgmActive = false;
-        const enemyId = this.selectedNpc?.エネミーID || "";
-        if (enemyId === 'e035') {
-          this.snd.startBattleBossBGM();
-        } else if (enemyId === 'e030') {
-          this.snd.startBattleStage6BGM();
-        } else if (enemyId === 'e025') {
-          this.snd.startBattleStage5BGM();
-        } else if (enemyId === 'e015') {
-          this.snd.startBattleStage4BGM();
+      // 各画面の切り替え時にBGMをフェード切り替え (skipBgm指定時は発火しない)
+      if (!options?.skipBgm) {
+        if (screenId === 'title-screen') {
+          this.snd.startOpeningBGM();
+        } else if (screenId === 'map-screen') {
+          this.snd.startLobbyBGM();
+        } else if (screenId === 'garage-screen') {
+          this.snd.startGarageBGM();
+        } else if (screenId === 'custom-screen') {
+          this.snd.startCustomBGM();
+        } else if (screenId === 'stage-screen') {
+          this.snd.startStageSelectBGM();
+        } else if (screenId === 'vs-screen') {
+          this.snd.startStageSelectBGM();
+        } else if (screenId === 'shop-screen') {
+          this.snd.startShopBGM();
+        } else if (screenId === 'result-screen') {
+          // リザルト画面のBGMは勝敗に応じて個別開始するためここでは干渉しない
+        } else if (screenId === 'battle-screen') {
+          this.isPinchBgmActive = false;
+          const enemyId = this.selectedNpc?.エネミーID || "";
+          if (enemyId === 'e035') {
+            this.snd.startBattleBossBGM();
+          } else if (enemyId === 'e030') {
+            this.snd.startBattleStage6BGM();
+          } else if (enemyId === 'e025') {
+            this.snd.startBattleStage5BGM();
+          } else if (enemyId === 'e015') {
+            this.snd.startBattleStage4BGM();
+          } else {
+            this.snd.startBattleBGM();
+          }
         } else {
-          this.snd.startBattleBGM();
+          this.snd.stopAllBGM();
         }
-      } else {
-        this.snd.stopAllBGM();
       }
 
       this.bindButtonHoverSound();
@@ -1015,20 +1017,18 @@ class GameApp {
       // 新規データを即時セーブ（ページ更新で消えるのを防止）
       localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
 
-      // ガレージデータとBGMの準備（画面遷移はプロローグ完了時に実施）
+      // ガレージ画面を背面に準備し（BGMはプロローグ専用BGMを鳴らすためskipBgm指定）
       this.isTransitioning = false;
       this.initGarageScreen();
-      this.changeScreen('garage-screen');
+      this.changeScreen('garage-screen', { skipBgm: true });
 
       this.snd.startPrologueBGM();
       // プロローグナレーション（黒サイバー背景 prologue_bg.webp）-> ガレージ覚悟モノローグ -> ナビィ会話のフル再生
       this.playScenario('prologue_narration', () => {
-        this.changeScreen('garage-screen');
+        // ナレーション終了後はそのままガレージ背景のモノローグへシームレスに突入（BGMを途切れさせない）
         this.playScenario('prologue_intro', () => {
           this.playScenario('prologue_naby_talk', () => {
-            // アセンブル画面へ強制遷移
-            this.currentScreenId = 'garage-screen';
-            this.snd.startGarageBGM();
+            // プロローグ全編終了後、アセンブル画面へ遷移
             this.editingSlotId = '1';
             this.customOriginScreen = 'garage-screen';
             this.changeScreen('custom-screen');
