@@ -1134,6 +1134,12 @@ class GameApp {
       this.changeScreen('shop-screen');
     });
 
+    window.addEventListener('resize', () => {
+      if (this.currentScreenId === 'map-screen') {
+        this.renderMapBackground();
+      }
+    });
+
     // ⑤ ステージ詳細画面
     document.getElementById('btn-stage-back')?.addEventListener('click', () => {
       this.changeScreen('map-screen');
@@ -2122,6 +2128,7 @@ class GameApp {
   }
 
   // --- ④ 全体マップ画面 ---
+  // --- ④ 全体マップ画面（近未来フルスクリーン・ワールドマップ） ---
   private initMapScreen() {
     const jpEl = document.getElementById('map-jp');
     if (jpEl) jpEl.textContent = this.saveData.所持GP.toString();
@@ -2130,120 +2137,256 @@ class GameApp {
     if (!pinsContainer) return;
     pinsContainer.innerHTML = '';
 
-    // ピンの位置マッピング
-    const pinPositions: { [key: string]: { x: number; y: number } } = {
-      'st001': { x: 150, y: 250 },
-      'st002': { x: 300, y: 150 },
-      'st003': { x: 450, y: 250 },
-      'st004': { x: 600, y: 150 },
-      'st005': { x: 720, y: 250 },
-      'st006': { x: 680, y: 90 },
-      'st007': { x: 530, y: 70 }
-    };
+    // 全ノード定義（自宅拠点、ショップ、Stage 01〜07）
+    const nodes = [
+      {
+        id: 'home',
+        type: 'home',
+        name: '自宅ガレージ',
+        sub: 'BASE',
+        xPct: 7,
+        yPct: 65,
+        iconSvg: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00f3ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'
+      },
+      {
+        id: 'shop',
+        type: 'shop',
+        name: 'ジャンクショップ',
+        sub: 'SHOP',
+        xPct: 15,
+        yPct: 32,
+        iconSvg: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffb700" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>'
+      },
+      {
+        id: 'st001',
+        type: 'stage',
+        name: 'アオバ・ストリート',
+        sub: 'STAGE 01',
+        xPct: 25,
+        yPct: 65,
+        reqStageId: ''
+      },
+      {
+        id: 'st002',
+        type: 'stage',
+        name: '地区予選アリーナ',
+        sub: 'STAGE 02',
+        xPct: 37,
+        yPct: 32,
+        reqStageId: 'st001'
+      },
+      {
+        id: 'st003',
+        type: 'stage',
+        name: 'エリア選手権',
+        sub: 'STAGE 03',
+        xPct: 49,
+        yPct: 65,
+        reqStageId: 'st002'
+      },
+      {
+        id: 'st004',
+        type: 'stage',
+        name: '全日本選手権ドーム',
+        sub: 'STAGE 04',
+        xPct: 61,
+        yPct: 32,
+        reqStageId: 'st003'
+      },
+      {
+        id: 'st005',
+        type: 'stage',
+        name: '欧州コロシアム',
+        sub: 'STAGE 05',
+        xPct: 73,
+        yPct: 65,
+        reqStageId: 'st004'
+      },
+      {
+        id: 'st006',
+        type: 'stage',
+        name: '世界選手権アリーナ',
+        sub: 'STAGE 06',
+        xPct: 84,
+        yPct: 32,
+        reqStageId: 'st005'
+      },
+      {
+        id: 'st007',
+        type: 'stage',
+        name: '旧街区ゼロスタジアム',
+        sub: 'EXTRA',
+        xPct: 93,
+        yPct: 68,
+        reqStageId: 'st006',
+        iconSvg: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff0055" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
+      }
+    ];
 
-    // ステージマスタからピンを生成
-    this.ステージマスタ.forEach(stage => {
-      const pos = pinPositions[stage.ステージID];
-      if (!pos) return;
-
-      // 解放条件チェック
+    nodes.forEach(node => {
       let isLocked = false;
-      if (stage.解放条件) {
-        isLocked = !this.saveData.ステージクリア状況[stage.解放条件];
+      let isCleared = false;
+      let isCurrent = false;
+
+      if (node.type === 'stage') {
+        if (node.reqStageId) {
+          isLocked = !this.saveData.ステージクリア状況[node.reqStageId];
+        }
+        isCleared = !!this.saveData.ステージクリア状況[node.id];
+        isCurrent = !isLocked && !isCleared;
       }
-      const isCleared = !!this.saveData.ステージクリア状況[stage.ステージID];
-      const isCurrent = !isLocked && !isCleared;
 
-      const pin = document.createElement('div');
-      pin.className = `map-pin ${isLocked ? 'locked' : ''} ${isCleared ? 'cleared' : ''} ${isCurrent ? 'current' : ''}`;
-      pin.style.left = `${pos.x - 24}px`;
-      pin.style.top = `${pos.y - 48}px`;
+      const nodeEl = document.createElement('div');
+      nodeEl.className = `map-node node-${node.type} ${isLocked ? 'node-locked' : ''} ${isCleared ? 'node-cleared' : ''} ${isCurrent ? 'node-current' : ''}`;
+      nodeEl.style.left = `${node.xPct}%`;
+      nodeEl.style.top = `${node.yPct}%`;
 
-      const inner = document.createElement('div');
-      inner.className = 'map-pin-inner';
-      inner.textContent = stage.ステージID.replace('st', ''); // "001"などの数字を表示
-      pin.appendChild(inner);
+      // サブラベル (例: STAGE 01 / BASE / SHOP)
+      const subEl = document.createElement('div');
+      subEl.className = 'map-node-sub';
+      subEl.textContent = node.sub;
+      nodeEl.appendChild(subEl);
 
-      // クリア済みのステージにCLEAREDバッジを付与
+      // バッジ本体
+      const badgeEl = document.createElement('div');
+      badgeEl.className = 'map-node-badge';
+
+      if (isLocked) {
+        // ロック中：薄い番号＋赤いセキュリティロックSVG
+        badgeEl.innerHTML = `
+          <span class="map-node-number" style="opacity:0.25;">${node.id.replace('st', '')}</span>
+          <div class="map-lock-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff0055" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+        `;
+      } else if (node.iconSvg) {
+        badgeEl.innerHTML = `<div class="map-node-icon">${node.iconSvg}</div>`;
+      } else {
+        badgeEl.innerHTML = `<span class="map-node-number">${node.id.replace('st', '')}</span>`;
+      }
+
+      // バッジ付属タグ (CLEARED / NEXT)
       if (isCleared) {
-        const badge = document.createElement('span');
-        badge.className = 'pin-cleared-badge';
-        badge.textContent = 'CLEARED';
-        pin.appendChild(badge);
+        const tag = document.createElement('div');
+        tag.className = 'map-cleared-tag';
+        tag.textContent = 'CLEAR';
+        badgeEl.appendChild(tag);
+      } else if (isCurrent) {
+        const tag = document.createElement('div');
+        tag.className = 'map-next-tag';
+        tag.textContent = 'NEXT';
+        badgeEl.appendChild(tag);
       }
 
-      if (!isLocked) {
-        pin.addEventListener('click', () => {
-          if (this.isTransitioning) return; // 遷移ロック中は処理を完全に拒否
-          this.selectedStageId = stage.ステージID;
+      nodeEl.appendChild(badgeEl);
+
+      // メイン名ラベル (例: アオバ・ストリート)
+      const nameEl = document.createElement('div');
+      nameEl.className = 'map-node-name';
+      nameEl.textContent = node.name;
+      nodeEl.appendChild(nameEl);
+
+      // クリックイベント
+      nodeEl.addEventListener('click', () => {
+        if (this.isTransitioning) return;
+
+        if (isLocked) {
+          this.snd.playBleep();
+          const reqStage = this.ステージマスタ.find(s => s.ステージID === node.reqStageId);
+          const reqName = reqStage ? reqStage.ステージ名 : '前ステージ';
+          this.showSystemModal('セキュリティロック', `『${reqName}』をクリアすると解放されます！`);
+          return;
+        }
+
+        if (node.id === 'home') {
+          this.changeScreen('garage-screen');
+        } else if (node.id === 'shop') {
+          this.changeScreen('shop-screen');
+        } else {
+          this.selectedStageId = node.id;
           this.initStageScreen();
           this.changeScreen('stage-screen');
-        });
-      } else {
-        pin.addEventListener('click', () => {
-          if (this.isTransitioning) return;
-          const reqStage = this.ステージマスタ.find(s => s.ステージID === stage.解放条件);
-          const reqName = reqStage ? reqStage.ステージ名 : '前ステージ';
-          this.showSystemModal('エリアロック', `『${reqName}』のボスを撃破すると解放されます！`);
-        });
-      }
+        }
+      });
 
-      pinsContainer.appendChild(pin);
+      pinsContainer.appendChild(nodeEl);
     });
 
-    // ジャンクショップピンの追加
-    const shopDiv = document.createElement('div');
-    shopDiv.className = 'map-pin shop-pin';
-    shopDiv.style.left = '376px'; // x = 400 - 24
-    shopDiv.style.top = '52px';  // y = 100 - 48
-    shopDiv.innerHTML = '<div class="map-pin-inner">🛒</div>';
-    shopDiv.style.background = '#ffd800';
-    shopDiv.style.borderColor = '#222';
-    shopDiv.addEventListener('click', () => {
-      if (this.isTransitioning) return;
-      this.changeScreen('shop-screen');
-    });
-    pinsContainer.appendChild(shopDiv);
-
-    // マップ背景を描画
+    // マップ背景＆コネクションラインを描画
     this.renderMapBackground();
   }
 
   private renderMapBackground() {
     this.mapCanvas = document.getElementById('map-canvas') as HTMLCanvasElement;
     if (!this.mapCanvas) return;
+    const wrapper = this.mapCanvas.parentElement;
+    if (!wrapper) return;
+
+    // wrapperの表示サイズを取得（0の場合はデフォルト値）
+    const width = wrapper.clientWidth || 1200;
+    const height = wrapper.clientHeight || 600;
+
+    const dpr = window.devicePixelRatio || 1;
+    this.mapCanvas.width = width * dpr;
+    this.mapCanvas.height = height * dpr;
+    this.mapCanvas.style.width = `${width}px`;
+    this.mapCanvas.style.height = `${height}px`;
+
     this.mapCtx = this.mapCanvas.getContext('2d');
     const ctx = this.mapCtx;
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, 800, 400);
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
 
-    // 1. 背景（サイバーブラック）
-    ctx.fillStyle = '#06070c';
-    ctx.fillRect(0, 0, 800, 400);
+    // 1. 背景：タクティカル電脳グラデーション
+    const bgGrad = ctx.createRadialGradient(width * 0.5, height * 0.5, 60, width * 0.5, height * 0.5, width * 0.75);
+    bgGrad.addColorStop(0, '#0a1426');
+    bgGrad.addColorStop(1, '#03060c');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, width, height);
 
-    // 2. 電脳グリッドの描画 (SFビジュアル)
-    ctx.strokeStyle = 'rgba(0, 243, 255, 0.04)';
+    // 2. 電脳グリッド描画
+    ctx.strokeStyle = 'rgba(0, 243, 255, 0.035)';
     ctx.lineWidth = 1;
-    const gridSize = 40;
-    for (let x = 0; x < 800; x += gridSize) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 400); ctx.stroke();
+    const gridSize = 48;
+    for (let x = 0; x < width; x += gridSize) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
     }
-    for (let y = 0; y < 400; y += gridSize) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(800, y); ctx.stroke();
+    for (let y = 0; y < height; y += gridSize) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
     }
 
-    const pinPositions: { [key: string]: { x: number; y: number } } = {
-      'st001': { x: 150, y: 250 },
-      'st002': { x: 300, y: 150 },
-      'st003': { x: 450, y: 250 },
-      'st004': { x: 600, y: 150 },
-      'st005': { x: 720, y: 250 },
-      'st006': { x: 680, y: 90 },
-      'st007': { x: 530, y: 70 }
+    // タクティカル同心円（SF作戦司令ホログラム）
+    ctx.strokeStyle = 'rgba(0, 243, 255, 0.025)';
+    ctx.lineWidth = 1.5;
+    [width * 0.22, width * 0.44, width * 0.66].forEach(r => {
+      ctx.beginPath();
+      ctx.arc(width * 0.5, height * 0.5, r, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+
+    // 3. 各ノードの座標マッピング（実ピクセル）
+    const nodeCoords: { [key: string]: { x: number; y: number } } = {
+      'home': { x: width * 0.07, y: height * 0.65 },
+      'shop': { x: width * 0.15, y: height * 0.32 },
+      'st001': { x: width * 0.25, y: height * 0.65 },
+      'st002': { x: width * 0.37, y: height * 0.32 },
+      'st003': { x: width * 0.49, y: height * 0.65 },
+      'st004': { x: width * 0.61, y: height * 0.32 },
+      'st005': { x: width * 0.73, y: height * 0.65 },
+      'st006': { x: width * 0.84, y: height * 0.32 },
+      'st007': { x: width * 0.93, y: height * 0.68 }
     };
 
     const connections = [
+      { from: 'home', to: 'shop' },
+      { from: 'home', to: 'st001' },
+      { from: 'shop', to: 'st001' },
       { from: 'st001', to: 'st002' },
       { from: 'st002', to: 'st003' },
       { from: 'st003', to: 'st004' },
@@ -2252,18 +2395,19 @@ class GameApp {
       { from: 'st006', to: 'st007' }
     ];
 
-    // 3. 道の動的色分け描画 (進行度連動)
+    // 4. コネクションライン描画
     connections.forEach(conn => {
-      const fromPos = pinPositions[conn.from];
-      const toPos = pinPositions[conn.to];
+      const fromPos = nodeCoords[conn.from];
+      const toPos = nodeCoords[conn.to];
       if (!fromPos || !toPos) return;
 
-      const fromCleared = !!this.saveData.ステージクリア状況[conn.from];
-      
-      const toStage = this.ステージマスタ.find(s => s.ステージID === conn.to);
+      const fromCleared = conn.from === 'home' || conn.from === 'shop' || !!this.saveData.ステージクリア状況[conn.from];
       let toLocked = false;
-      if (toStage && toStage.解放条件) {
-        toLocked = !this.saveData.ステージクリア状況[toStage.解放条件];
+      if (conn.to.startsWith('st')) {
+        const stage = this.ステージマスタ.find(s => s.ステージID === conn.to);
+        if (stage && stage.解放条件) {
+          toLocked = !this.saveData.ステージクリア状況[stage.解放条件];
+        }
       }
 
       ctx.save();
@@ -2271,70 +2415,41 @@ class GameApp {
       ctx.moveTo(fromPos.x, fromPos.y);
       ctx.lineTo(toPos.x, toPos.y);
 
-      if (fromCleared) {
-        // クリア済み接続線：太いネオングリーン実線
+      if (fromCleared && !toLocked) {
+        // 通行可能・クリア済みルート：ネオングリーン実線 ＆ エネルギーグロー
         ctx.strokeStyle = '#39ff14';
-        ctx.lineWidth = 4.5;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#39ff14';
+        ctx.lineWidth = 4;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = 'rgba(57, 255, 20, 0.75)';
+        ctx.stroke();
+
+        // コアホワイトライン
+        ctx.beginPath();
+        ctx.moveTo(fromPos.x, fromPos.y);
+        ctx.lineTo(toPos.x, toPos.y);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.shadowBlur = 0;
         ctx.stroke();
       } else if (!toLocked) {
-        // 現在進行中の接続線：ネオンオレンジ点滅風の破線
-        ctx.strokeStyle = '#ffaa00';
+        // 現在挑戦中ルート：シアン破線
+        ctx.strokeStyle = '#00f3ff';
         ctx.lineWidth = 3;
-        ctx.setLineDash([6, 6]);
-        ctx.shadowBlur = 6;
-        ctx.shadowColor = '#ffaa00';
+        ctx.setLineDash([8, 8]);
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#00f3ff';
         ctx.stroke();
       } else {
-        // ロック中の接続線：細いダークグレーの破線
-        ctx.strokeStyle = '#2d313d';
-        ctx.lineWidth = 1.5;
+        // 未解放ルート：ダークスレートグレー破線
+        ctx.strokeStyle = 'rgba(50, 70, 100, 0.45)';
+        ctx.lineWidth = 2;
         ctx.setLineDash([4, 6]);
         ctx.stroke();
       }
       ctx.restore();
     });
 
-    // 4. ロックされているエリアの霧および電脳警告ラインの描画
-    const stages = ['st001', 'st002', 'st003', 'st004', 'st005', 'st006', 'st007'];
-    let firstLockedIdx = -1;
-    for (let i = 0; i < stages.length; i++) {
-      const sId = stages[i];
-      const stage = this.ステージマスタ.find(s => s.ステージID === sId);
-      if (stage && stage.解放条件) {
-        if (!this.saveData.ステージクリア状況[stage.解放条件]) {
-          firstLockedIdx = i;
-          break;
-        }
-      }
-    }
-
-    if (firstLockedIdx !== -1) {
-      const lockX = pinPositions[stages[firstLockedIdx]].x - 50;
-      
-      // 暗黒の電脳シールド
-      ctx.save();
-      ctx.fillStyle = 'rgba(10, 11, 16, 0.75)';
-      ctx.fillRect(lockX, 0, 800 - lockX, 400);
-
-      // 境界線ネオンレッド警告線
-      ctx.strokeStyle = '#ff0055';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(lockX, 0);
-      ctx.lineTo(lockX, 400);
-      ctx.stroke();
-
-      // 警告文字
-      ctx.fillStyle = '#ff0055';
-      ctx.font = 'bold 15px "Impact", "Outfit", sans-serif';
-      ctx.letterSpacing = '2px';
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = '#ff0055';
-      ctx.fillText("LOCKED AREA", lockX + 25, 30);
-      ctx.restore();
-    }
+    ctx.restore();
   }
 
   // --- ⑤ ステージ詳細画面 ---

@@ -911,31 +911,44 @@ body, html {
   text-align: right;
 }
 
-/* ================== ④ 全体マップ画面 ================== */
-.map-view-container {
-  flex: 1;
-  background: var(--bg-glass);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
+/* ================== ④ ワールドマップ画面 ================== */
+#map-screen {
+  padding: 0 !important;
   overflow: hidden;
-  position: relative;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  background: radial-gradient(circle at 50% 50%, #0c1527 0%, #03060a 100%) !important;
+}
+
+#map-screen .screen-header {
+  padding: 16px 30px;
+  background: rgba(8, 14, 26, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0, 243, 255, 0.15);
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
 }
 
-.town-map {
+.world-map-wrapper {
   position: relative;
-  width: 95%;
-  max-width: 1200px;
-  aspect-ratio: 2 / 1;
-  margin: 0 auto;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(circle at center, rgba(16, 28, 54, 0.4) 0%, rgba(4, 7, 14, 0.95) 100%);
 }
 
 #map-canvas {
-  width: 100% !important;
-  height: 100% !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   display: block;
+  z-index: 1;
+  pointer-events: none;
 }
 
 #map-pins-container {
@@ -944,72 +957,254 @@ body, html {
   left: 0;
   width: 100%;
   height: 100%;
+  z-index: 2;
   pointer-events: none;
 }
 
-.map-pin {
+/* サイバー六角形ノード */
+.map-node {
   position: absolute;
-  width: 36px;
-  height: 36px;
-  background: radial-gradient(circle, var(--color-neon-blue) 0%, rgba(0, 243, 255, 0.4) 60%, transparent 100%);
-  border-radius: 50%;
+  width: 64px;
+  height: 64px;
+  transform: translate(-50%, -50%);
   cursor: pointer;
   pointer-events: auto;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  transform: translate(-50%, -50%);
-  transition: var(--transition-smooth);
-  box-shadow: var(--border-neon-blue);
-  animation: pin-pulse 2s infinite;
+  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.25s ease;
+  user-select: none;
 }
 
-.map-pin::before {
-  content: "";
-  width: 14px;
-  height: 14px;
-  background: #fff;
-  border-radius: 50%;
+.map-node:hover {
+  transform: translate(-50%, -50%) scale(1.18);
+  z-index: 20;
 }
 
-.map-pin:hover {
-  transform: translate(-50%, -50%) scale(1.3);
-  background: radial-gradient(circle, var(--color-neon-pink) 0%, rgba(255, 0, 127, 0.4) 60%, transparent 100%);
-  box-shadow: var(--border-neon-pink);
+.map-node-badge {
+  width: 56px;
+  height: 56px;
+  background: rgba(12, 18, 32, 0.9);
+  border: 2px solid var(--color-neon-blue);
+  border-radius: 14px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.35), inset 0 0 10px rgba(0, 243, 255, 0.2);
+  transition: all 0.25s ease;
+  position: relative;
+  backdrop-filter: blur(4px);
 }
 
-.map-pin-label {
+.map-node:hover .map-node-badge {
+  box-shadow: 0 0 25px rgba(0, 243, 255, 0.8), inset 0 0 15px rgba(0, 243, 255, 0.5);
+  border-color: #fff;
+}
+
+.map-node-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-node-number {
+  font-family: var(--font-hud);
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 8px rgba(0, 243, 255, 0.8);
+}
+
+/* ラベル表示 */
+.map-node-sub {
   position: absolute;
-  top: 40px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: -22px;
   white-space: nowrap;
   font-family: var(--font-hud);
+  font-size: 0.68rem;
   font-weight: 700;
-  font-size: 0.9rem;
-  background: rgba(10, 11, 16, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 4px 10px;
-  border-radius: 4px;
+  letter-spacing: 1px;
+  color: var(--color-neon-blue);
+  text-shadow: 0 0 6px rgba(0, 243, 255, 0.6);
+  pointer-events: none;
+}
+
+.map-node-name {
+  position: absolute;
+  bottom: -28px;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 700;
   color: #fff;
+  background: rgba(6, 11, 20, 0.92);
+  border: 1px solid rgba(0, 243, 255, 0.3);
+  padding: 3px 10px;
+  border-radius: 6px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  transition: all 0.2s ease;
+}
+
+.map-node:hover .map-node-name {
+  border-color: var(--color-neon-blue);
+  box-shadow: 0 0 12px rgba(0, 243, 255, 0.6);
+  color: var(--color-neon-blue);
+}
+
+/* ノード個別タイプ：自宅ガレージ */
+.map-node.node-home .map-node-badge {
+  border-color: #00f3ff;
+  background: radial-gradient(circle, rgba(0, 243, 255, 0.25) 0%, rgba(8, 16, 32, 0.95) 100%);
+  box-shadow: 0 0 18px rgba(0, 243, 255, 0.5);
+}
+.map-node.node-home .map-node-sub {
+  color: #00f3ff;
+}
+
+/* ノード個別タイプ：ジャンクショップ */
+.map-node.node-shop .map-node-badge {
+  border-color: #ffb700;
+  background: radial-gradient(circle, rgba(255, 183, 0, 0.25) 0%, rgba(28, 20, 8, 0.95) 100%);
+  box-shadow: 0 0 18px rgba(255, 183, 0, 0.5);
+}
+.map-node.node-shop .map-node-sub {
+  color: #ffb700;
+}
+.map-node.node-shop:hover .map-node-badge {
+  box-shadow: 0 0 25px rgba(255, 183, 0, 0.9);
+  border-color: #fff;
+}
+.map-node.node-shop:hover .map-node-name {
+  border-color: #ffb700;
+  color: #ffb700;
+}
+
+/* ノード個別タイプ：クリア済み */
+.map-node.node-cleared .map-node-badge {
+  border-color: #39ff14;
+  background: radial-gradient(circle, rgba(57, 255, 20, 0.2) 0%, rgba(6, 20, 10, 0.95) 100%);
+  box-shadow: 0 0 15px rgba(57, 255, 20, 0.4);
+}
+.map-node.node-cleared .map-node-number {
+  color: #39ff14;
+  text-shadow: 0 0 8px rgba(57, 255, 20, 0.8);
+}
+.map-node.node-cleared .map-node-sub {
+  color: #39ff14;
+}
+
+.map-cleared-tag {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background: #39ff14;
+  color: #030804;
+  font-family: var(--font-hud);
+  font-size: 0.58rem;
+  font-weight: 900;
+  padding: 1px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 8px rgba(57, 255, 20, 0.8);
   pointer-events: none;
 }
 
-.map-pin.locked {
-  filter: grayscale(1) opacity(0.3);
+/* ノード個別タイプ：現在進行中（NEXT） */
+.map-node.node-current .map-node-badge {
+  border-color: #ff0055;
+  background: radial-gradient(circle, rgba(255, 0, 85, 0.3) 0%, rgba(30, 8, 16, 0.95) 100%);
+  box-shadow: 0 0 22px rgba(255, 0, 85, 0.7);
+  animation: node-pulse 1.6s infinite alternate ease-in-out;
+}
+.map-node.node-current .map-node-number {
+  color: #fff;
+  text-shadow: 0 0 10px #ff0055;
+}
+.map-node.node-current .map-node-sub {
+  color: #ff0055;
+  text-shadow: 0 0 8px rgba(255, 0, 85, 0.8);
+}
+.map-node.node-current .map-node-name {
+  border-color: #ff0055;
+  color: #ff6699;
+}
+
+.map-next-tag {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background: #ff0055;
+  color: #fff;
+  font-family: var(--font-hud);
+  font-size: 0.62rem;
+  font-weight: 900;
+  padding: 1px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 10px rgba(255, 0, 85, 0.9);
+  animation: tag-blink 1.2s infinite ease-in-out;
   pointer-events: none;
 }
 
-.map-pin.shop-pin {
-  background: radial-gradient(circle, var(--color-neon-orange) 0%, rgba(255, 170, 0, 0.4) 60%, transparent 100%);
-  box-shadow: 0 0 10px rgba(255, 170, 0, 0.5);
-  animation: none;
+@keyframes node-pulse {
+  0% { transform: scale(0.96); box-shadow: 0 0 15px rgba(255, 0, 85, 0.5); }
+  100% { transform: scale(1.06); box-shadow: 0 0 28px rgba(255, 0, 85, 0.95); }
 }
 
-@keyframes pin-pulse {
-  0% { transform: translate(-50%, -50%) scale(1); }
-  50% { transform: translate(-50%, -50%) scale(1.15); }
-  100% { transform: translate(-50%, -50%) scale(1); }
+@keyframes tag-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* ノード個別タイプ：未解放（半透明グレーアウト ＆ 電脳ロック） */
+.map-node.node-locked {
+  opacity: 0.5;
+  filter: grayscale(0.85);
+}
+.map-node.node-locked .map-node-badge {
+  border-color: rgba(140, 160, 190, 0.3);
+  background: rgba(15, 20, 30, 0.8);
+  box-shadow: none;
+}
+.map-node.node-locked .map-node-number {
+  color: #718096;
+  text-shadow: none;
+}
+.map-node.node-locked .map-node-sub {
+  color: #718096;
+  text-shadow: none;
+}
+.map-node.node-locked .map-node-name {
+  background: rgba(10, 14, 22, 0.8);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #a0aec0;
+}
+
+.map-node.node-locked:hover {
+  opacity: 0.85;
+  filter: grayscale(0.2);
+  transform: translate(-50%, -50%) scale(1.1);
+}
+.map-node.node-locked:hover .map-node-badge {
+  border-color: #ff0055;
+  box-shadow: 0 0 18px rgba(255, 0, 85, 0.5);
+}
+.map-node.node-locked:hover .map-node-sub {
+  color: #ff0055;
+}
+
+.map-lock-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.3rem;
+  color: #ff0055;
+  filter: drop-shadow(0 0 6px rgba(255, 0, 85, 0.8));
+  pointer-events: none;
 }
 
 /* ================== ⑤ ステージ詳細画面 ================== */
@@ -3293,109 +3488,6 @@ body, html {
   border: 1px solid #555;
 }
 
-/* 3. マップ画面のステージピン */
-.map-pin {
-  position: absolute;
-  width: 48px;
-  height: 48px;
-  background: #ff5500;
-  border: 4px solid #fff;
-  border-radius: 50% 50% 50% 0;
-  transform: translate(-50%, -70%) rotate(-45deg);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-  cursor: pointer;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.map-pin:hover {
-  transform: translate(-50%, -70%) rotate(-45deg) scale(1.15);
-  box-shadow: 0 6px 15px rgba(255, 85, 0, 0.6);
-}
-
-.map-pin-inner {
-  transform: rotate(45deg); /* 文字の傾きを戻す */
-  font-family: var(--font-hud);
-  font-size: 1.1rem;
-  font-weight: 900;
-  color: #fff;
-  text-shadow: 1px 1px 0 #000;
-}
-
-.map-pin.cleared {
-  background: #39ff14 !important;
-  border-color: #fff !important;
-  box-shadow: 0 0 15px rgba(57, 255, 20, 0.6);
-}
-
-.map-pin.cleared:hover {
-  box-shadow: 0 0 25px rgba(57, 255, 20, 0.9);
-}
-
-.map-pin.current {
-  background: #ff0055 !important;
-  border-color: #fff !important;
-  box-shadow: 0 0 20px rgba(255, 0, 85, 0.7);
-  animation: pin-pulse 1.5s infinite alternate ease-in-out;
-}
-
-@keyframes pin-pulse {
-  0% {
-    transform: translate(-50%, -70%) rotate(-45deg) scale(0.95);
-    box-shadow: 0 0 10px rgba(255, 0, 85, 0.5);
-  }
-  100% {
-    transform: translate(-50%, -70%) rotate(-45deg) scale(1.08);
-    box-shadow: 0 0 25px rgba(255, 0, 85, 0.95);
-  }
-}
-
-.map-pin.current:hover {
-  animation: none;
-  transform: translate(-50%, -70%) rotate(-45deg) scale(1.15);
-  box-shadow: 0 0 30px rgba(255, 0, 85, 1.0);
-}
-
-.pin-cleared-badge {
-  position: absolute;
-  top: -24px;
-  left: 50%;
-  transform: translateX(-50%) rotate(45deg); /* 親の反転を打ち消す */
-  background: #39ff14;
-  color: #000;
-  font-family: var(--font-hud);
-  font-size: 0.55rem;
-  font-weight: 900;
-  padding: 2px 5px;
-  border-radius: 4px;
-  letter-spacing: 0.5px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-.map-pin.locked {
-  background: #252830 !important;
-  border-color: #4a5060 !important;
-  opacity: 0.65;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.map-pin.locked::after {
-  content: '🔒';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(45deg);
-  font-size: 1.1rem;
-}
-
-.map-pin.locked .map-pin-inner {
-  display: none;
-}
 
 /* ================== 会話立ち絵アバター・演出 (広告ブロック回避のためtalk-表記) ================== */
 .talk-overlay.flash-active {

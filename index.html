@@ -158,7 +158,7 @@
       <!-- ================= ④ 全体マップ画面 ================= -->
       <div id="map-screen" class="screen">
         <div class="screen-header">
-          <h2>バトルマップ</h2>
+          <h2>ワールドマップ</h2>
           <div style="display: flex; gap: 15px; align-items: center;">
             <div class="quick-nav-group" style="display: flex; gap: 10px;">
               <button id="nav-map-garage" class="btn btn-small btn-secondary">ガレージ</button>
@@ -169,19 +169,11 @@
           </div>
         </div>
         
-        <div class="map-view-container">
-          <!-- 街のイラスト背景とステージピンを配置 -->
-          <div class="town-map">
-            <!-- Canvasで雲や黒塗り霧、進捗に応じたピンを描画 -->
-            <canvas id="map-canvas" width="800" height="400"></canvas>
-            
-            <!-- DOMで重ね合わせるピン要素（動的制御） -->
-            <div id="map-pins-container"></div>
-          </div>
-        </div>
-
-        <div class="navigation-menu">
-          <button id="btn-map-to-garage" class="btn btn-secondary">自宅に戻る</button>
+        <div class="world-map-wrapper">
+          <!-- 背景演出およびエネルギーラインを描画するワイドキャンバス -->
+          <canvas id="map-canvas"></canvas>
+          <!-- DOMで配置されるサイバーノードコンテナ -->
+          <div id="map-pins-container"></div>
         </div>
       </div>
 
