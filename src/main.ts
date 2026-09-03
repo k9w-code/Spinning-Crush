@@ -3961,6 +3961,7 @@ class GameApp {
       const neonColor = getAttributeColor(chipAttr);
 
       ctx.save();
+      ctx.translate(cx, cy);
       // チップ表示時は外枠いっぱいに拡大してイラストを潰れずに美しく表示
       const cardRadius = (size / 2) * 0.90;
       ctx.save();
