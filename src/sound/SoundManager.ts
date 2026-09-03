@@ -7,7 +7,25 @@ export class SoundManager {
   private bgmVolume: number = 0.5;
   private seVolume: number = 0.8;
 
-  private constructor() {}
+  private constructor() {
+    // ユーザーの最初の操作（クリック/キー/タッチ）で自動再生ブロックを自然に解除するグローバルリスナー
+    const unlockAudio = () => {
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+      this.initContext();
+      this.resumeContext();
+      // もし保留中の外部BGMがあり、未再生なら再開
+      if (this.currentAudio && this.currentAudio.paused && this.targetBgmFilename) {
+        this.currentAudio.play().catch(() => {});
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('click', unlockAudio, { passive: true });
+      window.addEventListener('keydown', unlockAudio, { passive: true });
+      window.addEventListener('touchstart', unlockAudio, { passive: true });
+    }
+  }
 
   public static getInstance(): SoundManager {
     if (!SoundManager.instance) {
@@ -583,116 +601,65 @@ export class SoundManager {
     });
   }
 
-  // 各画面ごとのアセット音楽のトリガー (アセット未配置ならフォールバックで自動シンセ演奏または無音)
+  // 各画面ごとのアセット音楽のトリガー (純粋な外部MP3ファイルを確実に再生)
   public startPrologueBGM() {
-    this.playExternalBGM('prologue.mp3').then(success => {
-      if (!success) this.startLobbyBGM_Synth();
-    });
+    this.playExternalBGM('prologue.mp3');
   }
 
   public startOpeningBGM() {
-    this.playExternalBGM('opening.mp3').then(success => {
-      if (!success) this.startLobbyBGM_Synth();
-    });
+    this.playExternalBGM('opening.mp3');
   }
 
   public startLobbyBGM() {
-    this.playExternalBGM('lobby.mp3').then(success => {
-      if (!success) this.startLobbyBGM_Synth();
-    });
+    this.playExternalBGM('lobby.mp3');
   }
 
   public startGarageBGM() {
-    this.playExternalBGM('garage.mp3').then(success => {
-      if (!success) this.startLobbyBGM_Synth();
-    });
+    this.playExternalBGM('garage.mp3');
   }
 
   public startCustomBGM() {
-    this.playExternalBGM('custom.mp3').then(success => {
-      if (!success) this.startLobbyBGM_Synth();
-    });
+    this.playExternalBGM('custom.mp3');
   }
 
   public startStageSelectBGM() {
-    this.playExternalBGM('stage_select.mp3').then(success => {
-      if (!success) this.startLobbyBGM_Synth();
-    });
+    this.playExternalBGM('stage_select.mp3');
   }
 
   public startVsMatchBGM() {
-    this.playExternalBGM('vs_match.mp3', false).then(success => {
-      if (!success) this.startBattleBGM_Synth();
-    });
+    this.playExternalBGM('vs_match.mp3', false);
   }
 
   public startShopBGM() {
-    this.playExternalBGM('shop.mp3').then(success => {
-      if (!success) this.startLobbyBGM_Synth();
-    });
+    this.playExternalBGM('shop.mp3');
   }
 
-  // 通常バトル用BGM (アセット接続 ➔ フォールバックはCメジャー熱血シンセOP風)
   public startBattleBGM() {
-    this.playExternalBGM('battle_normal.mp3').then(success => {
-      if (!success) {
-        this.startBattleBGM_Synth();
-      }
-    });
+    this.playExternalBGM('battle_normal.mp3');
   }
 
-  // ステージ4（レン）専用バトル用BGM
   public startBattleStage4BGM() {
-    this.playExternalBGM('battle_stage4.mp3').then(success => {
-      if (!success) {
-        this.startBattleBGM_Synth();
-      }
-    });
+    this.playExternalBGM('battle_stage4.mp3');
   }
 
-  // ユリアン専用バトル用BGM
   public startBattleStage5BGM() {
-    this.playExternalBGM('battle_stage5.mp3').then(success => {
-      if (!success) {
-        this.startBattleBGM_Synth();
-      }
-    });
+    this.playExternalBGM('battle_stage5.mp3');
   }
 
-  // アーサー専用バトル用BGM
   public startBattleStage6BGM() {
-    this.playExternalBGM('battle_stage6.mp3').then(success => {
-      if (!success) {
-        this.startBattleBGM_Synth();
-      }
-    });
+    this.playExternalBGM('battle_stage6.mp3');
   }
 
-  // 隠しボス（店長）専用バトル用BGM
   public startBattleBossBGM() {
-    this.playExternalBGM('battle_boss.mp3').then(success => {
-      if (!success) {
-        this.startBattleBGM_Synth();
-      }
-    });
+    this.playExternalBGM('battle_boss.mp3');
   }
 
-  // リザルト画面用BGM (勝敗共通)
   public startResultsBGM() {
-    this.playExternalBGM('results.mp3').then(success => {
-      if (!success) {
-        this.startLobbyBGM_Synth();
-      }
-    });
+    this.playExternalBGM('results.mp3');
   }
 
-  // ピンチ用高速BGM (アセット接続 ➔ フォールバックはBPM165シンセ)
   public startPinchBGM() {
-    this.playExternalBGM('battle_pinch.mp3').then(success => {
-      if (!success) {
-        this.startPinchBGM_Synth();
-      }
-    });
+    this.playExternalBGM('battle_pinch.mp3');
   }
 
   public stopAllBGM() {
@@ -705,7 +672,7 @@ export class SoundManager {
   // ==========================================
   // シンセサイザー自動演奏BGM (フォールバック用)
   // ==========================================
-  private startBattleBGM_Synth() {
+  public startBattleBGM_Synth() {
     this.stopExternalAudio();
     this.initContext();
     this.resumeContext();
@@ -798,7 +765,7 @@ export class SoundManager {
     this.bgmIntervalId = setInterval(playStep, stepDuration * 1000);
   }
 
-  private startPinchBGM_Synth() {
+  public startPinchBGM_Synth() {
     this.stopExternalAudio();
     this.initContext();
     this.resumeContext();
@@ -914,7 +881,7 @@ export class SoundManager {
     this.bgmIntervalId = setInterval(playStep, stepDuration * 1000);
   }
 
-  private startLobbyBGM_Synth() {
+  public startLobbyBGM_Synth() {
     this.stopExternalAudio();
     this.initContext();
     this.resumeContext();
