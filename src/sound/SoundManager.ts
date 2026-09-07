@@ -104,7 +104,7 @@ export class SoundManager {
   }
 
   // キャッシュされたAudioBufferによる超低遅延・高ポリフォニー再生
-  public playSE(filename: string, volumeScale: number = 1.0): boolean {
+  public playSE(filename: string, volumeScale: number = 1.0, pitchVariance: number = 0): boolean {
     this.initContext();
     this.resumeContext();
     if (!this.ctx) return false;
@@ -114,6 +114,13 @@ export class SoundManager {
       try {
         const source = this.ctx.createBufferSource();
         source.buffer = buffer;
+
+        // ピッチランダマイズ（連続衝突時の機械的マシンガン感を消し、生の臨場感を創出）
+        if (pitchVariance > 0) {
+          const rate = 1.0 + (Math.random() * 2 - 1) * pitchVariance;
+          source.playbackRate.setValueAtTime(rate, this.ctx.currentTime);
+        }
+
         const gainNode = this.ctx.createGain();
         gainNode.gain.setValueAtTime(this.seVolume * volumeScale, this.ctx.currentTime);
         source.connect(gainNode);
@@ -149,7 +156,7 @@ export class SoundManager {
 
   // UI選択音 (心地よく抜けるピコッ音)
   public playBleep() {
-    if (this.playSE('se_bleep.wav', 0.5)) return;
+    if (this.playSE('se_bleep.wav', 0.45, 0.02)) return;
 
     this.initContext();
     this.resumeContext();
@@ -175,7 +182,7 @@ export class SoundManager {
 
   // UI決定音 / シャッター開閉音 (きらびやかなピシィーン音)
   public playClick() {
-    if (this.playSE('se_click.wav', 0.7)) return;
+    if (this.playSE('se_click.wav', 0.60, 0.02)) return;
 
     this.initContext();
     this.resumeContext();
@@ -210,7 +217,7 @@ export class SoundManager {
 
   // 通常ヒット音 / 被弾金属音 (カキィィン！という硬質で迫力のあるリアルな金属打撃音)
   public playHit() {
-    if (this.playSE('se_hit.wav', 0.9)) return;
+    if (this.playSE('se_hit.wav', 0.85, 0.05)) return;
 
     this.initContext();
     this.resumeContext();
@@ -273,7 +280,7 @@ export class SoundManager {
 
   // 防御/ガード金属音 (キィィン！という硬質シールド音)
   public playGuard() {
-    if (this.playSE('se_guard.wav', 0.85)) return;
+    if (this.playSE('se_guard.wav', 0.85, 0.04)) return;
 
     this.initContext();
     this.resumeContext();
@@ -304,7 +311,7 @@ export class SoundManager {
 
   // 回避/ドッジ風切り音 (シュッ！という高速回避音)
   public playDodge() {
-    if (this.playSE('se_dodge.wav', 0.8)) return;
+    if (this.playSE('se_dodge.wav', 0.80, 0.03)) return;
 
     this.initContext();
     this.resumeContext();
@@ -341,7 +348,7 @@ export class SoundManager {
 
   // 被弾/重ダメージ音 (ガツゥン！というヘビーインパクト)
   public playDamage() {
-    if (this.playSE('se_damage.wav', 0.95)) return;
+    if (this.playSE('se_damage.wav', 0.95, 0.04)) return;
 
     this.initContext();
     this.resumeContext();
@@ -368,7 +375,7 @@ export class SoundManager {
 
   // カウンター閃光撃砕音 (バシィィン！という強烈な反撃音)
   public playCounter() {
-    if (this.playSE('se_counter.wav', 0.9)) return;
+    if (this.playSE('se_counter.wav', 0.90, 0.03)) return;
 
     this.initContext();
     this.resumeContext();
@@ -397,7 +404,7 @@ export class SoundManager {
 
   // 激突大爆発音 (サチュレートされた歪み ＆ 腹に響く45Hzサブベースによるドズゥゥン音)
   public playExplosion() {
-    if (this.playSE('se_explosion.wav', 1.0)) return;
+    if (this.playSE('se_explosion.wav', 1.0, 0.02)) return;
 
     this.initContext();
     this.resumeContext();
@@ -460,7 +467,7 @@ export class SoundManager {
 
   // 奥義発動チャージ音 (ウワウワキュィィィン)
   public playOsugiCharge() {
-    if (this.playSE('se_charge.wav', 0.9)) return;
+    if (this.playSE('se_charge.wav', 0.85, 0)) return;
 
     this.initContext();
     this.resumeContext();
