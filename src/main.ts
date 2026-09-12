@@ -5794,6 +5794,8 @@ class GameApp {
 
       if (isOsugi && osugi) {
         this.triggerOsugiPerformance(osugi, 'プレイヤー', runAttack);
+      } else if (selectedDefOsugi) {
+        this.triggerOsugiPerformance(selectedDefOsugi, 'エネミー', runAttack);
       } else {
         runAttack();
       }
@@ -6084,7 +6086,7 @@ class GameApp {
   }
 
   // 奥義の聖獣召喚＆必殺エフェクト演出の実行
-  private triggerOsugiPerformance(_osugi: 奥義マスタ行, side: 'プレイヤー' | 'エネミー', onComplete: () => void) {
+  private triggerOsugiPerformance(_ougi: 奥義マスタ行, side: 'プレイヤー' | 'エネミー', onComplete: () => void) {
     if (!this.battleManager) {
       onComplete();
       return;
@@ -6113,24 +6115,72 @@ class GameApp {
     const cutinBox = cutinOverlay?.querySelector('.seiju-cutin-box') as HTMLElement;
 
     // 必殺技叫び演出データの生成
-    const osugiName = _osugi ? _osugi.奥義名 : '必殺奥義';
+    const ougiName = _ougi ? _ougi.奥義名 : '必殺奥義';
+    const ougiType = _ougi ? _ougi.奥義種別 : '1';
     const speakerName = side === 'プレイヤー' ? '主人公' : (this.selectedNpc ? this.selectedNpc.エネミー名 : 'エネミー');
+    const speakerId = side === 'プレイヤー' ? 'player' : (this.selectedNpc ? this.selectedNpc.エネミーID : '');
 
-    let shoutPhrase = "喰らえぇっ！";
-    if (side === 'プレイヤー') {
-      shoutPhrase = "行けぇぇッ！";
-    } else {
-      const eName = speakerName;
-      if (['イチカ', 'コトネ', 'メイ', 'クロエ', 'カレン', 'ジュリ', 'レイナ', 'シャルロット'].includes(eName)) {
-        shoutPhrase = "これで決めるよ！";
-      } else if (['ハルト', 'タイガ', 'ケンジ', 'シュン', 'テッペイ', 'シン', 'カズマ'].includes(eName)) {
-        shoutPhrase = "喰らいやがれ！";
-      } else if (['アーサー', 'カイト', 'トウヤ', 'レン', 'ラシード', 'カルロス', 'リー', 'ユリアン', 'タイラー', 'ジョナサン', 'ディラン'].includes(eName)) {
-        shoutPhrase = "見切れるか！";
-      } else if (eName.includes('店長')) {
-        shoutPhrase = "これぞ我が秘術！";
+    // セリフマスタから奥義種別ごとのセリフを検索 (例: player_c001_ougi_2 -> player_ougi_2 -> e001_ougi_2)
+    let shoutPhrase = "";
+    if (speakerId && this.セリフマスタ && this.セリフマスタ.length > 0) {
+      let specificTalk = null;
+      if (side === 'プレイヤー' && chipId) {
+        // 1. プレイヤーのチップ固有奥義セリフ (例: player_c001_ougi_2)
+        specificTalk = this.セリフマスタ.find(s => s.TEXT_ID === `player_${chipId}_ougi_${ougiType}`);
+      }
+      if (!specificTalk) {
+        // 2. キャラクター通常奥義セリフ (例: player_ougi_2, e001_ougi_2)
+        specificTalk = this.セリフマスタ.find(s => s.TEXT_ID === `${speakerId}_ougi_${ougiType}`);
+      }
+
+      if (specificTalk && specificTalk.テキスト内容) {
+        shoutPhrase = specificTalk.テキスト内容;
+      } else {
+        // 汎用奥義セリフフォールバック (例: e001_ougi, player_ougi)
+        const generalTalk = this.セリフマスタ.find(s => s.TEXT_ID === `${speakerId}_ougi`);
+        if (generalTalk && generalTalk.テキスト内容) {
+          shoutPhrase = generalTalk.テキスト内容;
+        }
       }
     }
+
+    // セリフマスタに見つからない場合の安全フォールバック（奥義種別に応じた叫び）
+    if (!shoutPhrase) {
+      if (side === 'プレイヤー') {
+        if (ougiType === '1') shoutPhrase = "行けぇぇッ！";
+        else if (ougiType === '2') shoutPhrase = "これで終わりだぁッ！";
+        else if (ougiType === '3') shoutPhrase = "耐えろ相棒！";
+        else if (ougiType === '4') shoutPhrase = "捉えられるか！";
+        else if (ougiType === '5') shoutPhrase = "そこだァッ！カウンター！";
+        else shoutPhrase = "行けぇぇッ！";
+      } else {
+        const eName = speakerName;
+        if (ougiType === '3') shoutPhrase = "防ぎ切ってみせる！";
+        else if (ougiType === '4') shoutPhrase = "捉えられるかな？";
+        else if (ougiType === '5') shoutPhrase = "甘い！そこだ！";
+        else if (ougiType === '2') shoutPhrase = "これで沈め！";
+        else {
+          if (['イチカ', 'コトネ', 'メイ', 'クロエ', 'カレン', 'ジュリ', 'レイナ', 'シャルロット'].includes(eName)) {
+            shoutPhrase = "これで決めるよ！";
+          } else if (['ハルト', 'タイガ', 'ケンジ', 'シュン', 'テッペイ', 'シン', 'カズマ'].includes(eName)) {
+            shoutPhrase = "喰らいやがれ！";
+          } else if (['アーサー', 'カイト', 'トウヤ', 'レン', 'ラシード', 'カルロス', 'リー', 'ユリアン', 'タイラー', 'ジョナサン', 'ディラン'].includes(eName)) {
+            shoutPhrase = "見切れるか！";
+          } else if (eName.includes('店長')) {
+            shoutPhrase = "これぞ我が秘術！";
+          } else {
+            shoutPhrase = "喰らえぇっ！";
+          }
+        }
+      }
+    }
+
+    const cleanPhrase = shoutPhrase.replace(/^[「『]|[」』]$/g, '').trim();
+
+    // 変数置換 ({奥義名}, {技名}, {チップ名}, {聖獣名})
+    const finalShout = cleanPhrase
+      .replace(/\{奥義名\}|\{技名\}|\$\{ougiName\}|\$\{osugiName\}/g, ougiName)
+      .replace(/\{チップ名\}|\{聖獣名\}|\$\{chipName\}/g, chipName);
 
     const shoutSpeakerEl = document.getElementById('seiju-shout-speaker');
     const shoutTextEl = document.getElementById('seiju-shout-text');
@@ -6138,7 +6188,12 @@ class GameApp {
 
     if (shoutSpeakerEl) shoutSpeakerEl.textContent = speakerName;
     if (shoutTextEl) {
-      shoutTextEl.textContent = `「${shoutPhrase}【${osugiName}】！！！」`;
+      // 既にテキスト中に奥義名が含まれている場合（変数置換後または直書き）は二重付与せず、含まれない場合のみ強調付与
+      if (finalShout.includes(ougiName)) {
+        shoutTextEl.textContent = `「${finalShout}」`;
+      } else {
+        shoutTextEl.textContent = `「${finalShout}【${ougiName}】！！！」`;
+      }
       shoutTextEl.style.textShadow = `0 0 10px ${neonColor}, 0 0 25px ${neonColor}, 0 0 40px ${neonColor}`;
     }
     if (shoutContainer) {
