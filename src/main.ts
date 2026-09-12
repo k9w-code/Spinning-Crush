@@ -325,7 +325,7 @@ class GameApp {
   // マップ画面
   private mapCanvas: HTMLCanvasElement | null = null;
   private mapCtx: CanvasRenderingContext2D | null = null;
-  private selectedStageId: string = "1";
+  private selectedStageId: string = "st001";
 
   // VS準備画面
   private vsSlotIndex: number = 1;
@@ -392,7 +392,10 @@ class GameApp {
         const blobUrl = URL.createObjectURL(blob);
         const transImg = new Image();
         transImg.src = blobUrl;
-        transImg.onload = () => resolve(transImg);
+        transImg.onload = () => {
+          URL.revokeObjectURL(blobUrl);
+          resolve(transImg);
+        };
         transImg.onerror = () => {
           URL.revokeObjectURL(blobUrl);
           resolve(img);
@@ -748,11 +751,12 @@ class GameApp {
         const slotKey = i.toString();
         const slot = data.ギアスロット[slotKey];
         if (slot && typeof slot === 'object') {
-          // 各パーツIDが実際にマスタデータに存在する有効なものか確認
-          const isValidChip = this.チップマスタ.some(c => c.チップID === slot.チップ);
-          const isValidBlade = this.パーツマスタ.some(p => p.パーツID === slot.ブレード && p.種別 === "1");
-          const isValidWeight = this.パーツマスタ.some(p => p.パーツID === slot.ウェイト && p.種別 === "2");
-          const isValidSole = this.パーツマスタ.some(p => p.パーツID === slot.ソール && p.種別 === "3");
+          // 各パーツIDが実際にマスタデータに存在する有効なものか確認（マスタ空時の誤初期化をガード）
+          const hasMasters = this.チップマスタ.length > 0 && this.パーツマスタ.length > 0;
+          const isValidChip = !hasMasters || this.チップマスタ.some(c => c.チップID === slot.チップ);
+          const isValidBlade = !hasMasters || this.パーツマスタ.some(p => p.パーツID === slot.ブレード && p.種別 === "1");
+          const isValidWeight = !hasMasters || this.パーツマスタ.some(p => p.パーツID === slot.ウェイト && p.種別 === "2");
+          const isValidSole = !hasMasters || this.パーツマスタ.some(p => p.パーツID === slot.ソール && p.種別 === "3");
 
           if (isValidChip && isValidBlade && isValidWeight && isValidSole) {
             fresh.ギアスロット[slotKey] = {
@@ -818,10 +822,12 @@ class GameApp {
         };
 
         this.saveData.インベントリ = this.saveData.インベントリ.map(convertOldId);
-        // インベントリの無効IDをフィルタリング（マスタにないものは排除）
-        this.saveData.インベントリ = this.saveData.インベントリ.filter(id => 
-          this.チップマスタ.some(c => c.チップID === id) || this.パーツマスタ.some(p => p.パーツID === id)
-        );
+        // マスタデータが存在する場合のみ無効IDをフィルタリング（マスタ空時のインベントリ蒸発を防止）
+        if (this.チップマスタ.length > 0 && this.パーツマスタ.length > 0) {
+          this.saveData.インベントリ = this.saveData.インベントリ.filter(id => 
+            this.チップマスタ.some(c => c.チップID === id) || this.パーツマスタ.some(p => p.パーツID === id)
+          );
+        }
 
         Object.keys(this.saveData.ギアスロット).forEach(key => {
           const slot = this.saveData.ギアスロット[key];
@@ -896,6 +902,12 @@ class GameApp {
 
       // 他の画面に遷移する際、アクティブなプレビューCanvasの描画アニメーションループを完全停止 (Finding 2)
       this.stopAllPreviewAnimations();
+
+      // バトルループが動作中であれば確実に完全停止・破棄
+      if (this.battleLoopId) {
+        cancelAnimationFrame(this.battleLoopId);
+        this.battleLoopId = null;
+      }
 
       const screens = document.querySelectorAll('.screen');
       screens.forEach(s => s.classList.remove('active'));
@@ -1379,67 +1391,7 @@ class GameApp {
     });
 
     // ⑧ リザルト画面
-    document.getElementById('btn-result-ok')?.addEventListener('click', () => {
-      if (!this.selectedNpc) {
-        this.changeScreen('stage-screen');
-        return;
-      }
-
-      const currentStageId = this.selectedNpc.登場ステージID;
-      const isBoss = this.selectedNpc.ボスフラグ === '1';
-      const isCleared = this.saveData.クリア状況[this.selectedNpc.エネミーID] === true;
-
-      // ボスを撃破してまだそのステージが未クリアとして記録されている場合
-      if (isBoss && isCleared && !this.saveData.ステージクリア状況[currentStageId]) {
-        this.saveData.ステージクリア状況[currentStageId] = true;
-        
-        // 特定ボス撃破時にチップを自動プレゼント
-        if (currentStageId === 'st003') {
-          if (!this.saveData.インベントリ.includes('c017')) {
-            this.saveData.インベントリ.push('c017');
-          }
-        }
-        if (currentStageId === 'st005') {
-          if (!this.saveData.インベントリ.includes('c018')) {
-            this.saveData.インベントリ.push('c018');
-          }
-        }
-
-        // 後方互換のために古いフラグも更新
-        if (currentStageId === 'st001') this.saveData.ステージ1クリア = true;
-        if (currentStageId === 'st002') this.saveData.ステージ2クリア = true;
-
-        localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
-
-        // マップ画面に戻し、ステージクリアの派手な演出を実行
-        this.changeScreen('map-screen');
-
-        // クリア演出中は他のマップピンをクリックさせないよう一時ロック (監査バグ4)
-        this.isTransitioning = true;
-
-        setTimeout(() => {
-          const clearOverlay = document.getElementById('stage-clear-overlay');
-          if (clearOverlay) {
-            clearOverlay.classList.add('active');
-            this.snd.playClearJingle(); // お祝いファンファーレ
-            
-            // 2.8秒後にオーバーレイをフェードアウトさせ、クリア会話シナリオを再生
-            setTimeout(() => {
-              clearOverlay.classList.remove('active');
-              const scenarioId = `${currentStageId}_clear`;
-              this.playScenario(scenarioId, () => {
-                this.isTransitioning = false; // 操作ロック解除
-                this.changeScreen('stage-screen');
-              });
-            }, 2800);
-          } else {
-            this.isTransitioning = false;
-          }
-        }, 600); // 画面遷移シャッターが開くのを待つ
-      } else {
-        this.changeScreen('stage-screen');
-      }
-    });
+    // （リザルト完了ハンドリングは showResultScreenAndPlayAfterScenario() の btnOk.onclick にて一元管理）
 
     // ⑨ ショップ画面
     document.getElementById('btn-shop-back')?.addEventListener('click', () => {
@@ -2563,7 +2515,7 @@ class GameApp {
         this.selectedNpc = npc;
         
         // 対戦前会話の背景を必ずこのステージの背景画像にセット！
-        const talkOverlay = document.getElementById('talk-overlay');
+        const talkOverlay = document.getElementById('talk-dialog');
         if (talkOverlay) {
           talkOverlay.style.backgroundImage = `url('/images/bg/${this.selectedStageId}_bg.webp')`;
           talkOverlay.style.backgroundSize = 'cover';
@@ -2679,7 +2631,7 @@ class GameApp {
       this.selectedNpc.ブレードID,
       this.selectedNpc.ウェイトID,
       this.selectedNpc.ソールID,
-      1, // 敵はレベル1固定
+      Number(this.selectedNpc.チップレベル || 1),
       this.パーツマスタ,
       this.チップマスタ,
       this.奥義マスタ
@@ -5668,7 +5620,7 @@ class GameApp {
         this.selectedNpc.ブレードID,
         this.selectedNpc.ウェイトID,
         this.selectedNpc.ソールID,
-        1,
+        Number(this.selectedNpc.チップレベル || 1),
         this.パーツマスタ,
         this.チップマスタ,
         this.奥義マスタ
@@ -5817,7 +5769,7 @@ class GameApp {
       this.selectedNpc.ブレードID,
       this.selectedNpc.ウェイトID,
       this.selectedNpc.ソールID,
-      1,
+      Number(this.selectedNpc.チップレベル || 1),
       this.パーツマスタ,
       this.チップマスタ,
       this.奥義マスタ
@@ -6230,6 +6182,12 @@ class GameApp {
       const skipCutin = () => {
         cutinOverlay.classList.remove('active');
         cutinOverlay.removeEventListener('click', skipCutin);
+        this.osugiCutinFrames = 0;
+        if (this.onOsugiCutinComplete) {
+          const cb = this.onOsugiCutinComplete;
+          this.onOsugiCutinComplete = null;
+          cb();
+        }
       };
       cutinOverlay.removeEventListener('click', skipCutin);
       cutinOverlay.addEventListener('click', skipCutin, { once: true });
@@ -6583,6 +6541,7 @@ class GameApp {
     const textEl = document.getElementById('result-serifu-text');
 
     let acquiredPartId: string | null = null;
+    const stageRank = parseInt((npc.登場ステージID || '1').replace(/\D/g, '')) || 1;
 
     if (winner === 'player') {
       if (outcomeEl) {
@@ -6611,7 +6570,8 @@ class GameApp {
         this.saveData.所持GP,
         this.saveData.インベントリ,
         this.パーツマスタ,
-        this.セリフマスタ
+        this.セリフマスタ,
+        stageRank
       );
 
       // セーブデータの更新
@@ -6664,7 +6624,8 @@ class GameApp {
         this.saveData.所持GP,
         this.saveData.インベントリ,
         this.パーツマスタ,
-        this.セリフマスタ
+        this.セリフマスタ,
+        stageRank
       );
 
       this.saveData.ドロップカウンタ = dropRes.更新ドロップカウンタ;
@@ -6760,6 +6721,68 @@ class GameApp {
     if (btnOk) {
       btnOk.textContent = '次へ';
       btnOk.onclick = () => {
+        const finishResultFlow = () => {
+          if (!this.selectedNpc) {
+            this.changeScreen('stage-screen');
+            return;
+          }
+
+          const currentStageId = this.selectedNpc.登場ステージID;
+          const isBoss = this.selectedNpc.ボスフラグ === '1';
+          const isCleared = this.saveData.クリア状況[this.selectedNpc.エネミーID] === true;
+
+          // ボスを撃破してまだそのステージが未クリアとして記録されている場合
+          if (isBoss && isCleared && !this.saveData.ステージクリア状況[currentStageId]) {
+            this.saveData.ステージクリア状況[currentStageId] = true;
+            
+            // 特定ボス撃破時にチップを自動プレゼント
+            if (currentStageId === 'st003') {
+              if (!this.saveData.インベントリ.includes('c017')) {
+                this.saveData.インベントリ.push('c017');
+              }
+            }
+            if (currentStageId === 'st005') {
+              if (!this.saveData.インベントリ.includes('c018')) {
+                this.saveData.インベントリ.push('c018');
+              }
+            }
+
+            // 後方互換のために古いフラグも更新
+            if (currentStageId === 'st001') this.saveData.ステージ1クリア = true;
+            if (currentStageId === 'st002') this.saveData.ステージ2クリア = true;
+
+            localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
+
+            // マップ画面に戻し、ステージクリアの派手な演出を実行
+            this.changeScreen('map-screen');
+
+            // クリア演出中は他のマップピンをクリックさせないよう一時ロック
+            this.isTransitioning = true;
+
+            setTimeout(() => {
+              const clearOverlay = document.getElementById('stage-clear-overlay');
+              if (clearOverlay) {
+                clearOverlay.classList.add('active');
+                this.snd.playClearJingle(); // お祝いファンファーレ
+                
+                // 2.8秒後にオーバーレイをフェードアウトさせ、クリア会話シナリオを再生
+                setTimeout(() => {
+                  clearOverlay.classList.remove('active');
+                  const scenarioId = `${currentStageId}_clear`;
+                  this.playScenario(scenarioId, () => {
+                    this.isTransitioning = false; // 操作ロック解除
+                    this.changeScreen('stage-screen');
+                  });
+                }, 2800);
+              } else {
+                this.isTransitioning = false;
+              }
+            }, 600); // 画面遷移シャッターが開くのを待つ
+          } else {
+            this.changeScreen('stage-screen');
+          }
+        };
+
         const enemyId = this.selectedNpc!.エネミーID;
         const stageId = this.selectedNpc!.登場ステージID;
         const suffix = winner === 'player' ? 'win' : 'lose';
@@ -6768,7 +6791,7 @@ class GameApp {
 
         if (hasScenario) {
           // ステージ固有の背景（例: st001_bg.webp）を適用して事後会話シナリオを再生！
-          const talkOverlay = document.getElementById('talk-overlay');
+          const talkOverlay = document.getElementById('talk-dialog');
           if (talkOverlay) {
             talkOverlay.style.backgroundImage = `url('/images/bg/${stageId}_bg.webp')`;
             talkOverlay.style.backgroundSize = 'cover';
@@ -6790,14 +6813,14 @@ class GameApp {
 
             if (interludeId && this.シナリオマスタ.some(s => s.シナリオID === interludeId)) {
               this.playScenario(interludeId, () => {
-                this.changeScreen('stage-screen');
+                finishResultFlow();
               });
             } else {
-              this.changeScreen('stage-screen');
+              finishResultFlow();
             }
           });
         } else {
-          this.changeScreen('stage-screen');
+          finishResultFlow();
         }
       };
     }
@@ -7787,7 +7810,7 @@ class GameApp {
       }
 
       // 話者名に基づいてアクティブ化
-      const isPlayer = current.speaker === 'あなた' || current.speaker === 'プレイヤー';
+      const isPlayer = current.speaker === 'あなた' || current.speaker === 'プレイヤー' || current.speaker === '主人公';
       if (isPlayer) {
         avatarLeft.classList.add('active');
         avatarLeft.classList.remove('inactive');

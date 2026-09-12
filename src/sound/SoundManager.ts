@@ -40,6 +40,9 @@ export class SoundManager {
 
   public setBgmVolume(val: number) {
     this.bgmVolume = Math.max(0, Math.min(1, val));
+    if (this.currentAudio) {
+      this.currentAudio.volume = this.bgmVolume;
+    }
   }
 
   public setSeVolume(val: number) {
@@ -583,6 +586,7 @@ export class SoundManager {
   private currentAudio: HTMLAudioElement | null = null;
   private targetBgmFilename: string = "";
   private bgmRequestId: number = 0;
+  private fadeOutTimerId: any = null;
 
   private playExternalBGM(filename: string, loop: boolean = true): Promise<boolean> {
     const reqId = ++this.bgmRequestId;
@@ -595,7 +599,7 @@ export class SoundManager {
     return new Promise((resolve) => {
       const audio = new Audio(`/sounds/${filename}`);
       audio.loop = loop;
-      audio.volume = 0.45;
+      audio.volume = this.bgmVolume;
       this.currentAudio = audio;
 
       let hasResolved = false;
@@ -660,6 +664,10 @@ export class SoundManager {
   }
 
   private stopExternalAudio() {
+    if (this.fadeOutTimerId) {
+      clearInterval(this.fadeOutTimerId);
+      this.fadeOutTimerId = null;
+    }
     if (this.currentAudio) {
       try {
         this.currentAudio.pause();
@@ -673,18 +681,25 @@ export class SoundManager {
   // なめらかなBGMフェードアウト遷移
   public fadeOutBGM(durationMs = 800): Promise<void> {
     return new Promise((resolve) => {
+      if (this.fadeOutTimerId) {
+        clearInterval(this.fadeOutTimerId);
+        this.fadeOutTimerId = null;
+      }
       if (this.currentAudio) {
         const audio = this.currentAudio;
         const startVolume = audio.volume;
         const startTime = Date.now();
 
-        const timer = setInterval(() => {
+        this.fadeOutTimerId = setInterval(() => {
           const elapsed = Date.now() - startTime;
           const pct = Math.max(0, 1.0 - elapsed / durationMs);
           audio.volume = startVolume * pct;
 
           if (pct <= 0) {
-            clearInterval(timer);
+            if (this.fadeOutTimerId) {
+              clearInterval(this.fadeOutTimerId);
+              this.fadeOutTimerId = null;
+            }
             try {
               audio.pause();
             } catch (e) {}
@@ -711,7 +726,9 @@ export class SoundManager {
   }
 
   public startLobbyBGM() {
-    this.playExternalBGM('lobby.mp3');
+    this.playExternalBGM('lobby.mp3').then(success => {
+      if (!success) this.startLobbyBGM_Synth();
+    });
   }
 
   public startGarageBGM() {
@@ -735,23 +752,33 @@ export class SoundManager {
   }
 
   public startBattleBGM() {
-    this.playExternalBGM('battle_normal.mp3');
+    this.playExternalBGM('battle_normal.mp3').then(success => {
+      if (!success) this.startBattleBGM_Synth();
+    });
   }
 
   public startBattleStage4BGM() {
-    this.playExternalBGM('battle_stage4.mp3');
+    this.playExternalBGM('battle_stage4.mp3').then(success => {
+      if (!success) this.startBattleBGM_Synth();
+    });
   }
 
   public startBattleStage5BGM() {
-    this.playExternalBGM('battle_stage5.mp3');
+    this.playExternalBGM('battle_stage5.mp3').then(success => {
+      if (!success) this.startBattleBGM_Synth();
+    });
   }
 
   public startBattleStage6BGM() {
-    this.playExternalBGM('battle_stage6.mp3');
+    this.playExternalBGM('battle_stage6.mp3').then(success => {
+      if (!success) this.startBattleBGM_Synth();
+    });
   }
 
   public startBattleBossBGM() {
-    this.playExternalBGM('battle_boss.mp3');
+    this.playExternalBGM('battle_boss.mp3').then(success => {
+      if (!success) this.startBattleBGM_Synth();
+    });
   }
 
   public startResultsBGM() {
@@ -759,7 +786,9 @@ export class SoundManager {
   }
 
   public startPinchBGM() {
-    this.playExternalBGM('battle_pinch.mp3');
+    this.playExternalBGM('battle_pinch.mp3').then(success => {
+      if (!success) this.startPinchBGM_Synth();
+    });
   }
 
   public stopAllBGM() {
