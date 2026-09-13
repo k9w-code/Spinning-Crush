@@ -354,7 +354,7 @@ class GameApp {
   private chipImages: { [id: string]: HTMLImageElement } = {};
   private charaImages: { [name: string]: HTMLImageElement } = {};
 
-  private transparentizeBlack(img: HTMLImageElement): Promise<HTMLImageElement> {
+  private transparentizeChara(img: HTMLImageElement): Promise<HTMLImageElement> {
     return new Promise((resolve) => {
       const canvas = document.createElement('canvas');
       canvas.width = img.naturalWidth;
@@ -368,22 +368,22 @@ class GameApp {
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imgData.data;
       
-      // JPEGの圧縮ノイズを考慮したしきい値設定（わずかに明るい黒背景も100%確実に完全透過）
-      const threshold = 80; 
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
         const g = data[i+1];
         const b = data[i+2];
-        const isBlack = (r < threshold && g < threshold && b < threshold);
+
+        // マゼンタ背景の透過
         const isMagenta = (r > 200 && b > 200 && g < 65);
 
         // クロマキー透過判定 (純緑〜準純緑の背景を完全に透過)
+        // ※黒色判定(isBlack)を完全撤廃し、黒服・黒インナー・黒髪の透け貫通バグを100%根絶！
         const maxRB = Math.max(r, b);
-        const isPureGreen = (g > 140 && g > maxRB * 1.35) || (g > 180 && maxRB < 130);
+        const isPureGreen = (g > 130 && g > maxRB * 1.35) || (g > 175 && maxRB < 130);
 
-        if (isBlack || isMagenta || isPureGreen) {
+        if (isMagenta || isPureGreen) {
           data[i+3] = 0; // 不透明度を0 (透明) に設定！
-        } else if (g > maxRB && g > 90) {
+        } else if (g > maxRB && g > 85) {
           // デスピル処理: 境界線の緑フチ(圧縮色滲み)から緑成分を相殺して自然な輪郭に補正！
           data[i+1] = maxRB;
         }
@@ -409,6 +409,11 @@ class GameApp {
         };
       }, 'image/png');
     });
+  }
+
+  // 後方互換用エイリアス
+  private transparentizeBlack(img: HTMLImageElement): Promise<HTMLImageElement> {
+    return this.transparentizeChara(img);
   }
 
   private preloadChipImages(): Promise<void> {
@@ -2046,10 +2051,6 @@ class GameApp {
           </div>
         </div>
         <div class="detail-body">
-          <div class="detail-flavor-box">
-            <p class="detail-flavor-text">${item.フレーバーテキスト || item.フレーバー || '最新テクノロジーによって製造された高性能ギアパーツ。'}</p>
-            
-          </div>
           <div class="detail-stats-bars">
             <h5>パーツ性能パラメータ</h5>
             ${statsBarsHtml}
@@ -3025,36 +3026,12 @@ class GameApp {
       });
     }
 
-    // 店長立ち絵の表示適用（グリーンバック透過処理付き）
+    // 店長立ち絵の表示適用（透過済みプリロード画像を直接適用）
     const shopAvatar = document.querySelector('#shop-screen .character-avatar') as HTMLElement;
     if (shopAvatar) {
       const shopkeeperImg = this.charaImages['店長（ショップ）'] || this.charaImages['店長'] || this.charaImages['店員'];
       if (shopkeeperImg) {
-        if (shopkeeperImg.complete && shopkeeperImg.naturalWidth > 0) {
-          const cvs = document.createElement('canvas');
-          cvs.width = shopkeeperImg.naturalWidth;
-          cvs.height = shopkeeperImg.naturalHeight;
-          const ctx = cvs.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(shopkeeperImg, 0, 0);
-            const imgData = ctx.getImageData(0, 0, cvs.width, cvs.height);
-            const data = imgData.data;
-            for (let i = 0; i < data.length; i += 4) {
-              const r = data[i], g = data[i+1], b = data[i+2];
-              if (g > 130 && r < 130 && b < 130) {
-                data[i+3] = 0;
-              } else if (g > 100 && g > r * 1.35 && g > b * 1.35) {
-                data[i+3] = 0;
-              }
-            }
-            ctx.putImageData(imgData, 0, 0);
-            shopAvatar.style.backgroundImage = `url('${cvs.toDataURL()}')`;
-          } else {
-            shopAvatar.style.backgroundImage = `url('${shopkeeperImg.src}')`;
-          }
-        } else {
-          shopAvatar.style.backgroundImage = `url('${shopkeeperImg.src}')`;
-        }
+        shopAvatar.style.backgroundImage = `url('${shopkeeperImg.src}')`;
       }
     }
 
@@ -6931,7 +6908,10 @@ class GameApp {
     else if (part.種別 === '3') typeName = 'ソール';
 
     if (typeAttrEl) typeAttrEl.textContent = `${typeName} | ${part.属性}属性 | ランク${part.ランク}`;
-    if (descEl) descEl.textContent = part.フレーバー || '強力な性能を持つカスタムパーツ。';
+    if (descEl) {
+      descEl.textContent = part.フレーバー || '';
+      descEl.style.display = part.フレーバー ? 'block' : 'none';
+    }
 
     if (statsGrid) {
       statsGrid.innerHTML = '';

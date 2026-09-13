@@ -1837,22 +1837,24 @@ body, html {
   background: var(--bg-glass);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 16px;
-  padding: 30px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  max-width: 450px;
-  height: 400px;
+  max-width: 480px;
+  min-height: 540px;
+  height: auto;
   justify-content: space-between;
 }
 
 .shop-keeper-visual {
   width: 100%;
-  height: 200px;
+  height: 380px;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-end;
   position: relative;
+  overflow: hidden;
 }
 
 .shop-actions {
@@ -1860,9 +1862,10 @@ body, html {
   background: var(--bg-glass);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 16px;
-  padding: 40px;
-  max-width: 450px;
-  height: 400px;
+  padding: 30px 24px;
+  max-width: 480px;
+  min-height: 540px;
+  height: auto;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -3278,12 +3281,33 @@ body, html {
   background-size: 24px 24px, 48px 48px;
 }
 
-/* 店長ホログラムフレームを玩具店カウンター枠へ */
+/* 店長立ち絵ビジュアル（サイズアップ＆SFホビーカウンター枠） */
 .shop-keeper-visual {
-  border: 6px solid #8b5a2b !important; /* 木製カウンターフチ */
-  box-shadow: 0 4px 15px rgba(0,0,0,0.6) !important;
-  background: #3c2415 !important;
+  width: 100% !important;
+  height: 380px !important;
+  border: 2px solid rgba(0, 243, 255, 0.3) !important;
+  background: radial-gradient(ellipse at bottom, rgba(0, 243, 255, 0.12) 0%, rgba(12, 18, 28, 0.8) 70%) !important;
   border-radius: 12px !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(0, 243, 255, 0.08) !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: flex-end !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+.shop-keeper-visual .character-avatar.npc-avatar {
+  width: 100% !important;
+  height: 100% !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: bottom center !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.8)) !important;
+  transform: scale(1.22);
+  transform-origin: bottom center;
 }
 
 .shop-keeper-visual::before,
@@ -3992,9 +4016,14 @@ body, html {
 
   .shop-keeper-panel {
     max-width: 100%;
+    min-height: auto;
     height: auto;
     gap: 15px;
     padding: 20px;
+  }
+
+  .shop-keeper-visual {
+    height: 300px !important;
   }
 
   .shop-actions {
