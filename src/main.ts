@@ -3043,6 +3043,13 @@ class GameApp {
 
     // ガチャ実行の制限
     const maxRank = this.getGachaMaxRank();
+    const isStage6Clear = this.saveData.ステージクリア状況['st006'] === true;
+
+    // 解禁ランクバッジの更新
+    const tierBadge = document.getElementById('shop-gacha-tier-badge');
+    if (tierBadge) {
+      tierBadge.textContent = `解禁ランク: ランク${maxRank}以下パーツ` + (isStage6Clear ? ' ＆ チップ' : '');
+    }
     
     // 通常ガチャの対象プール (パーツ)
     let targetPool: { id: string; name: string; type: string }[] = this.パーツマスタ
@@ -3053,7 +3060,7 @@ class GameApp {
       .map(p => ({ id: p.パーツID, name: p.パーツ名, type: 'part' }));
 
     // 本編クリア後は通常ガチャに汎用チップを追加
-    if (this.saveData.ステージクリア状況['st006'] === true) {
+    if (isStage6Clear) {
       const commonChips = ['c002', 'c003', 'c004', 'c005', 'c006', 'c007', 'c008', 'c009', 'c010', 'c011', 'c012', 'c013', 'c014', 'c015', 'c016'];
       const chipPool = this.チップマスタ
         .filter(c => commonChips.includes(c.チップID))
@@ -3068,9 +3075,10 @@ class GameApp {
     if (btn5) {
       if (isAllOwned) {
         btn5.disabled = true;
-        btn5.textContent = `全獲得済み`;
+        btn5.innerHTML = `<span>全獲得済み</span>`;
       } else {
         btn5.disabled = false;
+        btn5.innerHTML = `<span>5連パックを一括開封！</span><span class="btn-cost-tag">50 GP</span>`;
         btn5.onclick = () => this.execute5PackGacha(targetPool);
       }
     }
@@ -3079,18 +3087,20 @@ class GameApp {
     if (btn) {
       if (isAllOwned) {
         btn.disabled = true;
-        btn.textContent = `全パーツ・通常チップ獲得済み`;
+        btn.innerHTML = `<span>全パーツ・チップ獲得済み</span>`;
       } else {
         btn.disabled = false;
-        btn.textContent = `パックを開封する (解禁: ランク${maxRank}以下 / チップ)`;
+        btn.innerHTML = `<span>1連パックを開封する</span><span class="btn-cost-tag">10 GP</span>`;
       }
     }
 
     // --- チップ専用ガチャの表示制御（店長 e035 撃破後のみ表示） ---
     const chipGachaContainer = document.getElementById('shop-gacha-chip-container');
+    const packPreviewGear = document.getElementById('shop-pack-preview-gear');
     if (chipGachaContainer) {
       if (this.saveData.クリア状況['e035'] === true || this.saveData.ステージクリア状況['st007'] === true) {
         chipGachaContainer.style.display = 'block';
+        if (packPreviewGear) packPreviewGear.style.display = 'none'; // チップパック解禁時は高さを最適化
         
         // チップ専用ガチャの活性化制御
         const chipPoolAll = this.チップマスタ
@@ -3105,14 +3115,15 @@ class GameApp {
         if (btnChip) {
           if (unownedChips.length === 0) {
             btnChip.disabled = true;
-            btnChip.textContent = '全チップ獲得済み';
+            btnChip.innerHTML = `<span>全チップ獲得済み</span>`;
           } else {
             btnChip.disabled = false;
-            btnChip.textContent = 'チップパックを開封する';
+            btnChip.innerHTML = `<span>チップパックを開封する</span><span class="btn-cost-tag">10 GP</span>`;
           }
         }
       } else {
         chipGachaContainer.style.display = 'none';
+        if (packPreviewGear) packPreviewGear.style.display = 'flex';
       }
     }
   }

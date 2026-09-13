@@ -429,42 +429,85 @@
 
       <!-- ================= ⑨ ショップ画面 ================= -->
       <div id="shop-screen" class="screen">
-        <div class="screen-header">
-          <h2>ショップ</h2>
-          <div class="jp-display">所持GP: <span id="shop-jp">0</span></div>
-        </div>
-        <div class="shop-content">
-          <div class="shop-keeper-panel">
-            <div class="shop-keeper-visual">
-              <!-- キャラクターポップアップ -->
-              <div class="character-avatar npc-avatar"></div>
-            </div>
-            <div class="serifu-panel">
-              <span class="serifu-speaker">店長</span>
-              <p class="serifu-text" id="shop-keeper-text">「いらっしゃい！貯まったJPでランダムギアパックを回せるよ。被りなしで未所持パーツが手に入る！」</p>
+        <!-- 1. トップナビゲーションバー -->
+        <div class="shop-top-header">
+          <div class="shop-header-left">
+            <button id="btn-shop-back" class="btn btn-secondary shop-back-btn">← 戻る</button>
+            <div class="shop-title-text">
+              ジャンクショップ
+              <span class="shop-title-badge">GEAR SHOP</span>
             </div>
           </div>
-          <div class="shop-actions" style="height: auto; min-height: 400px; flex-direction: column; gap: 30px; padding: 30px 20px;">
-            <div class="gacha-box">
-              <h3>ランダムギアパック</h3>
-              <div class="gacha-cost">1回: 10 GP</div>
-              <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
-                <button id="btn-shop-gacha" class="btn btn-primary btn-large">1連パックを開封する (10 GP)</button>
-                <button id="btn-shop-gacha-5" class="btn btn-accent btn-large">5連パックを開封する (50 GP)</button>
+          <div class="shop-header-gp">
+            <span class="shop-gp-label">所持GP</span>
+            <span class="shop-gp-value" id="shop-jp">0</span>
+            <span class="shop-gp-unit">GP</span>
+          </div>
+        </div>
+
+        <!-- 2. 店長立ち絵レイヤー (カウンター奥に直接配置・大迫力ADVスケール) -->
+        <div class="shopkeeper-character-layer">
+          <div class="character-avatar shopkeeper-chara-img"></div>
+        </div>
+
+        <!-- 3. ADV風 店長メッセージウィンドウ (左下〜中央下) -->
+        <div class="shopkeeper-serifu-box">
+          <div class="shopkeeper-speaker-tag">店長</div>
+          <p class="shopkeeper-message-text" id="shop-keeper-text">「いらっしゃい！貯まったGPでランダムギアパックを回せるよ。被りなしで未所持パーツが手に入る！」</p>
+        </div>
+
+        <!-- 4. ショップKIOSK端末 (ガチャ購入UI) -->
+        <div class="shop-kiosk-panel">
+          <!-- 通常ギアパック -->
+          <div class="kiosk-section">
+            <div class="kiosk-header">
+              <h3 class="kiosk-title">
+                <span>📦</span>
+                ランダムギアパック
+              </h3>
+              <div class="kiosk-tier-info" id="shop-gacha-tier-badge">
+                解禁ランク: ランク1以下パーツ
               </div>
-              <div class="gacha-status" id="gacha-status-message"></div>
             </div>
-            <!-- スペシャルチップパック (店長撃破後に解禁) -->
-            <div class="gacha-box" id="shop-gacha-chip-container" style="display: none; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 25px;">
-              <h3>スペシャルチップパック</h3>
-              <div class="gacha-cost">1回: 10 GP</div>
-              <button id="btn-shop-gacha-chip" class="btn btn-accent btn-large" style="background: linear-gradient(135deg, #ff007f, #7f00ff); border-color: #ff007f; color: #fff; box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);">チップパックを開封する</button>
-              <div class="gacha-status" id="gacha-status-message-chip"></div>
+
+            <div class="kiosk-pack-preview" id="shop-pack-preview-gear">
+              <div class="pack-visual-icon">⚙️</div>
+              <div class="pack-cost-desc">未所持のギアパーツを確定入手！</div>
+            </div>
+
+            <div class="kiosk-btn-group">
+              <button id="btn-shop-gacha" class="btn-gacha-action btn-single">
+                <span>1連パックを開封する</span>
+                <span class="btn-cost-tag">10 GP</span>
+              </button>
+              <button id="btn-shop-gacha-5" class="btn-gacha-action btn-multi">
+                <span>5連パックを一括開封！</span>
+                <span class="btn-cost-tag">50 GP</span>
+              </button>
+              <div class="kiosk-status-text" id="gacha-status-message"></div>
             </div>
           </div>
-        </div>
-        <div class="navigation-menu">
-          <button id="btn-shop-back" class="btn btn-secondary">戻る</button>
+
+          <!-- スペシャルチップパック (店長撃破後解禁) -->
+          <div class="kiosk-section chip-pack-section" id="shop-gacha-chip-container" style="display: none;">
+            <div class="kiosk-header">
+              <h3 class="kiosk-title" style="color: #ff77bb; text-shadow: 0 0 12px rgba(255, 0, 127, 0.5);">
+                <span>✨</span>
+                スペシャルチップパック
+              </h3>
+              <div class="kiosk-tier-info" style="background: rgba(255, 0, 127, 0.15); border-color: rgba(255, 0, 127, 0.4); color: #ff88cc;">
+                店長撃破特典・全聖獣チップ解放
+              </div>
+            </div>
+
+            <div class="kiosk-btn-group">
+              <button id="btn-shop-gacha-chip" class="btn-gacha-action btn-chip">
+                <span>チップパックを開封する</span>
+                <span class="btn-cost-tag">10 GP</span>
+              </button>
+              <div class="kiosk-status-text" id="gacha-status-message-chip"></div>
+            </div>
+          </div>
         </div>
       </div>
 
