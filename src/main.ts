@@ -368,17 +368,24 @@ class GameApp {
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imgData.data;
       
-      // JPEGの圧縮ノイズを考慮したしきい値設定（しきい値を80に引き上げ、わずかに明るい黒背景も100%確実に完全透過）
+      // JPEGの圧縮ノイズを考慮したしきい値設定（わずかに明るい黒背景も100%確実に完全透過）
       const threshold = 80; 
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
         const g = data[i+1];
         const b = data[i+2];
         const isBlack = (r < threshold && g < threshold && b < threshold);
-        const isGreen = (g > 200 && r < 65 && b < 65);
         const isMagenta = (r > 200 && b > 200 && g < 65);
-        if (isBlack || isGreen || isMagenta) {
+
+        // クロマキー透過判定 (純緑〜準純緑の背景を完全に透過)
+        const maxRB = Math.max(r, b);
+        const isPureGreen = (g > 140 && g > maxRB * 1.35) || (g > 180 && maxRB < 130);
+
+        if (isBlack || isMagenta || isPureGreen) {
           data[i+3] = 0; // 不透明度を0 (透明) に設定！
+        } else if (g > maxRB && g > 90) {
+          // デスピル処理: 境界線の緑フチ(圧縮色滲み)から緑成分を相殺して自然な輪郭に補正！
+          data[i+1] = maxRB;
         }
       }
       ctx.putImageData(imgData, 0, 0);

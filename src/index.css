@@ -3509,57 +3509,76 @@ body, html {
 
 .talk-avatars-container {
   position: absolute;
-  bottom: 195px; /* 会話ボックス(bottom: 20px + 高さ約160px)の完全に「上」に突き出させてテキスト被りを完全防止 */
+  bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 90%;
-  max-width: 800px;
-  height: 240px; /* 高さを 240px にスリム化 */
+  width: 100%;
+  max-width: 1320px;
+  height: 100%;
   display: flex;
   justify-content: space-between;
-  padding: 0 50px;
+  align-items: flex-end;
+  padding: 0 clamp(20px, 5vw, 100px);
   pointer-events: none;
-  z-index: 2100; /* テキストボックス(z-index: 2200)の奥に配置してテキスト可読性を最優先 */
+  z-index: 2100; /* テキストボックス(z-index: 2200)の背後に配置して下半身を自然に被せる */
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .talk-avatar {
-  width: 175px; /* 枠の幅 */
-  height: 230px; /* 枠の高さ */
+  width: clamp(320px, 36vw, 600px);
+  height: clamp(520px, 82vh, 900px);
   background-size: contain;
   background-repeat: no-repeat;
   background-position: bottom center;
   opacity: 0;
-  transform: translateY(30px);
-  transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease, filter 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  transform: translateY(40px);
+  transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.1),
+              opacity 0.3s ease,
+              filter 0.3s ease;
   mix-blend-mode: normal;
-  
-  /* 【話者枠新設】近未来サイバー通信モニター風フレーム */
-  border: 1.5px solid rgba(0, 243, 255, 0.25);
-  border-radius: 8px;
-  background-color: rgba(6, 9, 15, 0.55); /* 枠内をやや暗くして立ち絵を際立たせる */
-  box-shadow: 0 0 10px rgba(0, 243, 255, 0.12) inset;
   box-sizing: border-box;
-  padding: 6px; /* 枠線と画像の間に少し隙間を空けて美しく見せる */
-  backdrop-filter: blur(1px);
+  pointer-events: none;
+  border: none;
+  background-color: transparent;
+  box-shadow: none;
+  padding: 0;
+  backdrop-filter: none;
+}
+
+.talk-avatar.left {
+  align-self: flex-end;
+}
+
+.talk-avatar.right {
+  align-self: flex-end;
 }
 
 .talk-avatar.active {
   opacity: 1;
   transform: translateY(0);
-  filter: brightness(1.0);
-  filter: brightness(1.05) drop-shadow(0 0 12px rgba(0, 243, 255, 0.5)); /* 枠を明るいサイバーブルーに発光 */
-  
+  filter: brightness(1.05) drop-shadow(0 10px 25px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 16px rgba(0, 243, 255, 0.4));
+  z-index: 2150;
 }
 
 .talk-avatar.inactive {
-  opacity: 0.6;
-  transform: translateY(8px);
-  filter: brightness(0.45) grayscale(0.3);
+  opacity: 0.52;
+  transform: translateY(16px) scale(0.96);
+  filter: brightness(0.48) grayscale(0.3) drop-shadow(0 6px 16px rgba(0, 0, 0, 0.6));
+  z-index: 2140;
 }
 
-.talk-avatar.inactive {
-  border-color: rgba(0, 243, 255, 0.08); /* 非発話時は枠線を暗く沈める */
-  box-shadow: none;
+@media (max-width: 768px) {
+  .talk-avatars-container {
+    padding: 0 8px;
+  }
+  .talk-avatar {
+    width: 48vw;
+    height: clamp(380px, 72vh, 650px);
+  }
+  .talk-avatar.inactive {
+    opacity: 0.38;
+  }
 }
 
 /* アバター立ち絵定義 */
