@@ -617,7 +617,7 @@ export class SoundManager {
 
         // 別のBGMが既に要求されている場合はフォールバック不要（重複再生防止）
         if (this.bgmRequestId !== reqId || this.targetBgmFilename !== filename) {
-          try { audio.pause(); audio.src = ''; } catch (e) {}
+          try { audio.pause(); audio.removeAttribute('src'); audio.load(); } catch (e) {}
           resolve(true); // キャンセルされたためフォールバックシンセを発動させない
           return;
         }
@@ -634,7 +634,7 @@ export class SoundManager {
         if (this.bgmRequestId !== reqId || this.targetBgmFilename !== filename) {
           hasResolved = true;
           cleanupHandlers();
-          try { audio.pause(); audio.src = ''; } catch (e) {}
+          try { audio.pause(); audio.removeAttribute('src'); audio.load(); } catch (e) {}
           resolve(true); // キャンセルされたためフォールバックシンセを発動させない
           return;
         }
@@ -648,7 +648,7 @@ export class SoundManager {
             resolve(true);
           } else {
             // 再生開始までに新しい要求が来ていたら即停止
-            try { audio.pause(); audio.src = ''; } catch (e) {}
+            try { audio.pause(); audio.removeAttribute('src'); audio.load(); } catch (e) {}
             resolve(true);
           }
         }).catch(err => {
@@ -672,7 +672,8 @@ export class SoundManager {
       try {
         this.currentAudio.pause();
         this.currentAudio.currentTime = 0;
-        this.currentAudio.src = '';
+        this.currentAudio.removeAttribute('src');
+        this.currentAudio.load();
       } catch (e) {}
       this.currentAudio = null;
     }

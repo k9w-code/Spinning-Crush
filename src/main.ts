@@ -915,8 +915,9 @@ class GameApp {
       // 他の画面に遷移する際、アクティブなプレビューCanvasの描画アニメーションループを完全停止 (Finding 2)
       this.stopAllPreviewAnimations();
 
-      // バトルループが動作中であれば確実に完全停止・破棄
-      if (this.battleLoopId) {
+      // バトル画面以外への遷移時のみ、動作中のバトルループを確実に完全停止・破棄
+      // ※バトル画面への遷移時はstartBattle()で既にループが開始されているためキャンセルしない
+      if (screenId !== 'battle-screen' && this.battleLoopId) {
         cancelAnimationFrame(this.battleLoopId);
         this.battleLoopId = null;
       }
@@ -2425,7 +2426,7 @@ class GameApp {
     const stageScreen = document.getElementById('stage-screen');
     if (stage && stageScreen) {
       const bgPath = `/images/bg/${stage.ステージID}_bg.webp`;
-      stageScreen.style.backgroundImage = `url('${bgPath}'), radial-gradient(circle at center, rgba(16, 28, 54, 0.3) 0%, rgba(5, 8, 18, 0.9) 100%)`;
+      stageScreen.style.backgroundImage = `radial-gradient(circle at center, rgba(16, 28, 54, 0.35) 0%, rgba(5, 8, 18, 0.88) 100%), url('${bgPath}')`;
       stageScreen.style.backgroundSize = 'cover';
       stageScreen.style.backgroundPosition = 'center';
     }
@@ -2503,9 +2504,15 @@ class GameApp {
       const attr = bladeData ? bladeData.属性 : '無';
 
       card.className = `npc-card ${isBoss ? 'boss' : ''}`;
+
+      // 透過済みキャッシュ画像を使用してグリーンバックを排除
+      const cachedImg = this.charaImages[charaKey];
+      const avatarStyle = cachedImg
+        ? `background-image: url('${cachedImg.src}'); background-size: contain; background-repeat: no-repeat; background-position: center;`
+        : `background-color: rgba(0, 243, 255, 0.15);`;
+
       card.innerHTML = `
-        <div class="npc-card-avatar" style="width:50px; height:50px; border-radius:8px; overflow:hidden; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; border:1px solid var(--color-neon-blue); flex-shrink:0;">
-          <img src="./images/chara/${charaKey}.png" onerror="this.onerror=null; this.src='./images/chara/${charaKey}.jpeg';" style="width:100%; height:100%; object-fit:cover;" />
+        <div class="npc-card-avatar" style="width:50px; height:50px; border-radius:8px; overflow:hidden; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; border:1px solid var(--color-neon-blue); flex-shrink:0; ${avatarStyle}">
         </div>
         <div class="npc-card-info" style="flex:1; margin-left:12px;">
           <h4 style="margin:0; font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">
@@ -7004,6 +7011,13 @@ class GameApp {
     if (!ctx || !this.battleManager) return;
 
     ctx.save();
+
+    // Canvas解像度 1280×960 に対して論理座標系 800×600 を維持するためのスケーリング
+    const scaleX = canvas.width / 800;
+    const scaleY = canvas.height / 600;
+    ctx.scale(scaleX, scaleY);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     // 1. スクリーンシェイクの処理
     if (this.battleShakeFrames > 0) {
