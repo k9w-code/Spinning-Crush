@@ -8044,7 +8044,7 @@ class GameApp {
     const textEl = document.getElementById('talk-text-content');
     
     if (speakerEl) speakerEl.textContent = current.speaker;
-    if (textEl) textEl.textContent = current.text;
+    if (textEl) textEl.textContent = current.text ? current.text.replace(/\\n/g, '\n') : '';
 
     // 会話時の左右アバター画像とアクティブ表示切り替え
     const avatarLeft = document.getElementById('talk-avatar-left');
