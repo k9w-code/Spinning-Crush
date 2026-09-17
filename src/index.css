@@ -2524,6 +2524,118 @@ body, html {
   100% { opacity: 0; }
 }
 
+/* ==========================================
+   コンバットティッカー (ノンストップ・バトルログバナー)
+========================================== */
+.combat-ticker-container {
+  position: absolute;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  z-index: 50;
+  width: 90%;
+  max-width: 520px;
+}
+
+.combat-ticker {
+  padding: 8px 20px;
+  border-radius: 6px;
+  background: rgba(8, 12, 24, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-family: 'Rajdhani', 'Orbitron', 'Noto Sans JP', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  animation: combat-ticker-anim 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  white-space: nowrap;
+}
+
+.combat-ticker.ticker-hit {
+  border-color: rgba(255, 68, 68, 0.8);
+  box-shadow: 0 0 15px rgba(255, 68, 68, 0.4), inset 0 0 10px rgba(255, 68, 68, 0.15);
+  color: #ffcccc;
+}
+.combat-ticker.ticker-hit .ticker-tag {
+  color: #ff4444;
+}
+
+.combat-ticker.ticker-ougi {
+  border-color: rgba(255, 0, 170, 0.9);
+  box-shadow: 0 0 25px rgba(255, 0, 170, 0.6), inset 0 0 15px rgba(255, 0, 170, 0.25);
+  color: #ffe6f7;
+  font-size: 1.05rem;
+}
+.combat-ticker.ticker-ougi .ticker-tag {
+  color: #ff00aa;
+  text-shadow: 0 0 10px #ff00aa;
+}
+
+.combat-ticker.ticker-guard {
+  border-color: rgba(0, 200, 255, 0.8);
+  box-shadow: 0 0 15px rgba(0, 200, 255, 0.4), inset 0 0 10px rgba(0, 200, 255, 0.15);
+  color: #ccf2ff;
+}
+.combat-ticker.ticker-guard .ticker-tag {
+  color: #00c8ff;
+}
+
+.combat-ticker.ticker-evade {
+  border-color: rgba(57, 255, 20, 0.8);
+  box-shadow: 0 0 15px rgba(57, 255, 20, 0.4), inset 0 0 10px rgba(57, 255, 20, 0.15);
+  color: #dffff0;
+}
+.combat-ticker.ticker-evade .ticker-tag {
+  color: #39ff14;
+}
+
+.combat-ticker.ticker-counter {
+  border-color: rgba(255, 170, 0, 0.8);
+  box-shadow: 0 0 15px rgba(255, 170, 0, 0.4), inset 0 0 10px rgba(255, 170, 0, 0.15);
+  color: #fff2cc;
+}
+.combat-ticker.ticker-counter .ticker-tag {
+  color: #ffaa00;
+}
+
+.combat-ticker .ticker-tag {
+  font-weight: 900;
+  margin-right: 8px;
+}
+
+.combat-ticker .ticker-detail {
+  opacity: 0.85;
+  font-size: 0.85rem;
+  margin-left: 8px;
+}
+
+@keyframes combat-ticker-anim {
+  0% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.92);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0) scale(1.0);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(0) scale(1.0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+}
+
 /* ================== バトルHUD HPバーのダメージ残像 ================== */
 .hud-bar-hp {
   position: relative;

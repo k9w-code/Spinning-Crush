@@ -377,6 +377,8 @@ class GameApp {
   private skillParticles: SkillParticle[] = [];
   private floatingDamages: FloatingDamage[] = [];
   private osugiWhiteoutFrames: number = 0; // 奥義ホワイトアウト演出用
+  private displayedPlayerHpPct: number = 100; // HP遅延ダメージバー補間用
+  private displayedEnemyHpPct: number = 100;
   private isOsugiCutinActive: boolean = false;
   private osugiCutinFrames: number = 0;
   private onOsugiCutinComplete: (() => void) | null = null;
@@ -393,7 +395,6 @@ class GameApp {
   private clashPendingIsCounter: boolean = false;
   private clashPendingCounterDamage: number = 0;
   private clashPendingSide: 'プレイヤー' | 'エネミー' = 'プレイヤー';
-  private clashPendingDialogText: string = "";
   private clashPendingChoice: string = ""; // 攻撃側が選択したコマンド・スキル名
   private clashResultType: 'hit' | 'guard' | 'evade' | 'counter' = 'hit';
   private isPinchBgmActive: boolean = false;
@@ -5156,6 +5157,8 @@ class GameApp {
     this.skillParticles = [];
     this.floatingDamages = [];
     this.osugiWhiteoutFrames = 0;
+    this.displayedPlayerHpPct = 100;
+    this.displayedEnemyHpPct = 100;
     this.isOsugiCutinActive = false;
     this.osugiCutinFrames = 0;
     this.currentEnemySelectedOsugi = null;
@@ -5256,9 +5259,9 @@ class GameApp {
 
       // 45フレーム目：決着（爆発と吹っ飛び）
       if (this.clashAnimFrame === 45) {
-        // 1. 計算しておいたダメージの実際の適用
+        // 1. 計算しておいたダメージの実際の適用（命中時は最低1ダメージ保証）
         let playerTookDamage = false;
-        const dmg = Math.floor(this.clashPendingDamage);
+        const dmg = this.clashPendingIsHit ? Math.max(1, Math.floor(this.clashPendingDamage)) : 0;
         if (this.clashPendingIsHit && dmg > 0) {
           if (this.clashPendingSide === 'プレイヤー') {
             this.battleManager.エネミーライフ = Math.max(0, this.battleManager.エネミーライフ - dmg);
@@ -5268,9 +5271,9 @@ class GameApp {
           }
         }
 
-        // カウンター被弾の場合、カウンターした側にダメージ適用
+        // カウンター被弾の場合、カウンターした側にダメージ適用（命中時は最低1ダメージ保証）
         if (this.clashPendingIsCounter) {
-          const counterDmg = Math.floor(this.clashPendingCounterDamage);
+          const counterDmg = Math.max(1, Math.floor(this.clashPendingCounterDamage));
           if (this.clashPendingSide === 'プレイヤー') {
             this.battleManager.プレイヤーライフ = Math.max(0, this.battleManager.プレイヤーライフ - counterDmg);
             if (counterDmg > 0) playerTookDamage = true;
@@ -5557,10 +5560,25 @@ class GameApp {
     if (pHPBar) pHPBar.style.width = `${hpPctP}%`;
     if (eHPBar) eHPBar.style.width = `${hpPctE}%`;
 
+    // 遅延ダメージバーのじわじわ減衰（Lerpスムーズ補間）
+    if (this.displayedPlayerHpPct > hpPctP) {
+      this.displayedPlayerHpPct += (hpPctP - this.displayedPlayerHpPct) * 0.06;
+      if (this.displayedPlayerHpPct - hpPctP < 0.2) this.displayedPlayerHpPct = hpPctP;
+    } else {
+      this.displayedPlayerHpPct = hpPctP;
+    }
+
+    if (this.displayedEnemyHpPct > hpPctE) {
+      this.displayedEnemyHpPct += (hpPctE - this.displayedEnemyHpPct) * 0.06;
+      if (this.displayedEnemyHpPct - hpPctE < 0.2) this.displayedEnemyHpPct = hpPctE;
+    } else {
+      this.displayedEnemyHpPct = hpPctE;
+    }
+
     const pDmgBar = document.getElementById('battle-player-hp-damage');
     const eDmgBar = document.getElementById('battle-enemy-hp-damage');
-    if (pDmgBar) pDmgBar.style.width = `${hpPctP}%`;
-    if (eDmgBar) eDmgBar.style.width = `${hpPctE}%`;
+    if (pDmgBar) pDmgBar.style.width = `${this.displayedPlayerHpPct}%`;
+    if (eDmgBar) eDmgBar.style.width = `${this.displayedEnemyHpPct}%`;
 
     const pHPVal = document.getElementById('battle-player-hp-val');
     const eHPVal = document.getElementById('battle-enemy-hp-val');
@@ -6361,6 +6379,36 @@ class GameApp {
     }
   }
 
+  // コンバットティッカー (ノンストップ・バトルログバナー)
+  private showCombatTicker(tag: string, message: string, detail: string, type: 'hit' | 'guard' | 'evade' | 'counter' | 'ougi') {
+    const btlScreen = document.getElementById('battle-screen');
+    if (!btlScreen) return;
+
+    let container = btlScreen.querySelector('.combat-ticker-container') as HTMLElement;
+    if (!container) {
+      container = document.createElement('div');
+      container.className = 'combat-ticker-container';
+      btlScreen.appendChild(container);
+    }
+
+    const ticker = document.createElement('div');
+    ticker.className = `combat-ticker ticker-${type}`;
+    ticker.innerHTML = `<span class="ticker-tag">${tag}</span><span class="ticker-msg">${message}</span><span class="ticker-detail">${detail}</span>`;
+    container.appendChild(ticker);
+
+    // 最大3件まで表示、超過時は古いものを即座に削除
+    while (container.children.length > 3) {
+      container.removeChild(container.firstChild!);
+    }
+
+    setTimeout(() => {
+      ticker.remove();
+      if (container.children.length === 0) {
+        container.remove();
+      }
+    }, 1500);
+  }
+
   // 攻防結果の判定とダメージ処理の集約
   private resolveCombatResult(
     攻撃側判定: 'プレイヤー' | 'エネミー',
@@ -6387,14 +6435,14 @@ class GameApp {
       
       // ダメージ基本計算式
       let ダメージ = 0.18 * 攻撃側アタック * (攻撃側アタック / Math.max(1, 防御側ディフェンス)) * 最終倍率;
-      const 軽減前ダメージ = Math.floor(ダメージ); // ADVセリフで軽減前→軽減後の変化表示用
-      const 攻撃者名 = 攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手';
-      const 防御者名 = 攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた';
-      const 技プレフィックス = is攻撃奥義 ? '必殺！ ' : '';
+      const 軽減前ダメージ = Math.floor(ダメージ); // 軽減前ダメージ
 
-      let advDialogText = '';
       let isHit = true;
       let isCounterSuccess = false;
+      let tickerTag = 'HIT!';
+      let tickerMsg = `${Math.floor(ダメージ)} DAMAGE`;
+      let tickerDetail = `[${スキル名}]`;
+      let tickerType: 'hit' | 'guard' | 'evade' | 'counter' | 'ougi' = is攻撃奥義 ? 'ougi' : 'hit';
 
       // 2. 防御側のコマンド判定処理
       if (防御側コマンド === '防御') {
@@ -6411,7 +6459,10 @@ class GameApp {
           this.battleManager.プレイヤー奥義ゲージ = Math.min(100, Math.max(0, this.battleManager.プレイヤー奥義ゲージ + 10));
         }
 
-        advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」が炸裂！\n▶ ${防御者名}は防御で受け止めた！\n  ダメージ: ${軽減前ダメージ} → ${Math.floor(ダメージ)} (40%カット)`;
+        tickerType = 'guard';
+        tickerTag = 'GUARD!';
+        tickerMsg = `${軽減前ダメージ} → ${Math.floor(ダメージ)} (-40%)`;
+        tickerDetail = `[${スキル名}]`;
       } 
       else if (防御側コマンド === '防御奥義' && 防御奥義) {
         // 防御奥義コスト消費 (防御した側が消費)
@@ -6429,7 +6480,10 @@ class GameApp {
 
         ダメージ = ダメージ * cutRate * ウェイト補正;
 
-        advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」が炸裂！\n▶ ${防御者名}は防御奥義「${防御奥義.奥義名}」を展開！\n  ダメージ: ${軽減前ダメージ} → ${Math.floor(ダメージ)} (${cutPct}%カット)`;
+        tickerType = 'guard';
+        tickerTag = 'GUARD OUGI!';
+        tickerMsg = `${軽減前ダメージ} → ${Math.floor(ダメージ)} (-${cutPct}%)`;
+        tickerDetail = `[${防御奥義.奥義名}]`;
       }
       else if (防御側コマンド === '回避') {
         // 回避率の確率判定
@@ -6449,9 +6503,15 @@ class GameApp {
         if (乱数 < 最終回避率) {
           isHit = false;
           ダメージ = 0;
-          advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」！\n▶ ${防御者名}はスピードを活かして完全回避！\n  【${最終回避率.toFixed(0)}%の確率を突破！】`;
+          tickerType = 'evade';
+          tickerTag = 'EVADED!';
+          tickerMsg = `完全回避成功! [突破率 ${最終回避率.toFixed(0)}%]`;
+          tickerDetail = `[${スキル名}]`;
         } else {
-          advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」が炸裂！\n▶ ${防御者名}は回避を試みたが失敗！\n  ダメージ: ${Math.floor(ダメージ)}`;
+          tickerType = 'hit';
+          tickerTag = 'EVADE FAILED!';
+          tickerMsg = `回避失敗! 被弾 ${Math.floor(ダメージ)}`;
+          tickerDetail = `[${スキル名}]`;
         }
       } 
       else if (防御側コマンド === '回避奥義' && 防御奥義) {
@@ -6473,9 +6533,15 @@ class GameApp {
         if (乱数 < 最終回避率) {
           isHit = false;
           ダメージ = 0;
-          advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」！\n▶ ${防御者名}は回避奥義「${防御奥義.奥義名}」を発動！\n  幻影のごとく攻撃を受け流した！【${最終回避率.toFixed(0)}%の確率を突破！】`;
+          tickerType = 'evade';
+          tickerTag = 'EVADE OUGI!';
+          tickerMsg = `回避奥義成功! [突破率 ${最終回避率.toFixed(0)}%]`;
+          tickerDetail = `[${防御奥義.奥義名}]`;
         } else {
-          advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」が炸裂！\n▶ ${防御者名}は回避奥義「${防御奥義.奥義名}」を狙ったが不発！\n  ダメージ: ${Math.floor(ダメージ)}`;
+          tickerType = 'hit';
+          tickerTag = 'EVADE FAILED!';
+          tickerMsg = `回避奥義不発! 被弾 ${Math.floor(ダメージ)}`;
+          tickerDetail = `[${防御奥義.奥義名}]`;
         }
       }
       else if (防御側コマンド === 'カウンター') {
@@ -6503,10 +6569,16 @@ class GameApp {
           const 反撃ダメージ = 0.18 * 防御側ギア.ステータス.アタック * (防御側ギア.ステータス.アタック / Math.max(1, 攻撃側ギア.ステータス.ディフェンス)) * (0.7 + 反撃補正);
 
           this.clashPendingCounterDamage = 反撃ダメージ;
-          advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」！\n▶ ${防御者名}の鋭いカウンター炸裂！猛烈な反撃！\n  反撃ダメージ: ${Math.floor(反撃ダメージ)} 【${カウンター成功率.toFixed(0)}%の確率を突破！】`;
+          tickerType = 'counter';
+          tickerTag = 'COUNTER!!';
+          tickerMsg = `反撃炸裂 ${Math.floor(反撃ダメージ)} DAMAGE! [突破率 ${カウンター成功率.toFixed(0)}%]`;
+          tickerDetail = `[${スキル名}]`;
         } else {
           this.clashPendingCounterDamage = 0;
-          advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」が直撃！\n▶ ${防御者名}はカウンターを狙ったが失敗！\n  ダメージ: ${Math.floor(ダメージ)}`;
+          tickerType = 'hit';
+          tickerTag = 'COUNTER FAILED!';
+          tickerMsg = `カウンター失敗! 被弾 ${Math.floor(ダメージ)}`;
+          tickerDetail = `[${スキル名}]`;
         }
       }
       else if (防御側コマンド === 'カウンター奥義' && 防御奥義) {
@@ -6540,10 +6612,24 @@ class GameApp {
           const 反撃ダメージ = 0.18 * 防御側ギア.ステータス.アタック * (防御側ギア.ステータス.アタック / Math.max(1, 攻撃側ギア.ステータス.ディフェンス)) * (counterAtkMultiplier + 反撃補正);
 
           this.clashPendingCounterDamage = 反撃ダメージ;
-          advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」！\n▶ ${防御者名}のカウンター奥義「${防御奥義.奥義名}」が炸裂！\n  超絶反撃ダメージ: ${Math.floor(反撃ダメージ)} 【${カウンター成功率.toFixed(0)}%の確率を突破！】`;
+          tickerType = 'counter';
+          tickerTag = 'COUNTER OUGI!!';
+          tickerMsg = `強烈反撃 ${Math.floor(反撃ダメージ)} DAMAGE! [突破率 ${カウンター成功率.toFixed(0)}%]`;
+          tickerDetail = `[${防御奥義.奥義名}]`;
         } else {
           this.clashPendingCounterDamage = 0;
-          advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」が直撃！\n▶ ${防御者名}はカウンター奥義を狙ったが不発！\n  ダメージ: ${Math.floor(ダメージ)}`;
+          tickerType = 'hit';
+          tickerTag = 'COUNTER FAILED!';
+          tickerMsg = `カウンター奥義不発! 被弾 ${Math.floor(ダメージ)}`;
+          tickerDetail = `[${防御奥義.奥義名}]`;
+        }
+      } else {
+        // 通常ヒット
+        if (is攻撃奥義) {
+          tickerTag = 'SPECIAL HIT!!';
+          tickerMsg = `痛烈 ${Math.floor(ダメージ)} DAMAGE!`;
+          tickerDetail = `[${スキル名}]`;
+          tickerType = 'ougi';
         }
       }
 
@@ -6552,7 +6638,6 @@ class GameApp {
       this.clashPendingIsHit = isHit;
       this.clashPendingIsCounter = isCounterSuccess;
       this.clashPendingSide = 攻撃側判定;
-      this.clashPendingDialogText = advDialogText;
       this.clashPendingChoice = スキル名;
 
       // clashResultType の決定 ('hit' | 'guard' | 'evade' | 'counter')
@@ -6585,31 +6670,30 @@ class GameApp {
         this.triggerHitStop(0.08);
         this.triggerScreenShake(is攻撃奥義 ? 15 : 8);
 
-        // 激突完了の被弾瞬間に衝撃音を再生
-        if (this.clashResultType === 'counter') {
+        // 激突完了の被弾瞬間に衝撃音を再生（奥義ヒット時は新設した奥義専用SE）
+        if (is攻撃奥義 && this.clashResultType === 'hit') {
+          this.snd.playOugiImpact();
+        } else if (this.clashResultType === 'counter') {
           this.snd.playCounter();
         } else if (this.clashResultType === 'guard') {
           this.snd.playGuard();
         } else if (this.clashPendingIsHit) {
           if (this.clashPendingSide === 'エネミー') {
-            // プレイヤー被弾
             this.snd.playDamage();
           } else {
-            // エネミー被弾
             this.snd.playHit();
           }
         }
 
-        // もし防御側の奥義発動だった場合は、その奥義の聖獣カットイン演出もキック可能 (ここではシンプルにADVのみ展開)
-        this.startTalk([
-          { speaker: is攻撃奥義 ? 'システム' : (攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'), text: this.clashPendingDialogText }
-        ], () => {
-          if (this.battleManager) {
-            this.battleManager.実行反動クラッシュ();
-          }
-          // ADV結果会話をプレイヤーが読み終えたこのタイミングで勝敗判定を実行
-          this.checkBattleEndConditions();
-        });
+        // ★ADVダイアログ（クリック待ち）を廃止し、スマートなコンバットティッカーを画面上部に表示！
+        this.showCombatTicker(tickerTag, tickerMsg, tickerDetail, tickerType);
+
+        // ★クリック待ちゼロ！即座に反動クラッシュで吹き飛び復帰！
+        if (this.battleManager) {
+          this.battleManager.実行反動クラッシュ();
+        }
+        // 勝敗判定を実行
+        this.checkBattleEndConditions();
       };
     } catch (e: any) {
       console.error("resolveCombatResult error:", e);

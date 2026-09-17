@@ -468,6 +468,61 @@ export class SoundManager {
     subOsc.stop(time + 0.4);
   }
 
+  // ★奥義専用 特大激突インパクト音 (超重低音35Hzサブベース ＋ 爆風ディストーション ＋ 高周波キィィン余韻 ＋ 金属打撃)
+  public playOugiImpact() {
+    // 既存の爆発音をベースに鳴らしつつ、奥義専用レイヤーを重ねる
+    this.playExplosion();
+
+    this.initContext();
+    this.resumeContext();
+    if (!this.ctx) return;
+
+    const time = this.ctx.currentTime;
+
+    // 1. 地響き超重低音サブベース (35Hz -> 5Hz, 0.6秒)
+    const subOsc = this.ctx.createOscillator();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(35, time);
+    subOsc.frequency.exponentialRampToValueAtTime(5, time + 0.6);
+
+    const subGain = this.ctx.createGain();
+    subGain.gain.setValueAtTime(0.7, time);
+    subGain.gain.exponentialRampToValueAtTime(0.001, time + 0.65);
+    subOsc.connect(subGain);
+    subGain.connect(this.ctx.destination);
+    subOsc.start(time);
+    subOsc.stop(time + 0.68);
+
+    // 2. 高周波キィィィン閃光レゾナンス (2200Hz -> 900Hz, 0.8秒)
+    const shineOsc = this.ctx.createOscillator();
+    shineOsc.type = 'sine';
+    shineOsc.frequency.setValueAtTime(2200, time);
+    shineOsc.frequency.exponentialRampToValueAtTime(900, time + 0.5);
+
+    const shineGain = this.ctx.createGain();
+    shineGain.gain.setValueAtTime(0.2, time);
+    shineGain.gain.linearRampToValueAtTime(0.25, time + 0.08);
+    shineGain.gain.exponentialRampToValueAtTime(0.001, time + 0.8);
+    shineOsc.connect(shineGain);
+    shineGain.connect(this.ctx.destination);
+    shineOsc.start(time);
+    shineOsc.stop(time + 0.82);
+
+    // 3. 金属粉砕クラッシュ音 (スクエア波打撃)
+    const metalOsc = this.ctx.createOscillator();
+    metalOsc.type = 'triangle';
+    metalOsc.frequency.setValueAtTime(650, time);
+    metalOsc.frequency.exponentialRampToValueAtTime(80, time + 0.15);
+
+    const metalGain = this.ctx.createGain();
+    metalGain.gain.setValueAtTime(0.4, time);
+    metalGain.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
+    metalOsc.connect(metalGain);
+    metalGain.connect(this.ctx.destination);
+    metalOsc.start(time);
+    metalOsc.stop(time + 0.2);
+  }
+
   // 奥義発動チャージ音 (ウワウワキュィィィン)
   public playOsugiCharge() {
     if (this.playSE('se_charge.wav', 0.85, 0)) return;
