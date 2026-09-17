@@ -265,6 +265,107 @@ class SkillParticle {
   }
 }
 
+class FloatingDamage {
+  private x: number;
+  private y: number;
+  private text: string;
+  private subText: string; // GUARD, MISS, COUNTER 等の補助テキスト
+  private color: string;
+  private glowColor: string;
+  private life: number = 1.0;
+  private maxLife: number;
+  private vy: number = -1.2; // 上方へのフロート速度
+  private scale: number = 1.5; // バウンス用初期スケール
+  private fontSize: number;
+
+  constructor(x: number, y: number, damage: number, type: 'hit' | 'guard' | 'evade' | 'counter' | 'ougi' | 'sp', subText: string = '') {
+    this.x = x + (Math.random() - 0.5) * 20;
+    this.y = y - 30;
+    this.subText = subText;
+    this.maxLife = 75; // 約1.25秒
+
+    if (type === 'evade') {
+      this.text = 'MISS';
+      this.color = '#39ff14';
+      this.glowColor = '#39ff14';
+      this.fontSize = 28;
+    } else if (type === 'guard') {
+      this.text = String(Math.floor(damage));
+      this.color = '#00c8ff';
+      this.glowColor = '#00c8ff';
+      this.fontSize = 26;
+    } else if (type === 'counter') {
+      this.text = String(Math.floor(damage));
+      this.color = '#ffaa00';
+      this.glowColor = '#ffaa00';
+      this.fontSize = 30;
+    } else if (type === 'ougi') {
+      this.text = String(Math.floor(damage));
+      this.color = '#ff00aa';
+      this.glowColor = '#ff00aa';
+      this.fontSize = 38;
+      this.scale = 2.0;
+    } else if (type === 'sp') {
+      this.text = `SP+${Math.floor(damage)}`;
+      this.color = '#00ff88';
+      this.glowColor = '#00ff88';
+      this.fontSize = 18;
+      this.vy = -0.8;
+    } else {
+      // 通常被弾 hit
+      this.text = String(Math.floor(damage));
+      this.color = '#ff4444';
+      this.glowColor = '#ff2222';
+      this.fontSize = 30;
+    }
+  }
+
+  public update(): boolean {
+    this.y += this.vy;
+    this.vy *= 0.98;
+    this.life -= 1 / this.maxLife;
+    // バウンススケール: 1.5 → 1.0 に急速に縮小
+    if (this.scale > 1.0) {
+      this.scale -= 0.06;
+      if (this.scale < 1.0) this.scale = 1.0;
+    }
+    return this.life > 0;
+  }
+
+  public draw(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    const alpha = this.life > 0.3 ? 1.0 : this.life / 0.3;
+    ctx.globalAlpha = alpha;
+
+    // ネオン光彩
+    ctx.shadowBlur = 16;
+    ctx.shadowColor = this.glowColor;
+    ctx.font = `900 ${Math.round(this.fontSize * this.scale)}px 'Orbitron', 'Rajdhani', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // 白い縁取り
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.strokeText(this.text, this.x, this.y);
+
+    // メインカラー
+    ctx.fillStyle = this.color;
+    ctx.fillText(this.text, this.x, this.y);
+
+    // 補助テキスト（GUARD, COUNTER等）
+    if (this.subText) {
+      ctx.font = `700 ${Math.round(this.fontSize * 0.5 * this.scale)}px 'Orbitron', 'Rajdhani', sans-serif`;
+      ctx.fillStyle = this.color;
+      ctx.shadowBlur = 8;
+      ctx.fillText(this.subText, this.x, this.y - this.fontSize * 0.8);
+    }
+
+    ctx.restore();
+  }
+}
+
 class GameApp {
   private snd = SoundManager.getInstance();
   // セーブデータ
@@ -274,6 +375,8 @@ class GameApp {
   private particles: (SparkParticle | SmokeParticle)[] = [];
   private shockwaves: Shockwave[] = [];
   private skillParticles: SkillParticle[] = [];
+  private floatingDamages: FloatingDamage[] = [];
+  private osugiWhiteoutFrames: number = 0; // 奥義ホワイトアウト演出用
   private isOsugiCutinActive: boolean = false;
   private osugiCutinFrames: number = 0;
   private onOsugiCutinComplete: (() => void) | null = null;
@@ -5051,6 +5154,8 @@ class GameApp {
     this.particles = [];
     this.shockwaves = [];
     this.skillParticles = [];
+    this.floatingDamages = [];
+    this.osugiWhiteoutFrames = 0;
     this.isOsugiCutinActive = false;
     this.osugiCutinFrames = 0;
     this.currentEnemySelectedOsugi = null;
@@ -5187,6 +5292,28 @@ class GameApp {
           }
         }
 
+        // ★フローティングダメージ数値の生成
+        const isOugiAtk = this.clashPendingChoice.includes('奥義') || this.clashPendingChoice.includes('SPECIAL');
+        if (this.clashResultType === 'evade') {
+          // 回避成功: MISS表示（攻撃側ギアの位置に表示）
+          const missX = this.clashPendingSide === 'プレイヤー' ? 600 : 200;
+          this.floatingDamages.push(new FloatingDamage(missX, 200, 0, 'evade'));
+        } else if (this.clashResultType === 'guard') {
+          // ガード: 軽減後ダメージ（被弾側ギアの位置）
+          const guardX = this.clashPendingSide === 'プレイヤー' ? 600 : 200;
+          this.floatingDamages.push(new FloatingDamage(guardX, 200, dmg, 'guard', 'GUARD'));
+        } else if (this.clashResultType === 'counter') {
+          // カウンター成功: 反撃ダメージ（攻撃側ギアの位置）
+          const counterDmg = Math.floor(this.clashPendingCounterDamage);
+          const counterTargetX = this.clashPendingSide === 'プレイヤー' ? 200 : 600;
+          this.floatingDamages.push(new FloatingDamage(counterTargetX, 200, counterDmg, 'counter', 'COUNTER'));
+        } else {
+          // 通常被弾 or 奥義被弾
+          const hitX = this.clashPendingSide === 'プレイヤー' ? 600 : 200;
+          const dmgType = isOugiAtk ? 'ougi' : 'hit';
+          this.floatingDamages.push(new FloatingDamage(hitX, 180, dmg, dmgType as any));
+        }
+
         // 2. 超巨大な衝撃波＆大爆発パーティクルの発生 (回避成功時は発生させない)
         if (this.clashResultType !== 'evade') {
           this.shockwaves.push(new Shockwave(400, 300));
@@ -5196,8 +5323,18 @@ class GameApp {
           (bigShock as any).speed = 4.5;
           this.shockwaves.push(bigShock);
 
-          // 火花パーティクルを大量生成
-          const sparkCount = this.clashResultType === 'guard' ? 12 : 30; // ガード時は火花少なめ
+          // 奥義ヒット時は超特大の衝撃波を追加生成！
+          if (isOugiAtk && this.clashResultType === 'hit') {
+            const megaShock = new Shockwave(400, 300);
+            (megaShock as any).maxRadius = 400;
+            (megaShock as any).speed = 6.0;
+            this.shockwaves.push(megaShock);
+            // ホワイトアウトフラッシュ発動
+            this.osugiWhiteoutFrames = 8;
+          }
+
+          // 火花パーティクルを大量生成（奥義時は80個に増量）
+          const sparkCount = this.clashResultType === 'guard' ? 12 : (isOugiAtk ? 80 : 30);
           const color1 = this.clashResultType === 'guard' ? '#00f3ff' : '#ff5500';
           const color2 = this.clashResultType === 'guard' ? '#ffffff' : '#ffd800';
 
@@ -5216,11 +5353,17 @@ class GameApp {
           const clashWord = document.createElement('div');
           clashWord.className = 'comic-word-overlay';
           
-          // clashResultType に応じた擬音テキスト
+          // clashResultType に応じた擬音テキスト（奥義ヒット時は SPECIAL!!）
           if (this.clashResultType === 'counter') clashWord.textContent = 'COUNTER!!';
           else if (this.clashResultType === 'guard') clashWord.textContent = 'GUARD!!';
           else if (this.clashResultType === 'evade') clashWord.textContent = 'EVADE!!';
+          else if (isOugiAtk) clashWord.textContent = 'SPECIAL!!';
           else clashWord.textContent = 'CLASH!!';
+
+          // 奥義時はフォントサイズを拡大
+          if (isOugiAtk && this.clashResultType === 'hit') {
+            clashWord.style.fontSize = '5rem';
+          }
 
           clashWord.style.left = '50%';
           clashWord.style.top = '50%';
@@ -5238,6 +5381,10 @@ class GameApp {
         } else if (this.clashResultType === 'guard') {
           this.battleHitStopFrames = 5; // ガード成功時はヒットストップも軽微
           this.battleShakeFrames = 8;  // シェイクも微小
+        } else if (isOugiAtk) {
+          // 奥義ヒット・カウンター時は超大シェイク＆長ヒットストップ
+          this.battleHitStopFrames = 20;
+          this.battleShakeFrames = 35;
         } else {
           // 通常ヒット・カウンター成功時は大きなシェイク
           this.battleHitStopFrames = 15;
@@ -6049,6 +6196,7 @@ class GameApp {
     this.snd.playOsugiCharge(); // 奥義発動チャージ音
     this.isOsugiCutinActive = true;
     this.osugiCutinFrames = 84; // 1.4秒 (84フレーム)
+    this.battleShakeFrames = 5; // カットイン出現時の前震シェイク
     this.onOsugiCutinComplete = onComplete;
 
     // 発動ギアのコアチップ（聖獣）固有のイメージカラーを取得
@@ -6207,8 +6355,8 @@ class GameApp {
     else if (bladeAttr === '風') particleType = 'wind';
     else if (bladeAttr === '土' || bladeAttr === '雷') particleType = 'thunder';
 
-    // 粒子を大量生成 (120個)
-    for (let i = 0; i < 120; i++) {
+    // 粒子を大量生成 (200個に増量)
+    for (let i = 0; i < 200; i++) {
       this.skillParticles.push(new SkillParticle(targetX, targetY, particleType));
     }
   }
@@ -6239,6 +6387,10 @@ class GameApp {
       
       // ダメージ基本計算式
       let ダメージ = 0.18 * 攻撃側アタック * (攻撃側アタック / Math.max(1, 防御側ディフェンス)) * 最終倍率;
+      const 軽減前ダメージ = Math.floor(ダメージ); // ADVセリフで軽減前→軽減後の変化表示用
+      const 攻撃者名 = 攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手';
+      const 防御者名 = 攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた';
+      const 技プレフィックス = is攻撃奥義 ? '必殺！ ' : '';
 
       let advDialogText = '';
       let isHit = true;
@@ -6259,7 +6411,7 @@ class GameApp {
           this.battleManager.プレイヤー奥義ゲージ = Math.min(100, Math.max(0, this.battleManager.プレイヤー奥義ゲージ + 10));
         }
 
-        advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}は防御を固め、ダメージを軽減した！ (被ダメージ: ${Math.floor(ダメージ)})`;
+        advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」が炸裂！\n▶ ${防御者名}は防御で受け止めた！\n  ダメージ: ${軽減前ダメージ} → ${Math.floor(ダメージ)} (40%カット)`;
       } 
       else if (防御側コマンド === '防御奥義' && 防御奥義) {
         // 防御奥義コスト消費 (防御した側が消費)
@@ -6277,7 +6429,7 @@ class GameApp {
 
         ダメージ = ダメージ * cutRate * ウェイト補正;
 
-        advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}は防御奥義「${防御奥義.奥義名}」を展開！ダメージを極限まで抑え込んだ！ (被ダメージ: ${Math.floor(ダメージ)})`;
+        advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」が炸裂！\n▶ ${防御者名}は防御奥義「${防御奥義.奥義名}」を展開！\n  ダメージ: ${軽減前ダメージ} → ${Math.floor(ダメージ)} (${cutPct}%カット)`;
       }
       else if (防御側コマンド === '回避') {
         // 回避率の確率判定
@@ -6297,9 +6449,9 @@ class GameApp {
         if (乱数 < 最終回避率) {
           isHit = false;
           ダメージ = 0;
-          advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}はスピードを活かして完全回避した！ (成功率: ${最終回避率.toFixed(1)}%)`;
+          advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」！\n▶ ${防御者名}はスピードを活かして完全回避！\n  【${最終回避率.toFixed(0)}%の確率を突破！】`;
         } else {
-          advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}は回避に失敗した！通常ダメージを受けた。 (被ダメージ: ${Math.floor(ダメージ)})`;
+          advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」が炸裂！\n▶ ${防御者名}は回避を試みたが失敗！\n  ダメージ: ${Math.floor(ダメージ)}`;
         }
       } 
       else if (防御側コマンド === '回避奥義' && 防御奥義) {
@@ -6321,9 +6473,9 @@ class GameApp {
         if (乱数 < 最終回避率) {
           isHit = false;
           ダメージ = 0;
-          advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}は回避奥義「${防御奥義.奥義名}」を発動！幻影のごとく攻撃を受け流した！ (成功率: ${最終回避率.toFixed(1)}%)`;
+          advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」！\n▶ ${防御者名}は回避奥義「${防御奥義.奥義名}」を発動！\n  幻影のごとく攻撃を受け流した！【${最終回避率.toFixed(0)}%の確率を突破！】`;
         } else {
-          advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}は回避奥義を狙ったが失敗！通常ダメージを受けた。 (被ダメージ: ${Math.floor(ダメージ)})`;
+          advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」が炸裂！\n▶ ${防御者名}は回避奥義「${防御奥義.奥義名}」を狙ったが不発！\n  ダメージ: ${Math.floor(ダメージ)}`;
         }
       }
       else if (防御側コマンド === 'カウンター') {
@@ -6351,10 +6503,10 @@ class GameApp {
           const 反撃ダメージ = 0.18 * 防御側ギア.ステータス.アタック * (防御側ギア.ステータス.アタック / Math.max(1, 攻撃側ギア.ステータス.ディフェンス)) * (0.7 + 反撃補正);
 
           this.clashPendingCounterDamage = 反撃ダメージ;
-          advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}の鋭いカウンター炸裂！反撃ダメージを与えた！ (反撃被ダメージ: ${Math.floor(反撃ダメージ)} / 成功率: ${カウンター成功率.toFixed(1)}%)`;
+          advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」！\n▶ ${防御者名}の鋭いカウンター炸裂！猛烈な反撃！\n  反撃ダメージ: ${Math.floor(反撃ダメージ)} 【${カウンター成功率.toFixed(0)}%の確率を突破！】`;
         } else {
           this.clashPendingCounterDamage = 0;
-          advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}はカウンターを狙ったが失敗！大ダメージを受けた。 (被ダメージ: ${Math.floor(ダメージ)})`;
+          advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」が直撃！\n▶ ${防御者名}はカウンターを狙ったが失敗！\n  ダメージ: ${Math.floor(ダメージ)}`;
         }
       }
       else if (防御側コマンド === 'カウンター奥義' && 防御奥義) {
@@ -6388,10 +6540,10 @@ class GameApp {
           const 反撃ダメージ = 0.18 * 防御側ギア.ステータス.アタック * (防御側ギア.ステータス.アタック / Math.max(1, 攻撃側ギア.ステータス.ディフェンス)) * (counterAtkMultiplier + 反撃補正);
 
           this.clashPendingCounterDamage = 反撃ダメージ;
-          advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}のカウンター奥義「${防御奥義.奥義名}」が炸裂！強烈な反撃！ (反撃被ダメージ: ${Math.floor(反撃ダメージ)} / 成功率: ${カウンター成功率.toFixed(1)}%)`;
+          advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」！\n▶ ${防御者名}のカウンター奥義「${防御奥義.奥義名}」が炸裂！\n  超絶反撃ダメージ: ${Math.floor(反撃ダメージ)} 【${カウンター成功率.toFixed(0)}%の確率を突破！】`;
         } else {
           this.clashPendingCounterDamage = 0;
-          advDialogText = `${攻撃側判定 === 'プレイヤー' ? 'あなた' : '相手'}の「${スキル名}」！\n${攻撃側判定 === 'プレイヤー' ? '相手' : 'あなた'}はカウンター奥義を狙ったが不発！大ダメージを受けた。 (被ダメージ: ${Math.floor(ダメージ)})`;
+          advDialogText = `${技プレフィックス}${攻撃者名}の「${スキル名}」が直撃！\n▶ ${防御者名}はカウンター奥義を狙ったが不発！\n  ダメージ: ${Math.floor(ダメージ)}`;
         }
       }
 
@@ -7592,6 +7744,20 @@ class GameApp {
     // ギアの描画
     this.drawGear(ctx, pX, pY, 25, this.battleManager.プレイヤーギア, this.playerRotation, isPlayerPinch);
     this.drawGear(ctx, eX, eY, 25, this.battleManager.エネミーギア, this.enemyRotation, isEnemyPinch);
+
+    // フローティングダメージ数値の描画＆更新
+    this.floatingDamages = this.floatingDamages.filter(fd => {
+      fd.draw(ctx);
+      return fd.update();
+    });
+
+    // 奥義ホワイトアウト演出
+    if (this.osugiWhiteoutFrames > 0) {
+      const whiteAlpha = Math.min(0.85, this.osugiWhiteoutFrames / 8);
+      ctx.fillStyle = `rgba(255, 255, 255, ${whiteAlpha})`;
+      ctx.fillRect(0, 0, 800, 600);
+      this.osugiWhiteoutFrames--;
+    }
 
     ctx.restore();
   }
