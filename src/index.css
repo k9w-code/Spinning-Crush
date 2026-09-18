@@ -937,7 +937,10 @@ body, html {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: radial-gradient(circle at center, rgba(16, 28, 54, 0.4) 0%, rgba(4, 7, 14, 0.95) 100%);
+  background-image: radial-gradient(circle at center, rgba(10, 16, 32, 0.3) 0%, rgba(3, 5, 10, 0.85) 100%), url('/images/bg/ワールドマップ.webp');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 #map-canvas {
@@ -1207,6 +1210,181 @@ body, html {
   pointer-events: none;
 }
 
+/* 選択中ノードのハイライト */
+.map-node.selected .map-node-badge {
+  border-color: #fff !important;
+  box-shadow: 0 0 25px rgba(0, 243, 255, 0.9), 0 0 10px #fff, inset 0 0 15px rgba(0, 243, 255, 0.6) !important;
+  transform: scale(1.12);
+}
+
+/* タクティカル作戦司令カード (商業レベルミッションインテル) */
+.map-mission-intel {
+  position: absolute;
+  right: 28px;
+  bottom: 24px;
+  width: 380px;
+  background: rgba(8, 14, 26, 0.94);
+  border: 1.5px solid var(--color-neon-blue);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.85), 0 0 25px rgba(0, 243, 255, 0.22);
+  border-radius: 14px;
+  padding: 18px 22px;
+  backdrop-filter: blur(14px);
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: intel-fade-in 0.28s ease-out;
+  pointer-events: auto;
+  transition: all 0.25s ease;
+}
+
+.map-mission-intel.intel-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(16px);
+}
+
+@keyframes intel-fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.intel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(0, 243, 255, 0.2);
+  padding-bottom: 8px;
+}
+
+.intel-tag {
+  font-family: var(--font-hud);
+  font-size: 0.88rem;
+  font-weight: 900;
+  color: var(--color-neon-blue);
+  letter-spacing: 1px;
+}
+
+.intel-status-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(0, 243, 255, 0.15);
+  color: #00f3ff;
+  border: 1px solid rgba(0, 243, 255, 0.4);
+}
+
+.intel-status-badge.next {
+  background: rgba(255, 0, 85, 0.2);
+  color: #ff3377;
+  border-color: #ff0055;
+  animation: pulse 1.5s infinite;
+}
+
+.intel-status-badge.cleared {
+  background: rgba(57, 255, 20, 0.2);
+  color: #39ff14;
+  border-color: #39ff14;
+}
+
+.intel-status-badge.locked {
+  background: rgba(120, 140, 170, 0.2);
+  color: #94a3b8;
+  border-color: #475569;
+}
+
+.intel-title {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #fff;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.intel-flavor {
+  font-size: 0.82rem;
+  color: var(--color-text-sub);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.intel-boss-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.intel-boss-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  border: 1px solid var(--color-neon-blue);
+  background-color: rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
+}
+
+.intel-boss-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.intel-boss-name {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.intel-boss-gear {
+  font-size: 0.78rem;
+  color: var(--color-neon-blue);
+  font-weight: 700;
+}
+
+.intel-meta-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.intel-meta-item {
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.intel-meta-label {
+  font-size: 0.7rem;
+  color: var(--color-text-sub);
+}
+
+.intel-meta-val {
+  font-weight: 800;
+  color: #ffd700;
+}
+
+.btn-deploy {
+  width: 100%;
+  padding: 10px 0;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
 /* ================== ⑤ ステージ詳細画面 ================== */
 .stage-content {
   display: flex;
@@ -1395,28 +1573,115 @@ body, html {
   100% { transform: rotate(360deg); }
 }
 
-.vs-gear-details h3 {
+.vs-side-badge {
   font-family: var(--font-hud);
-  font-size: 1.6rem;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  padding: 4px 16px;
+  border-radius: 20px;
+  margin-bottom: 12px;
+  display: inline-block;
+}
+
+.vs-side-player {
+  color: var(--color-neon-blue);
+  background: rgba(0, 243, 255, 0.12);
+  border: 1px solid rgba(0, 243, 255, 0.4);
+  box-shadow: 0 0 12px rgba(0, 243, 255, 0.25);
+}
+
+.vs-side-enemy {
+  color: var(--color-neon-pink);
+  background: rgba(255, 0, 85, 0.12);
+  border: 1px solid rgba(255, 0, 85, 0.4);
+  box-shadow: 0 0 12px rgba(255, 0, 85, 0.25);
+}
+
+.vs-identity-box {
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.vs-blader-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 3px 12px;
+  border-radius: 14px;
+}
+
+.vs-blader-badge-tag {
+  font-family: var(--font-hud);
+  font-size: 0.65rem;
+  font-weight: 900;
+  color: var(--color-neon-blue);
+  letter-spacing: 0.5px;
+}
+
+.vs-enemy .vs-blader-badge-tag {
+  color: var(--color-neon-pink);
+}
+
+.vs-blader-name {
+  font-size: 0.95rem;
   font-weight: 800;
-  margin-bottom: 15px;
+  color: #fff;
+}
+
+.vs-gear-name-display {
+  font-family: var(--font-hud);
+  font-size: 1.55rem;
+  font-weight: 900;
+  color: #fff;
+  margin: 4px 0 0 0;
+  text-shadow: 0 0 16px rgba(0, 243, 255, 0.6);
+  letter-spacing: 0.5px;
+}
+
+.vs-enemy .vs-gear-name-display {
+  text-shadow: 0 0 16px rgba(255, 0, 85, 0.6);
 }
 
 .vs-stats {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  gap: 8px;
   text-align: left;
   width: 100%;
-  font-size: 0.95rem;
+  margin-top: 12px;
 }
 
 .vs-stat-item {
   display: flex;
   justify-content: space-between;
-  padding: 5px 10px;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 4px;
+  align-items: center;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.vs-stat-label {
+  color: var(--color-text-sub);
+  font-weight: 700;
+  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+
+.vs-stat-val {
+  font-family: var(--font-hud);
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #fff;
+  margin-left: 6px;
 }
 
 .vs-divider {
@@ -1936,10 +2201,10 @@ body, html {
 /* 2. 店長立ち絵レイヤー (カウンター奥に直接配置・大迫力ADVスケール) */
 .shopkeeper-character-layer {
   position: absolute;
-  left: 20%;
+  left: 14%;
   bottom: 0;
-  height: 86vh;
-  max-height: 760px;
+  height: 88vh;
+  max-height: 800px;
   width: auto;
   aspect-ratio: 3 / 4;
   z-index: 2;
@@ -1960,20 +2225,40 @@ body, html {
   box-shadow: none !important;
 }
 
-/* 3. ADV風 店長メッセージウィンドウ (左下〜中央下) */
+/* 3. ADV風 店長メッセージウィンドウ (左下・視線誘導最適化) */
 .shopkeeper-serifu-box {
   position: absolute;
-  left: 32px;
+  left: 36px;
   bottom: 24px;
-  width: 580px;
+  width: 460px;
   max-width: calc(100vw - 520px);
   background: rgba(10, 14, 24, 0.94);
   border: 1.5px solid rgba(0, 243, 255, 0.4);
   border-radius: 14px;
-  padding: 16px 24px;
+  padding: 16px 22px;
   box-shadow: 0 12px 35px rgba(0, 0, 0, 0.8), 0 0 25px rgba(0, 243, 255, 0.12);
   backdrop-filter: blur(16px);
   z-index: 6;
+}
+
+.shopkeeper-serifu-box::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 55px;
+  border-width: 0 12px 12px 12px;
+  border-style: solid;
+  border-color: transparent transparent rgba(0, 243, 255, 0.4) transparent;
+}
+
+.shopkeeper-serifu-box::after {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 56px;
+  border-width: 0 11px 11px 11px;
+  border-style: solid;
+  border-color: transparent transparent rgba(10, 14, 24, 0.96) transparent;
 }
 
 .shopkeeper-speaker-tag {
@@ -1999,7 +2284,7 @@ body, html {
 
 .shopkeeper-message-text {
   margin: 0;
-  font-size: 0.96rem;
+  font-size: 0.94rem;
   line-height: 1.6;
   color: #f0f6fc;
   font-weight: 500;
@@ -2008,14 +2293,14 @@ body, html {
 /* 4. ショップKIOSK端末 (右側・サイバーガラス) */
 .shop-kiosk-panel {
   position: absolute;
-  right: 36px;
-  top: 84px;
+  right: 48px;
+  top: 80px;
   bottom: 24px;
-  width: 430px;
-  background: rgba(11, 16, 30, 0.92);
+  width: 440px;
+  background: rgba(11, 16, 30, 0.94);
   border: 1.5px solid rgba(0, 243, 255, 0.35);
   border-radius: 18px;
-  padding: 20px 22px;
+  padding: 20px 24px;
   box-shadow: 0 14px 45px rgba(0, 0, 0, 0.8), inset 0 0 30px rgba(0, 243, 255, 0.06);
   backdrop-filter: blur(16px);
   display: flex;
@@ -2030,7 +2315,7 @@ body, html {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 14px;
-  padding: 16px;
+  padding: 18px;
 }
 
 .kiosk-section.chip-pack-section {
@@ -2042,8 +2327,22 @@ body, html {
   margin-bottom: 12px;
 }
 
+.kiosk-terminal-badge {
+  display: inline-block;
+  font-family: var(--font-hud);
+  font-size: 0.68rem;
+  font-weight: 900;
+  color: var(--color-neon-blue);
+  letter-spacing: 1.5px;
+  margin-bottom: 4px;
+}
+
+.kiosk-terminal-badge.chip-badge {
+  color: #ff77bb;
+}
+
 .kiosk-title {
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   font-weight: 900;
   color: #fff;
   margin: 0 0 6px 0;
@@ -2073,19 +2372,93 @@ body, html {
   padding: 12px 0;
 }
 
-.pack-visual-icon {
-  width: 110px;
-  height: 110px;
-  border-radius: 18px;
-  background: radial-gradient(circle at 35% 35%, rgba(0, 243, 255, 0.35) 0%, rgba(10, 20, 40, 0.95) 75%);
-  border: 2px solid rgba(0, 243, 255, 0.45);
-  box-shadow: 0 0 25px rgba(0, 243, 255, 0.35), inset 0 0 20px rgba(0, 243, 255, 0.25);
+/* サイバーブースターパック (絵文字完全撤廃・高輝度ホログラムデザイン) */
+.cyber-booster-pack {
+  position: relative;
+  width: 120px;
+  height: 160px;
+  background: linear-gradient(145deg, #12223a 0%, #1e3860 35%, #0e1a2f 70%, #182e4e 100%);
+  border: 2px solid var(--color-neon-blue);
+  border-radius: 12px;
+  box-shadow: 0 0 25px rgba(0, 243, 255, 0.4), inset 0 0 20px rgba(0, 243, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: 12px;
+  animation: pack-float 3.5s ease-in-out infinite alternate;
+  user-select: none;
+}
+
+.pack-holo-glimmer {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 35%,
+    rgba(0, 243, 255, 0.15) 45%,
+    rgba(255, 255, 255, 0.35) 50%,
+    rgba(0, 243, 255, 0.15) 55%,
+    transparent 65%
+  );
+  animation: holo-sheen 4s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes holo-sheen {
+  0% { transform: translate(-30%, -30%) rotate(25deg); }
+  100% { transform: translate(30%, 30%) rotate(25deg); }
+}
+
+.pack-core-visual {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 243, 255, 0.3) 0%, rgba(5, 12, 24, 0.9) 70%);
+  border: 1px solid rgba(0, 243, 255, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 3.2rem;
-  margin-bottom: 10px;
-  animation: pack-float 3s ease-in-out infinite alternate;
+  box-shadow: 0 0 16px rgba(0, 243, 255, 0.6);
+  animation: core-rotate 12s linear infinite;
+  z-index: 2;
+}
+
+@keyframes core-rotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.pack-brand-label {
+  margin-top: 12px;
+  font-family: var(--font-hud);
+  font-size: 0.64rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 1.5px;
+  text-shadow: 0 0 8px rgba(0, 243, 255, 0.8);
+  z-index: 2;
+}
+
+.pack-neon-pulse {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--color-neon-blue);
+  box-shadow: 0 0 10px var(--color-neon-blue);
+}
+
+.pack-collection-status {
+  font-size: 0.84rem;
+  color: #a0aec0;
+  text-align: center;
+  font-weight: 600;
 }
 
 @keyframes pack-float {
@@ -4486,7 +4859,7 @@ body, html {
 }
 
 .town-map {
-  background-image: url('/images/bg/バトルマップ.webp') !important;
+  background-image: url('/images/bg/ワールドマップ.webp') !important;
   background-size: 100% 100% !important;
   background-position: center !important;
   background-repeat: no-repeat !important;

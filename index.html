@@ -174,6 +174,34 @@
           <canvas id="map-canvas"></canvas>
           <!-- DOMで配置されるサイバーノードコンテナ -->
           <div id="map-pins-container"></div>
+          
+          <!-- タクティカル・ミッション司令カード (ノード選択時に展開) -->
+          <div id="map-mission-intel" class="map-mission-intel">
+            <div class="intel-header">
+              <div class="intel-tag" id="map-intel-tag">STAGE 01</div>
+              <div class="intel-status-badge" id="map-intel-status">NEXT MISSION</div>
+            </div>
+            <h3 class="intel-title" id="map-intel-title">アオバ・ストリートパーク</h3>
+            <p class="intel-flavor" id="map-intel-flavor">街の若きブレーダーたちが集う憩いの公園。すべての伝説のはじまりの地。</p>
+            <div class="intel-boss-row">
+              <div class="intel-boss-avatar" id="map-intel-avatar"></div>
+              <div class="intel-boss-info">
+                <div class="intel-boss-name" id="map-intel-boss-name">BOSS: カイト</div>
+                <div class="intel-boss-gear" id="map-intel-boss-gear">GEAR: チェイン・ケルベロス</div>
+              </div>
+            </div>
+            <div class="intel-meta-row">
+              <div class="intel-meta-item">
+                <span class="intel-meta-label">ガチャ解禁</span>
+                <span class="intel-meta-val" id="map-intel-reward">ランク1以下</span>
+              </div>
+              <div class="intel-meta-item">
+                <span class="intel-meta-label">ライバル討伐状況</span>
+                <span class="intel-meta-val" id="map-intel-progress">0 / 5</span>
+              </div>
+            </div>
+            <button id="btn-map-deploy" class="btn btn-primary btn-deploy">出撃 (DEPLOY)</button>
+          </div>
         </div>
       </div>
 
@@ -212,17 +240,23 @@
         <div class="vs-layout">
           <!-- 左側: プレイヤーギア情報 & スロット切り替えギミック -->
           <div class="vs-gear-panel vs-player">
-            <div class="vs-enemy-title">自機ドライブギア</div>
+            <div class="vs-side-badge vs-side-player">自機ドライブギア</div>
             <div class="vs-gear-visual">
               <canvas id="vs-player-canvas" width="200" height="200"></canvas>
             </div>
             <div class="vs-gear-details">
-              <div class="vs-slot-selector" style="margin-bottom: 15px;">
+              <div class="vs-slot-selector" style="margin-bottom: 12px;">
                 <button id="btn-vs-slot-prev" class="btn btn-small">◀</button>
                 <span id="vs-slot-label">スロット1 (出撃)</span>
                 <button id="btn-vs-slot-next" class="btn btn-small">▶</button>
               </div>
-              <h3 id="vs-player-gear-name">コズミック・ドラゴン</h3>
+              <div class="vs-identity-box">
+                <div class="vs-blader-row">
+                  <span class="vs-blader-badge-tag">BLADER</span>
+                  <span class="vs-blader-name" id="vs-player-blader-name">主人公</span>
+                </div>
+                <h3 id="vs-player-gear-name" class="vs-gear-name-display">コズミック・ドラゴン</h3>
+              </div>
               <div class="vs-parts-list" id="vs-player-parts"></div>
               <div class="vs-stats" id="vs-player-stats"></div>
             </div>
@@ -234,14 +268,20 @@
 
           <!-- 右側: 対戦相手NPCギア情報 -->
           <div class="vs-gear-panel vs-enemy">
-            <div class="vs-enemy-title">対戦相手</div>
+            <div class="vs-side-badge vs-side-enemy">対戦相手</div>
             <div class="vs-gear-visual">
               <canvas id="vs-enemy-canvas" width="200" height="200"></canvas>
             </div>
             <div class="vs-gear-details">
               <!-- 左側のスロット選択ギミックと高さを揃えて完璧な対称性を作るためのスペーサー -->
-              <div class="vs-slot-selector-spacer" style="height: 38px; margin-bottom: 15px;"></div>
-              <h3 id="vs-enemy-gear-name">メタル・タートル</h3>
+              <div class="vs-slot-selector-spacer" style="height: 38px; margin-bottom: 12px;"></div>
+              <div class="vs-identity-box">
+                <div class="vs-blader-row">
+                  <span class="vs-blader-badge-tag">BLADER</span>
+                  <span class="vs-blader-name" id="vs-enemy-blader-name">ケンジ</span>
+                </div>
+                <h3 id="vs-enemy-gear-name" class="vs-gear-name-display">ソニック・イーグル</h3>
+              </div>
               <div class="vs-parts-list" id="vs-enemy-parts"></div>
               <div class="vs-stats" id="vs-enemy-stats"></div>
             </div>
@@ -286,7 +326,7 @@
         <div class="battle-hud">
           <!-- プレイヤーHUD -->
           <div class="hud-panel hud-player">
-            <div class="hud-name">PLAYER</div>
+            <div class="hud-name" id="battle-player-name">PLAYER</div>
             <div class="hud-gauge-container">
               <div class="hud-label">ライフ</div>
               <div class="hud-bar hud-bar-hp">
@@ -461,8 +501,8 @@
           <!-- 通常ギアパック -->
           <div class="kiosk-section">
             <div class="kiosk-header">
+              <div class="kiosk-terminal-badge">SUPPLY TERMINAL</div>
               <h3 class="kiosk-title">
-                <span>📦</span>
                 ランダムギアパック
               </h3>
               <div class="kiosk-tier-info" id="shop-gacha-tier-badge">
@@ -471,8 +511,18 @@
             </div>
 
             <div class="kiosk-pack-preview" id="shop-pack-preview-gear">
-              <div class="pack-visual-icon">⚙️</div>
-              <div class="pack-cost-desc">未所持のギアパーツを確定入手！</div>
+              <div class="cyber-booster-pack">
+                <div class="pack-holo-glimmer"></div>
+                <div class="pack-core-visual">
+                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#00f3ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                  </svg>
+                </div>
+                <div class="pack-brand-label">DRIVE GEAR PACK</div>
+                <div class="pack-neon-pulse"></div>
+              </div>
+              <div class="pack-collection-status" id="shop-collection-status">未所持パーツを確定入手！</div>
             </div>
 
             <div class="kiosk-btn-group">
@@ -491,9 +541,9 @@
           <!-- スペシャルチップパック (店長撃破後解禁) -->
           <div class="kiosk-section chip-pack-section" id="shop-gacha-chip-container" style="display: none;">
             <div class="kiosk-header">
+              <div class="kiosk-terminal-badge chip-badge">LEGEND CHIP SUPPLY</div>
               <h3 class="kiosk-title" style="color: #ff77bb; text-shadow: 0 0 12px rgba(255, 0, 127, 0.5);">
-                <span>✨</span>
-                スペシャルチップパック
+                聖獣チップパック
               </h3>
               <div class="kiosk-tier-info" style="background: rgba(255, 0, 127, 0.15); border-color: rgba(255, 0, 127, 0.4); color: #ff88cc;">
                 店長撃破特典・全聖獣チップ解放

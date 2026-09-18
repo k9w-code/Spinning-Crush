@@ -93,6 +93,7 @@ export interface エネミーマスタ行 {
   ボスフラグ: string; // "1" or "0"
   チップレベル?: string;
   チップID: string;
+  チップ名?: string;
   ブレードID: string;
   ウェイトID: string;
   ソールID: string;

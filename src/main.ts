@@ -430,6 +430,7 @@ class GameApp {
   private mapCanvas: HTMLCanvasElement | null = null;
   private mapCtx: CanvasRenderingContext2D | null = null;
   private selectedStageId: string = "st001";
+  private selectedMapNodeId: string = "st001";
 
   // VS準備画面
   private vsSlotIndex: number = 1;
@@ -1815,16 +1816,19 @@ class GameApp {
       currentStats = assembled.ステータス;
     }
 
-    // 換装シミュレーションステータス
-    let nextStats = { ライフ: 0, アタック: 0, ディフェンス: 0, スピード: 0, レンジ: 0, モビリティ: 0 };
-    // パーツ脱着で一部が未装備であってもデフォルトパーツを補うことでnull安全にシミュレーションを行う
-    const simBlade = this.customGearSim.ブレード || 'b101_n';
-    const simWeight = this.customGearSim.ウェイト || 'w101_n';
-    const simSole = this.customGearSim.ソール || 's101_n';
-    const simChip = this.customGearSim.チップ || 'c001';
-    
-    const assembledNext = アセンブル実行(simChip, simBlade, simWeight, simSole, this.customGearSim.レベル, this.パーツマスタ, this.チップマスタ, this.奥義マスタ);
-    nextStats = assembledNext.ステータス;
+    // 換装シミュレーションステータス（未装備の部位は0加算とし、幽霊数値を発生させない）
+    const bPart = this.customGearSim.ブレード ? this.パーツマスタ.find(p => p.パーツID === this.customGearSim.ブレード) : null;
+    const wPart = this.customGearSim.ウェイト ? this.パーツマスタ.find(p => p.パーツID === this.customGearSim.ウェイト) : null;
+    const sPart = this.customGearSim.ソール ? this.パーツマスタ.find(p => p.パーツID === this.customGearSim.ソール) : null;
+
+    const nextStats = {
+      ライフ: Number(bPart?.ライフ || 0) + Number(wPart?.ライフ || 0) + Number(sPart?.ライフ || 0),
+      アタック: Number(bPart?.アタック || 0) + Number(wPart?.アタック || 0) + Number(sPart?.アタック || 0),
+      ディフェンス: Number(bPart?.ディフェンス || 0) + Number(wPart?.ディフェンス || 0) + Number(sPart?.ディフェンス || 0),
+      スピード: Number(bPart?.スピード || 0) + Number(wPart?.スピード || 0) + Number(sPart?.スピード || 0),
+      レンジ: Number(bPart?.レンジ || 0) + Number(wPart?.レンジ || 0) + Number(sPart?.レンジ || 0),
+      モビリティ: Number(bPart?.モビリティ || 0) + Number(wPart?.モビリティ || 0) + Number(sPart?.モビリティ || 0),
+    };
 
     const keys = ['ライフ', 'アタック', 'ディフェンス', 'スピード', 'レンジ', 'モビリティ'];
     
@@ -2225,7 +2229,7 @@ class GameApp {
       {
         id: 'st001',
         type: 'stage',
-        name: 'アオバ・ストリート',
+        name: 'アオバ・ストリートパーク',
         sub: 'STAGE 01',
         xPct: 25,
         yPct: 65,
@@ -2234,7 +2238,7 @@ class GameApp {
       {
         id: 'st002',
         type: 'stage',
-        name: '地区予選アリーナ',
+        name: '地区予選・シティアリーナ',
         sub: 'STAGE 02',
         xPct: 37,
         yPct: 32,
@@ -2243,7 +2247,7 @@ class GameApp {
       {
         id: 'st003',
         type: 'stage',
-        name: 'エリア選手権',
+        name: 'エリア選手権・ネオンプラザ',
         sub: 'STAGE 03',
         xPct: 49,
         yPct: 65,
@@ -2252,7 +2256,7 @@ class GameApp {
       {
         id: 'st004',
         type: 'stage',
-        name: '全日本選手権ドーム',
+        name: '全日本選手権・ナショナルドーム',
         sub: 'STAGE 04',
         xPct: 61,
         yPct: 32,
@@ -2261,7 +2265,7 @@ class GameApp {
       {
         id: 'st005',
         type: 'stage',
-        name: '欧州コロシアム',
+        name: '世界大会・ユーロコロシアム',
         sub: 'STAGE 05',
         xPct: 73,
         yPct: 65,
@@ -2270,7 +2274,7 @@ class GameApp {
       {
         id: 'st006',
         type: 'stage',
-        name: '世界選手権アリーナ',
+        name: '世界選手権・ワールドグランドアリーナ',
         sub: 'STAGE 06',
         xPct: 84,
         yPct: 32,
@@ -2279,7 +2283,7 @@ class GameApp {
       {
         id: 'st007',
         type: 'stage',
-        name: '旧街区ゼロスタジアム',
+        name: 'アオバ旧街区・ゼロスタジアム',
         sub: 'EXTRA',
         xPct: 93,
         yPct: 68,
@@ -2293,7 +2297,11 @@ class GameApp {
       let isCleared = false;
       let isCurrent = false;
 
+      // ステージマスタの正式名称を動的反映
       if (node.type === 'stage') {
+        const stageData = this.ステージマスタ.find(s => s.ステージID === node.id);
+        if (stageData) node.name = stageData.ステージ名;
+
         if (node.reqStageId) {
           isLocked = !this.saveData.ステージクリア状況[node.reqStageId];
         }
@@ -2302,6 +2310,7 @@ class GameApp {
       }
 
       const nodeEl = document.createElement('div');
+      nodeEl.id = `map-node-${node.id}`;
       nodeEl.className = `map-node node-${node.type} ${isLocked ? 'node-locked' : ''} ${isCleared ? 'node-cleared' : ''} ${isCurrent ? 'node-current' : ''}`;
       nodeEl.style.left = `${node.xPct}%`;
       nodeEl.style.top = `${node.yPct}%`;
@@ -2348,7 +2357,7 @@ class GameApp {
 
       nodeEl.appendChild(badgeEl);
 
-      // メイン名ラベル (例: アオバ・ストリート)
+      // メイン名ラベル (例: アオバ・ストリートパーク)
       const nameEl = document.createElement('div');
       nameEl.className = 'map-node-name';
       nameEl.textContent = node.name;
@@ -2371,18 +2380,170 @@ class GameApp {
         } else if (node.id === 'shop') {
           this.changeScreen('shop-screen');
         } else {
-          this.selectedStageId = node.id;
-          this.initStageScreen();
-          this.changeScreen('stage-screen');
+          // すでに選択中の場合は即出撃、初回クリックはインテル更新
+          if (this.selectedMapNodeId === node.id) {
+            this.selectedStageId = node.id;
+            this.initStageScreen();
+            this.changeScreen('stage-screen');
+          } else {
+            this.selectedMapNodeId = node.id;
+            this.updateMapMissionIntel(node.id);
+            this.snd.playClick();
+          }
         }
       });
+
+      if (node.type === 'stage') {
+        nodeEl.addEventListener('mouseenter', () => {
+          if (!isLocked && this.selectedMapNodeId !== node.id) {
+            this.updateMapMissionIntel(node.id);
+          }
+        });
+      }
 
       pinsContainer.appendChild(nodeEl);
     });
 
+    // 初期選択ノードの決定（現在挑戦中ステージ、または前回選択ステージ）
+    let initialNodeId = 'st001';
+    for (let i = 1; i <= 7; i++) {
+      const sId = `st00${i}`;
+      if (!this.saveData.ステージクリア状況[sId]) {
+        initialNodeId = sId;
+        break;
+      }
+    }
+    if (this.selectedMapNodeId && nodes.some(n => n.id === this.selectedMapNodeId && n.type === 'stage')) {
+      initialNodeId = this.selectedMapNodeId;
+    }
+    this.selectedMapNodeId = initialNodeId;
+    this.updateMapMissionIntel(this.selectedMapNodeId);
+
     // マップ背景＆コネクションラインを描画 (即時＋レイアウト確定の次フレームで確実描画)
     this.renderMapBackground();
     requestAnimationFrame(() => this.renderMapBackground());
+  }
+
+  // タクティカル作戦司令カードの更新
+  private updateMapMissionIntel(nodeId: string) {
+    const intelEl = document.getElementById('map-mission-intel');
+    if (!intelEl) return;
+
+    // ノードの選択状態クラスをDOM上で更新
+    document.querySelectorAll('.map-node').forEach(el => el.classList.remove('selected'));
+    const selectedEl = document.getElementById(`map-node-${nodeId}`);
+    if (selectedEl) selectedEl.classList.add('selected');
+
+    const stage = this.ステージマスタ.find(s => s.ステージID === nodeId);
+    if (!stage) {
+      intelEl.classList.add('intel-hidden');
+      return;
+    }
+    intelEl.classList.remove('intel-hidden');
+
+    const isCleared = !!this.saveData.ステージクリア状況[nodeId];
+    let isLocked = false;
+    if (stage.解放条件) {
+      isLocked = !this.saveData.ステージクリア状況[stage.解放条件];
+    }
+
+    // タグ
+    const tagEl = document.getElementById('map-intel-tag');
+    if (tagEl) {
+      const stageNum = nodeId.replace('st', '');
+      tagEl.textContent = stageNum === '007' ? 'EXTRA STAGE' : `STAGE ${stageNum.padStart(2, '0')}`;
+    }
+
+    // ステータスバッジ
+    const statusEl = document.getElementById('map-intel-status');
+    if (statusEl) {
+      statusEl.className = 'intel-status-badge';
+      if (isLocked) {
+        statusEl.classList.add('locked');
+        statusEl.textContent = 'LOCKED';
+      } else if (isCleared) {
+        statusEl.classList.add('cleared');
+        statusEl.textContent = 'COMPLETED';
+      } else {
+        statusEl.classList.add('next');
+        statusEl.textContent = 'NEXT MISSION';
+      }
+    }
+
+    // タイトル & フレーバー
+    const titleEl = document.getElementById('map-intel-title');
+    if (titleEl) titleEl.textContent = stage.ステージ名;
+
+    const flavorEl = document.getElementById('map-intel-flavor');
+    if (flavorEl) flavorEl.textContent = stage.フレーバー || '';
+
+    // ボス情報
+    const boss = this.エネミーマスタ.find(e => e.登場ステージID === nodeId && e.ボスフラグ === '1');
+    const bossNameEl = document.getElementById('map-intel-boss-name');
+    const bossGearEl = document.getElementById('map-intel-boss-gear');
+    const bossAvatarEl = document.getElementById('map-intel-avatar');
+
+    if (boss) {
+      if (bossNameEl) bossNameEl.textContent = `BOSS: ${boss.エネミー名}`;
+      const bossChip = this.チップマスタ.find(c => c.チップID === boss.チップID);
+      const bossGearName = bossChip ? bossChip.チップ名 : (boss.チップ名 || 'ドライブギア');
+      if (bossGearEl) bossGearEl.textContent = `GEAR: ${bossGearName}`;
+
+      if (bossAvatarEl) {
+        const charaKey = this.getCharaIllustKey(boss);
+        const cachedImg = this.charaImages[charaKey];
+        if (cachedImg) {
+          bossAvatarEl.style.backgroundImage = `url('${cachedImg.src}')`;
+          bossAvatarEl.style.backgroundSize = 'contain';
+          bossAvatarEl.style.backgroundRepeat = 'no-repeat';
+          bossAvatarEl.style.backgroundPosition = 'center';
+          bossAvatarEl.textContent = '';
+        } else {
+          bossAvatarEl.style.backgroundImage = 'none';
+          bossAvatarEl.textContent = boss.エネミー名[0] || 'B';
+        }
+      }
+    } else {
+      if (bossNameEl) bossNameEl.textContent = 'BOSS: 未知の強豪';
+      if (bossGearEl) bossGearEl.textContent = 'GEAR: 不明';
+      if (bossAvatarEl) {
+        bossAvatarEl.style.backgroundImage = 'none';
+        bossAvatarEl.textContent = '?';
+      }
+    }
+
+    // 報酬 & 進捗
+    const rewardEl = document.getElementById('map-intel-reward');
+    if (rewardEl) {
+      rewardEl.textContent = stage.ガチャ解禁 ? `${stage.ガチャ解禁}パーツ解禁` : '称号・トロフィー';
+    }
+
+    const npcs = this.エネミーマスタ.filter(e => e.登場ステージID === nodeId);
+    const clearedRivals = npcs.filter(n => this.saveData.クリア状況[n.エネミーID] === true).length;
+    const progressEl = document.getElementById('map-intel-progress');
+    if (progressEl) {
+      progressEl.textContent = `${clearedRivals} / ${npcs.length} 名撃破`;
+    }
+
+    // 出撃ボタン
+    const deployBtn = document.getElementById('btn-map-deploy') as HTMLButtonElement;
+    if (deployBtn) {
+      deployBtn.disabled = isLocked;
+      if (isLocked) {
+        deployBtn.textContent = '作戦区域ロック中';
+      } else {
+        deployBtn.textContent = '出撃 (DEPLOY)';
+      }
+      deployBtn.onclick = () => {
+        if (isLocked) {
+          this.snd.playBleep();
+          return;
+        }
+        this.selectedStageId = nodeId;
+        this.initStageScreen();
+        this.changeScreen('stage-screen');
+      };
+    }
   }
 
   private renderMapBackground() {
@@ -2407,17 +2568,11 @@ class GameApp {
 
     ctx.save();
     ctx.scale(dpr, dpr);
+    // 1. 背景：Canvasは透過クリア（CSSのワールドマップ.webpが美しく映える）
     ctx.clearRect(0, 0, width, height);
 
-    // 1. 背景：タクティカル電脳グラデーション
-    const bgGrad = ctx.createRadialGradient(width * 0.5, height * 0.5, 60, width * 0.5, height * 0.5, width * 0.75);
-    bgGrad.addColorStop(0, '#0a1426');
-    bgGrad.addColorStop(1, '#03060c');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, width, height);
-
     // 2. 電脳グリッド描画
-    ctx.strokeStyle = 'rgba(0, 243, 255, 0.035)';
+    ctx.strokeStyle = 'rgba(0, 243, 255, 0.04)';
     ctx.lineWidth = 1;
     const gridSize = 48;
     for (let x = 0; x < width; x += gridSize) {
@@ -2606,6 +2761,8 @@ class GameApp {
       const charaKey = this.getCharaIllustKey(npc);
       const bladeData = this.パーツマスタ.find(p => p.パーツID === npc.ブレードID);
       const attr = bladeData ? bladeData.属性 : '無';
+      const chipData = this.チップマスタ.find(c => c.チップID === npc.チップID);
+      const gearName = chipData ? chipData.チップ名 : (npc.チップ名 || 'ドライブギア');
 
       card.className = `npc-card ${isBoss ? 'boss' : ''}`;
 
@@ -2623,6 +2780,9 @@ class GameApp {
             ${npc.エネミー名} ${isBoss ? '<span class="npc-boss-badge">BOSS</span>' : ''}
             <span class="attr-badge attr-${attr}" style="font-size:0.75rem; padding:2px 6px; border-radius:4px;">${attr}</span>
           </h4>
+          <div style="font-size: 0.78rem; color: var(--color-neon-blue); font-weight: 700; margin: 2px 0;">
+            GEAR: ${gearName}
+          </div>
           <span style="font-size: 0.8rem; color: var(--color-text-sub);">勝利数: ${wins} / ${reqWins}</span>
         </div>
         <div class="npc-win-status ${isCleared ? 'cleared' : ''}">
@@ -2735,6 +2895,11 @@ class GameApp {
     const slotLabel = document.getElementById('vs-slot-label');
     if (slotLabel) slotLabel.textContent = `スロット ${this.vsSlotIndex} (出撃)`;
 
+    const playerBladerName = document.getElementById('vs-player-blader-name');
+    if (playerBladerName) {
+      playerBladerName.textContent = '主人公';
+    }
+
     const playerGearName = document.getElementById('vs-player-gear-name');
     if (playerGearName) {
       const chip = this.チップマスタ.find(c => c.チップID === playerSlot.チップ);
@@ -2756,9 +2921,15 @@ class GameApp {
       this.奥義マスタ
     );
 
+    const enemyBladerName = document.getElementById('vs-enemy-blader-name');
+    if (enemyBladerName) {
+      enemyBladerName.textContent = this.selectedNpc.エネミー名;
+    }
+
     const enemyGearName = document.getElementById('vs-enemy-gear-name');
     if (enemyGearName) {
-      enemyGearName.textContent = this.selectedNpc.エネミー名;
+      const enemyChip = this.チップマスタ.find(c => c.チップID === this.selectedNpc!.チップID);
+      enemyGearName.textContent = enemyChip ? enemyChip.チップ名 : (this.selectedNpc.チップ名 || 'ドライブギア');
     }
 
     this.renderVsStats('vs-enemy-stats', enemyAssembled);
@@ -2865,12 +3036,12 @@ class GameApp {
 
     const stats = assembled.ステータス;
     el.innerHTML = `
-      <div class="vs-stat-item"><span>ライフ:</span> <span>${stats.ライフ}</span></div>
-      <div class="vs-stat-item"><span>アタック:</span> <span>${stats.アタック}</span></div>
-      <div class="vs-stat-item"><span>ディフェンス:</span> <span>${stats.ディフェンス}</span></div>
-      <div class="vs-stat-item"><span>スピード:</span> <span>${stats.スピード}</span></div>
-      <div class="vs-stat-item"><span>レンジ:</span> <span>${stats.レンジ}</span></div>
-      <div class="vs-stat-item"><span>モビリティ:</span> <span>${stats.モビリティ}</span></div>
+      <div class="vs-stat-item"><span class="vs-stat-label">ライフ</span><span class="vs-stat-val">${stats.ライフ}</span></div>
+      <div class="vs-stat-item"><span class="vs-stat-label">アタック</span><span class="vs-stat-val">${stats.アタック}</span></div>
+      <div class="vs-stat-item"><span class="vs-stat-label">ディフェンス</span><span class="vs-stat-val">${stats.ディフェンス}</span></div>
+      <div class="vs-stat-item"><span class="vs-stat-label">スピード</span><span class="vs-stat-val">${stats.スピード}</span></div>
+      <div class="vs-stat-item"><span class="vs-stat-label">レンジ</span><span class="vs-stat-val">${stats.レンジ}</span></div>
+      <div class="vs-stat-item"><span class="vs-stat-label">モビリティ</span><span class="vs-stat-val">${stats.モビリティ}</span></div>
     `;
   }
 
@@ -3180,6 +3351,20 @@ class GameApp {
     }
 
     const isAllOwned = targetPool.every(item => this.saveData.インベントリ.includes(item.id));
+    const ownedCount = targetPool.filter(item => this.saveData.インベントリ.includes(item.id)).length;
+    const totalCount = targetPool.length;
+
+    // パック収集状況の表示更新
+    const collectionStatus = document.getElementById('shop-collection-status');
+    if (collectionStatus) {
+      if (isAllOwned) {
+        collectionStatus.textContent = `現ランク全パーツ収集完了！ (${ownedCount} / ${totalCount})`;
+        collectionStatus.style.color = '#39ff14';
+      } else {
+        collectionStatus.textContent = `解放ランク収集状況: ${ownedCount} / ${totalCount} 種 (未所持確定)`;
+        collectionStatus.style.color = '#a0aec0';
+      }
+    }
     
     // 5連パック開封ボタンのバインド
     const btn5 = document.getElementById('btn-shop-gacha-5') as HTMLButtonElement;
@@ -5169,8 +5354,15 @@ class GameApp {
     document.getElementById('seiju-cutin-overlay')?.classList.remove('active');
     
     // UI更新
+    const pChip = playerSlot ? this.チップマスタ.find(c => c.チップID === playerSlot.チップ) : null;
+    const pGearName = pChip ? pChip.チップ名 : 'ドライブギア';
+    const pNameEl = document.getElementById('battle-player-name');
+    if (pNameEl) pNameEl.innerHTML = `PLAYER <span style="font-size:0.75rem; color:var(--color-neon-blue); font-weight:normal; margin-left:6px;">[${pGearName}]</span>`;
+
+    const eChip = this.チップマスタ.find(c => c.チップID === this.selectedNpc!.チップID);
+    const eGearName = eChip ? eChip.チップ名 : (this.selectedNpc.チップ名 || 'ドライブギア');
     const nameEl = document.getElementById('battle-enemy-name');
-    if (nameEl) nameEl.textContent = this.selectedNpc.エネミー名;
+    if (nameEl) nameEl.innerHTML = `${this.selectedNpc.エネミー名} <span style="font-size:0.75rem; color:var(--color-neon-pink); font-weight:normal; margin-left:6px;">[${eGearName}]</span>`;
 
     // カメラワーク初期化
     this.battleCamera = { x: 400, y: 300, scale: 1, targetScale: 1 };
