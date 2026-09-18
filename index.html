@@ -183,24 +183,13 @@
             </div>
             <h3 class="intel-title" id="map-intel-title">アオバ・ストリートパーク</h3>
             <p class="intel-flavor" id="map-intel-flavor">街の若きブレーダーたちが集う憩いの公園。すべての伝説のはじまりの地。</p>
-            <div class="intel-boss-row">
-              <div class="intel-boss-avatar" id="map-intel-avatar"></div>
-              <div class="intel-boss-info">
-                <div class="intel-boss-name" id="map-intel-boss-name">BOSS: カイト</div>
-                <div class="intel-boss-gear" id="map-intel-boss-gear">GEAR: チェイン・ケルベロス</div>
-              </div>
-            </div>
             <div class="intel-meta-row">
-              <div class="intel-meta-item">
-                <span class="intel-meta-label">ガチャ解禁</span>
-                <span class="intel-meta-val" id="map-intel-reward">ランク1以下</span>
-              </div>
-              <div class="intel-meta-item">
-                <span class="intel-meta-label">ライバル討伐状況</span>
+              <div class="intel-meta-item full-width">
+                <span class="intel-meta-label">ライバル撃破状況</span>
                 <span class="intel-meta-val" id="map-intel-progress">0 / 5</span>
               </div>
             </div>
-            <button id="btn-map-deploy" class="btn btn-primary btn-deploy">出撃 (DEPLOY)</button>
+            <button id="btn-map-deploy" class="btn btn-primary btn-deploy">出撃</button>
           </div>
         </div>
       </div>
@@ -240,19 +229,21 @@
         <div class="vs-layout">
           <!-- 左側: プレイヤーギア情報 & スロット切り替えギミック -->
           <div class="vs-gear-panel vs-player">
-            <div class="vs-side-badge vs-side-player">自機ドライブギア</div>
+            <div class="vs-side-badge vs-side-player">PLAYER</div>
             <div class="vs-gear-visual">
               <canvas id="vs-player-canvas" width="200" height="200"></canvas>
             </div>
             <div class="vs-gear-details">
-              <div class="vs-slot-selector" style="margin-bottom: 12px;">
-                <button id="btn-vs-slot-prev" class="btn btn-small">◀</button>
-                <span id="vs-slot-label">スロット1 (出撃)</span>
-                <button id="btn-vs-slot-next" class="btn btn-small">▶</button>
+              <div class="vs-slot-capsule">
+                <button id="btn-vs-slot-prev" class="vs-slot-btn" title="前のスロット">◀</button>
+                <div class="vs-slot-pill">
+                  <span class="vs-slot-tag">SLOT</span>
+                  <span id="vs-slot-label" class="vs-slot-number">1 (出撃)</span>
+                </div>
+                <button id="btn-vs-slot-next" class="vs-slot-btn" title="次のスロット">▶</button>
               </div>
               <div class="vs-identity-box">
                 <div class="vs-blader-row">
-                  <span class="vs-blader-badge-tag">BLADER</span>
                   <span class="vs-blader-name" id="vs-player-blader-name">主人公</span>
                 </div>
                 <h3 id="vs-player-gear-name" class="vs-gear-name-display">コズミック・ドラゴン</h3>
@@ -268,16 +259,15 @@
 
           <!-- 右側: 対戦相手NPCギア情報 -->
           <div class="vs-gear-panel vs-enemy">
-            <div class="vs-side-badge vs-side-enemy">対戦相手</div>
+            <div class="vs-side-badge vs-side-enemy">RIVAL</div>
             <div class="vs-gear-visual">
               <canvas id="vs-enemy-canvas" width="200" height="200"></canvas>
             </div>
             <div class="vs-gear-details">
               <!-- 左側のスロット選択ギミックと高さを揃えて完璧な対称性を作るためのスペーサー -->
-              <div class="vs-slot-selector-spacer" style="height: 38px; margin-bottom: 12px;"></div>
+              <div class="vs-slot-capsule-spacer"></div>
               <div class="vs-identity-box">
                 <div class="vs-blader-row">
-                  <span class="vs-blader-badge-tag">BLADER</span>
                   <span class="vs-blader-name" id="vs-enemy-blader-name">ケンジ</span>
                 </div>
                 <h3 id="vs-enemy-gear-name" class="vs-gear-name-display">ソニック・イーグル</h3>
@@ -456,7 +446,7 @@
           
           <div class="part-get-info-box">
             <div class="part-get-name" id="part-get-name">アイアンブレード</div>
-            <div class="part-get-type-attr" id="part-get-type-attr">ブレード | 火属性 | ランク2</div>
+            <div class="part-get-type-attr" id="part-get-type-attr">ブレード | 火属性</div>
             <p class="part-get-description" id="part-get-description">攻撃力を極限まで高めたアイアンブレード。</p>
             <div class="part-get-stats-grid" id="part-get-stats-grid">
               <!-- パラメータ増減表示 -->
@@ -506,7 +496,7 @@
                 ランダムギアパック
               </h3>
               <div class="kiosk-tier-info" id="shop-gacha-tier-badge">
-                解禁ランク: ランク1以下パーツ
+                最新パーツ追加入荷中
               </div>
             </div>
 

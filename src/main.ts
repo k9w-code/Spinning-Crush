@@ -2213,8 +2213,8 @@ class GameApp {
         type: 'home',
         name: '自宅ガレージ',
         sub: 'BASE',
-        xPct: 7,
-        yPct: 65,
+        xPct: 8,
+        yPct: 68,
         iconSvg: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00f3ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'
       },
       {
@@ -2223,7 +2223,7 @@ class GameApp {
         name: 'ジャンクショップ',
         sub: 'SHOP',
         xPct: 15,
-        yPct: 32,
+        yPct: 35,
         iconSvg: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffb700" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>'
       },
       {
@@ -2231,8 +2231,8 @@ class GameApp {
         type: 'stage',
         name: 'アオバ・ストリートパーク',
         sub: 'STAGE 01',
-        xPct: 25,
-        yPct: 65,
+        xPct: 24,
+        yPct: 64,
         reqStageId: ''
       },
       {
@@ -2240,8 +2240,8 @@ class GameApp {
         type: 'stage',
         name: '地区予選・シティアリーナ',
         sub: 'STAGE 02',
-        xPct: 37,
-        yPct: 32,
+        xPct: 36,
+        yPct: 44,
         reqStageId: 'st001'
       },
       {
@@ -2249,8 +2249,8 @@ class GameApp {
         type: 'stage',
         name: 'エリア選手権・ネオンプラザ',
         sub: 'STAGE 03',
-        xPct: 49,
-        yPct: 65,
+        xPct: 48,
+        yPct: 54,
         reqStageId: 'st002'
       },
       {
@@ -2258,8 +2258,8 @@ class GameApp {
         type: 'stage',
         name: '全日本選手権・ナショナルドーム',
         sub: 'STAGE 04',
-        xPct: 61,
-        yPct: 32,
+        xPct: 62,
+        yPct: 36,
         reqStageId: 'st003'
       },
       {
@@ -2267,8 +2267,8 @@ class GameApp {
         type: 'stage',
         name: '世界大会・ユーロコロシアム',
         sub: 'STAGE 05',
-        xPct: 73,
-        yPct: 65,
+        xPct: 74,
+        yPct: 62,
         reqStageId: 'st004'
       },
       {
@@ -2276,8 +2276,8 @@ class GameApp {
         type: 'stage',
         name: '世界選手権・ワールドグランドアリーナ',
         sub: 'STAGE 06',
-        xPct: 84,
-        yPct: 32,
+        xPct: 83,
+        yPct: 35,
         reqStageId: 'st005'
       },
       {
@@ -2285,8 +2285,8 @@ class GameApp {
         type: 'stage',
         name: 'アオバ旧街区・ゼロスタジアム',
         sub: 'EXTRA',
-        xPct: 93,
-        yPct: 68,
+        xPct: 91,
+        yPct: 65,
         reqStageId: 'st006',
         iconSvg: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff0055" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
       }
@@ -2477,52 +2477,12 @@ class GameApp {
     const flavorEl = document.getElementById('map-intel-flavor');
     if (flavorEl) flavorEl.textContent = stage.フレーバー || '';
 
-    // ボス情報
-    const boss = this.エネミーマスタ.find(e => e.登場ステージID === nodeId && e.ボスフラグ === '1');
-    const bossNameEl = document.getElementById('map-intel-boss-name');
-    const bossGearEl = document.getElementById('map-intel-boss-gear');
-    const bossAvatarEl = document.getElementById('map-intel-avatar');
-
-    if (boss) {
-      if (bossNameEl) bossNameEl.textContent = `BOSS: ${boss.エネミー名}`;
-      const bossChip = this.チップマスタ.find(c => c.チップID === boss.チップID);
-      const bossGearName = bossChip ? bossChip.チップ名 : (boss.チップ名 || 'ドライブギア');
-      if (bossGearEl) bossGearEl.textContent = `GEAR: ${bossGearName}`;
-
-      if (bossAvatarEl) {
-        const charaKey = this.getCharaIllustKey(boss);
-        const cachedImg = this.charaImages[charaKey];
-        if (cachedImg) {
-          bossAvatarEl.style.backgroundImage = `url('${cachedImg.src}')`;
-          bossAvatarEl.style.backgroundSize = 'contain';
-          bossAvatarEl.style.backgroundRepeat = 'no-repeat';
-          bossAvatarEl.style.backgroundPosition = 'center';
-          bossAvatarEl.textContent = '';
-        } else {
-          bossAvatarEl.style.backgroundImage = 'none';
-          bossAvatarEl.textContent = boss.エネミー名[0] || 'B';
-        }
-      }
-    } else {
-      if (bossNameEl) bossNameEl.textContent = 'BOSS: 未知の強豪';
-      if (bossGearEl) bossGearEl.textContent = 'GEAR: 不明';
-      if (bossAvatarEl) {
-        bossAvatarEl.style.backgroundImage = 'none';
-        bossAvatarEl.textContent = '?';
-      }
-    }
-
-    // 報酬 & 進捗
-    const rewardEl = document.getElementById('map-intel-reward');
-    if (rewardEl) {
-      rewardEl.textContent = stage.ガチャ解禁 ? `${stage.ガチャ解禁}パーツ解禁` : '称号・トロフィー';
-    }
-
+    // ライバル撃破状況
     const npcs = this.エネミーマスタ.filter(e => e.登場ステージID === nodeId);
     const clearedRivals = npcs.filter(n => this.saveData.クリア状況[n.エネミーID] === true).length;
     const progressEl = document.getElementById('map-intel-progress');
     if (progressEl) {
-      progressEl.textContent = `${clearedRivals} / ${npcs.length} 名撃破`;
+      progressEl.textContent = `${clearedRivals} / ${npcs.length} 撃破`;
     }
 
     // 出撃ボタン
@@ -2530,9 +2490,9 @@ class GameApp {
     if (deployBtn) {
       deployBtn.disabled = isLocked;
       if (isLocked) {
-        deployBtn.textContent = '作戦区域ロック中';
+        deployBtn.textContent = 'ロック中';
       } else {
-        deployBtn.textContent = '出撃 (DEPLOY)';
+        deployBtn.textContent = '出撃';
       }
       deployBtn.onclick = () => {
         if (isLocked) {
@@ -2593,15 +2553,15 @@ class GameApp {
 
     // 3. 各ノードの座標マッピング（実ピクセル）
     const nodeCoords: { [key: string]: { x: number; y: number } } = {
-      'home': { x: width * 0.07, y: height * 0.65 },
-      'shop': { x: width * 0.15, y: height * 0.32 },
-      'st001': { x: width * 0.25, y: height * 0.65 },
-      'st002': { x: width * 0.37, y: height * 0.32 },
-      'st003': { x: width * 0.49, y: height * 0.65 },
-      'st004': { x: width * 0.61, y: height * 0.32 },
-      'st005': { x: width * 0.73, y: height * 0.65 },
-      'st006': { x: width * 0.84, y: height * 0.32 },
-      'st007': { x: width * 0.93, y: height * 0.68 }
+      'home': { x: width * 0.08, y: height * 0.68 },
+      'shop': { x: width * 0.15, y: height * 0.35 },
+      'st001': { x: width * 0.24, y: height * 0.64 },
+      'st002': { x: width * 0.36, y: height * 0.44 },
+      'st003': { x: width * 0.48, y: height * 0.54 },
+      'st004': { x: width * 0.62, y: height * 0.36 },
+      'st005': { x: width * 0.74, y: height * 0.62 },
+      'st006': { x: width * 0.83, y: height * 0.35 },
+      'st007': { x: width * 0.91, y: height * 0.65 }
     };
 
     const connections = [
@@ -2893,7 +2853,7 @@ class GameApp {
     );
 
     const slotLabel = document.getElementById('vs-slot-label');
-    if (slotLabel) slotLabel.textContent = `スロット ${this.vsSlotIndex} (出撃)`;
+    if (slotLabel) slotLabel.textContent = `${this.vsSlotIndex} (出撃)`;
 
     const playerBladerName = document.getElementById('vs-player-blader-name');
     if (playerBladerName) {
@@ -2985,19 +2945,19 @@ class GameApp {
       // プレイヤー側表示
       playerPartsEl.innerHTML = `
         <div class="vs-part-row">
-          <span class="vs-part-type">刃:</span>
+          <span class="vs-part-slot-badge">BLADE</span>
           <span class="vs-part-name">${pBladePart ? pBladePart.パーツ名 : '---'}</span>
           <span class="vs-part-attr ${getAttrClass(pBladeAttr)}">${pBladeAttr}</span>
           ${pBladeAttr !== '無' || eBladeAttr !== '無' ? getMatchupBadgeHtml(bladeRes, 'player') : ''}
         </div>
         <div class="vs-part-row">
-          <span class="vs-part-type">重:</span>
+          <span class="vs-part-slot-badge">WEIGHT</span>
           <span class="vs-part-name">${pWeightPart ? pWeightPart.パーツ名 : '---'}</span>
           <span class="vs-part-attr ${getAttrClass(pWeightAttr)}">${pWeightAttr}</span>
           ${pWeightAttr !== '無' || eWeightAttr !== '無' ? getMatchupBadgeHtml(weightRes, 'player') : ''}
         </div>
         <div class="vs-part-row">
-          <span class="vs-part-type">底:</span>
+          <span class="vs-part-slot-badge">SOLE</span>
           <span class="vs-part-name">${pSolePart ? pSolePart.パーツ名 : '---'}</span>
           <span class="vs-part-attr ${getAttrClass(pSoleAttr)}">${pSoleAttr}</span>
           ${pSoleAttr !== '無' || eSoleAttr !== '無' ? getMatchupBadgeHtml(soleRes, 'player') : ''}
@@ -3007,19 +2967,19 @@ class GameApp {
       // エネミー側表示
       enemyPartsEl.innerHTML = `
         <div class="vs-part-row">
-          <span class="vs-part-type">刃:</span>
+          <span class="vs-part-slot-badge">BLADE</span>
           <span class="vs-part-name">${eBladePart ? eBladePart.パーツ名 : '---'}</span>
           <span class="vs-part-attr ${getAttrClass(eBladeAttr)}">${eBladeAttr}</span>
           ${pBladeAttr !== '無' || eBladeAttr !== '無' ? getMatchupBadgeHtml(bladeRes, 'enemy') : ''}
         </div>
         <div class="vs-part-row">
-          <span class="vs-part-type">重:</span>
+          <span class="vs-part-slot-badge">WEIGHT</span>
           <span class="vs-part-name">${eWeightPart ? eWeightPart.パーツ名 : '---'}</span>
           <span class="vs-part-attr ${getAttrClass(eWeightAttr)}">${eWeightAttr}</span>
           ${pWeightAttr !== '無' || eWeightAttr !== '無' ? getMatchupBadgeHtml(weightRes, 'enemy') : ''}
         </div>
         <div class="vs-part-row">
-          <span class="vs-part-type">底:</span>
+          <span class="vs-part-slot-badge">SOLE</span>
           <span class="vs-part-name">${eSolePart ? eSolePart.パーツ名 : '---'}</span>
           <span class="vs-part-attr ${getAttrClass(eSoleAttr)}">${eSoleAttr}</span>
           ${pSoleAttr !== '無' || eSoleAttr !== '無' ? getMatchupBadgeHtml(soleRes, 'enemy') : ''}
@@ -3327,10 +3287,10 @@ class GameApp {
     const maxRank = this.getGachaMaxRank();
     const isStage6Clear = this.saveData.ステージクリア状況['st006'] === true;
 
-    // 解禁ランクバッジの更新
+    // 入荷バッジの更新 (ランク表記はマスキングデータのため排除)
     const tierBadge = document.getElementById('shop-gacha-tier-badge');
     if (tierBadge) {
-      tierBadge.textContent = `解禁ランク: ランク${maxRank}以下パーツ` + (isStage6Clear ? ' ＆ チップ' : '');
+      tierBadge.textContent = isStage6Clear ? '全パーツ＆全聖獣チップ入荷中' : '最新パーツ追加入荷中';
     }
     
     // 通常ガチャの対象プール (パーツ)
@@ -3354,14 +3314,14 @@ class GameApp {
     const ownedCount = targetPool.filter(item => this.saveData.インベントリ.includes(item.id)).length;
     const totalCount = targetPool.length;
 
-    // パック収集状況の表示更新
+    // パック収集状況の表示更新 (ランク表記排除)
     const collectionStatus = document.getElementById('shop-collection-status');
     if (collectionStatus) {
       if (isAllOwned) {
-        collectionStatus.textContent = `現ランク全パーツ収集完了！ (${ownedCount} / ${totalCount})`;
+        collectionStatus.textContent = `ラインナップ全パーツ収集完了！ (${ownedCount} / ${totalCount})`;
         collectionStatus.style.color = '#39ff14';
       } else {
-        collectionStatus.textContent = `解放ランク収集状況: ${ownedCount} / ${totalCount} 種 (未所持確定)`;
+        collectionStatus.textContent = `ラインナップ収集状況: ${ownedCount} / ${totalCount} 種 (未所持確定)`;
         collectionStatus.style.color = '#a0aec0';
       }
     }
@@ -5809,6 +5769,20 @@ class GameApp {
       const isReady = Math.floor(this.battleManager.プレイヤー攻撃ゲージ) >= 100 && this.battleManager.get現在の間合い() <= range;
       btnTrigger.disabled = !isReady;
     }
+
+    // リアルタイム間合い操作UIの表示制御（ディスタンスフェーズ中かつ演出中でない場合のみ表示）
+    const distControls = document.getElementById('distance-controls');
+    if (distControls) {
+      const showDistance = this.battleManager.現在フェーズ === 'ディスタンス' && 
+                           !this.isClashAnimationActive && 
+                           !this.isOsugiCutinActive &&
+                           !document.getElementById('command-overlay')?.classList.contains('active');
+      if (showDistance) {
+        distControls.classList.remove('hidden');
+      } else {
+        distControls.classList.add('hidden');
+      }
+    }
   }
 
   // コマンド選択肢のハイライト状態更新
@@ -6931,7 +6905,7 @@ class GameApp {
       this.isBattleFinished = true;
       if (this.battleLoopId) cancelAnimationFrame(this.battleLoopId);
 
-      this.snd.stopBGM(); // バトルBGMの停止
+      this.snd.stopAllBGM(); // バトルBGM（外部音源＋シンセ）を確実に完全停止
 
       let winner: 'player' | 'enemy' | 'draw' = 'draw';
 
@@ -7353,7 +7327,7 @@ class GameApp {
     if (part.種別 === '2') typeName = 'ウェイト';
     else if (part.種別 === '3') typeName = 'ソール';
 
-    if (typeAttrEl) typeAttrEl.textContent = `${typeName} | ${part.属性}属性 | ランク${part.ランク}`;
+    if (typeAttrEl) typeAttrEl.textContent = `${typeName} | ${part.属性}属性`;
     if (descEl) {
       descEl.textContent = part.フレーバー || '';
       descEl.style.display = part.フレーバー ? 'block' : 'none';
@@ -7412,8 +7386,8 @@ class GameApp {
       renderLoop();
     }
 
-    // お祝いファンファーレ
-    this.snd.playClearJingle();
+    // お祝いファンファーレ (BGMと重ならない専用SE)
+    this.snd.playItemGetFanfare();
 
     overlay.classList.add('active');
 
@@ -7424,6 +7398,7 @@ class GameApp {
         cancelAnimationFrame(this.partGetAnimFrameId);
         this.partGetAnimFrameId = null;
       }
+      this.snd.stopJingle();
       overlay.classList.remove('active');
       confirmBtn?.removeEventListener('click', handleConfirm);
       onConfirm();

@@ -10,6 +10,7 @@ export class SoundManager {
   // 高品質SEのメモリキャッシュと多重発音管理
   private seBufferCache: { [filename: string]: AudioBuffer } = {};
   private seLoadingPromises: { [filename: string]: Promise<AudioBuffer | null> } = {};
+  private jingleAudio: HTMLAudioElement | null = null;
 
   private constructor() {
     // ユーザーの最初の操作（クリック/キー/タッチ）で自動再生ブロックを自然に解除するグローバルリスナー
@@ -852,6 +853,7 @@ export class SoundManager {
     this.targetBgmFilename = "";
     this.stopBGM();
     this.stopExternalAudio();
+    this.stopJingle();
   }
 
   // ==========================================
@@ -1149,10 +1151,22 @@ export class SoundManager {
     this.bgmStep = 0;
   }
 
+  public stopJingle() {
+    if (this.jingleAudio) {
+      try {
+        this.jingleAudio.pause();
+        this.jingleAudio.currentTime = 0;
+      } catch (e) {}
+      this.jingleAudio = null;
+    }
+  }
+
   // 勝利ファンファーレジングル (アセットロード対応)
   public playVictoryJingle() {
     this.stopAllBGM();
+    this.stopJingle();
     const audio = new Audio('/sounds/victory.mp3');
+    this.jingleAudio = audio;
     audio.volume = 0.55;
     audio.play().catch(() => {
       // フォールバックシンセ
@@ -1198,7 +1212,9 @@ export class SoundManager {
   // 敗北ジングル (アセットロード対応)
   public playDefeatJingle() {
     this.stopAllBGM();
+    this.stopJingle();
     const audio = new Audio('/sounds/defeat.mp3');
+    this.jingleAudio = audio;
     audio.volume = 0.55;
     audio.play().catch(() => {
       this.playDefeatJingle_Synth();
@@ -1237,11 +1253,18 @@ export class SoundManager {
 
   // ステージクリアジングル (アセットロード対応)
   public playClearJingle() {
+    this.stopJingle();
     const audio = new Audio('/sounds/clear.mp3');
+    this.jingleAudio = audio;
     audio.volume = 0.55;
     audio.play().catch(() => {
       this.playClearJingle_Synth();
     });
+  }
+
+  // 短いアイテム・パーツ獲得ファンファーレ (BGMと重ならないシンセSE)
+  public playItemGetFanfare() {
+    this.playClearJingle_Synth();
   }
 
   private playClearJingle_Synth() {
