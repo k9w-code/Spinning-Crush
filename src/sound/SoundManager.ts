@@ -524,6 +524,33 @@ export class SoundManager {
     metalOsc.stop(time + 0.2);
   }
 
+  // ★ヘビー打撃サブベース音 (強打撃・カウンター・奥義被弾時にズッシリ響く超低域振動)
+  public playSubBassImpact(intensity: number = 1.0) {
+    this.initContext();
+    this.resumeContext();
+    if (!this.ctx) return;
+
+    const time = this.ctx.currentTime;
+    const duration = 0.32;
+
+    // 75Hzから18Hzへ急速降下するサブベースサイン波 (腹に響く重量感)
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(80, time);
+    osc.frequency.exponentialRampToValueAtTime(18, time + duration);
+
+    const gain = this.ctx.createGain();
+    const peakVolume = Math.min(0.85, 0.45 * intensity);
+    gain.gain.setValueAtTime(peakVolume, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(time);
+    osc.stop(time + duration + 0.02);
+  }
+
   // 奥義発動チャージ音 (ウワウワキュィィィン)
   public playOsugiCharge() {
     if (this.playSE('se_charge.wav', 0.85, 0)) return;

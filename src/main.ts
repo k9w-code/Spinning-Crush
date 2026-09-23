@@ -265,103 +265,401 @@ class SkillParticle {
   }
 }
 
-class FloatingDamage {
-  private x: number;
-  private y: number;
-  private text: string;
-  private subText: string; // GUARD, MISS, COUNTER 等の補助テキスト
+// 放射状アクション集中線 (インパクト時の漫画風スピードライン)
+class RadialSpeedline {
+  private lines: { angle: number; r1: number; r2: number; width: number; alpha: number }[] = [];
+  private life: number = 8;
+  private maxLife: number = 8;
+  private cx: number;
+  private cy: number;
   private color: string;
-  private glowColor: string;
-  private life: number = 1.0;
-  private maxLife: number;
-  private vy: number = -1.2; // 上方へのフロート速度
-  private scale: number = 1.5; // バウンス用初期スケール
-  private fontSize: number;
 
-  constructor(x: number, y: number, damage: number, type: 'hit' | 'guard' | 'evade' | 'counter' | 'ougi' | 'sp', subText: string = '') {
-    this.x = x + (Math.random() - 0.5) * 20;
-    this.y = y - 30;
-    this.subText = subText;
-    this.maxLife = 75; // 約1.25秒
-
-    if (type === 'evade') {
-      this.text = 'MISS';
-      this.color = '#39ff14';
-      this.glowColor = '#39ff14';
-      this.fontSize = 28;
-    } else if (type === 'guard') {
-      this.text = String(Math.floor(damage));
-      this.color = '#00c8ff';
-      this.glowColor = '#00c8ff';
-      this.fontSize = 26;
-    } else if (type === 'counter') {
-      this.text = String(Math.floor(damage));
-      this.color = '#ffaa00';
-      this.glowColor = '#ffaa00';
-      this.fontSize = 30;
-    } else if (type === 'ougi') {
-      this.text = String(Math.floor(damage));
-      this.color = '#ff00aa';
-      this.glowColor = '#ff00aa';
-      this.fontSize = 38;
-      this.scale = 2.0;
-    } else if (type === 'sp') {
-      this.text = `SP+${Math.floor(damage)}`;
-      this.color = '#00ff88';
-      this.glowColor = '#00ff88';
-      this.fontSize = 18;
-      this.vy = -0.8;
-    } else {
-      // 通常被弾 hit
-      this.text = String(Math.floor(damage));
-      this.color = '#ff4444';
-      this.glowColor = '#ff2222';
-      this.fontSize = 30;
+  constructor(cx: number = 400, cy: number = 300, color: string = '#ffffff') {
+    this.cx = cx;
+    this.cy = cy;
+    this.color = color;
+    const count = 32;
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.15;
+      const r1 = 110 + Math.random() * 90;
+      const r2 = 460 + Math.random() * 140;
+      const width = 1.8 + Math.random() * 3.6;
+      this.lines.push({ angle, r1, r2, width, alpha: 0.75 + Math.random() * 0.25 });
     }
   }
 
   public update(): boolean {
-    this.y += this.vy;
-    this.vy *= 0.98;
-    this.life -= 1 / this.maxLife;
-    // バウンススケール: 1.5 → 1.0 に急速に縮小
-    if (this.scale > 1.0) {
-      this.scale -= 0.06;
-      if (this.scale < 1.0) this.scale = 1.0;
-    }
+    this.life--;
     return this.life > 0;
   }
 
   public draw(ctx: CanvasRenderingContext2D) {
+    if (this.life <= 0) return;
+    const progress = this.life / this.maxLife;
     ctx.save();
-    const alpha = this.life > 0.3 ? 1.0 : this.life / 0.3;
+    ctx.strokeStyle = this.color;
+    ctx.lineCap = 'round';
+
+    for (const line of this.lines) {
+      ctx.globalAlpha = line.alpha * progress;
+      ctx.lineWidth = line.width * progress;
+      const cos = Math.cos(line.angle);
+      const sin = Math.sin(line.angle);
+      ctx.beginPath();
+      ctx.moveTo(this.cx + cos * line.r1, this.cy + sin * line.r1);
+      ctx.lineTo(this.cx + cos * line.r2, this.cy + sin * line.r2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+// 閃光スラッシュマーク (衝突点から走る鋭利な光の斬撃刃)
+class HitSlashEffect {
+  private cx: number;
+  private cy: number;
+  private angle: number;
+  private length: number;
+  private width: number;
+  private color: string;
+  private coreColor: string;
+  private life: number = 10;
+  private maxLife: number = 10;
+
+  constructor(cx: number, cy: number, angle: number = -0.4, color: string = '#ffea00', coreColor: string = '#ffffff', length: number = 200) {
+    this.cx = cx;
+    this.cy = cy;
+    this.angle = angle + (Math.random() - 0.5) * 0.2;
+    this.length = length;
+    this.width = 18;
+    this.color = color;
+    this.coreColor = coreColor;
+  }
+
+  public update(): boolean {
+    this.life--;
+    return this.life > 0;
+  }
+
+  public draw(ctx: CanvasRenderingContext2D) {
+    if (this.life <= 0) return;
+    const t = 1 - (this.life / this.maxLife);
+    const alpha = Math.max(0, 1 - t);
+    const curLen = this.length * (0.8 + 0.4 * t);
+    const curWidth = this.width * (1 - t * 0.65);
+
+    ctx.save();
+    ctx.translate(this.cx, this.cy);
+    ctx.rotate(this.angle);
+
+    // 外側の光彩刃
+    ctx.globalAlpha = alpha * 0.9;
+    ctx.fillStyle = this.color;
+    ctx.shadowBlur = 24;
+    ctx.shadowColor = this.color;
+
+    ctx.beginPath();
+    ctx.moveTo(-curLen * 0.5, 0);
+    ctx.quadraticCurveTo(0, -curWidth, curLen * 0.5, 0);
+    ctx.quadraticCurveTo(0, curWidth, -curLen * 0.5, 0);
+    ctx.fill();
+
+    // 内側の純白コア
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = this.coreColor;
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#ffffff';
+
+    ctx.beginPath();
+    ctx.moveTo(-curLen * 0.44, 0);
+    ctx.quadraticCurveTo(0, -curWidth * 0.35, curLen * 0.44, 0);
+    ctx.quadraticCurveTo(0, curWidth * 0.35, -curLen * 0.44, 0);
+    ctx.fill();
+
+    ctx.restore();
+  }
+}
+
+// ★キネティック・ダメージポップアップ (商業水準の爽快バウンス & 立体ネオンフォント)
+class FloatingDamage {
+  private x: number;
+  private y: number;
+  private vx: number;
+  private vy: number;
+  public damage: number;
+  private text: string;
+  private subBadge: string;
+  private type: 'hit' | 'super' | 'ultra' | 'guard' | 'evade' | 'counter' | 'ougi' | 'sp';
+  private frame: number = 0;
+  private maxFrames: number = 72;
+  private scale: number = 1.0;
+  private initialScale: number = 2.8;
+  private shakeX: number = 0;
+  private shakeY: number = 0;
+  private fontSize: number = 34;
+  private topColor: string = '#ffffff';
+  private midColor: string = '#ff4433';
+  private botColor: string = '#bb0011';
+  private glowColor: string = '#ff2200';
+  private badgeBg: string = '';
+  private badgeBorder: string = '';
+  private ghosts: { x: number; y: number; scale: number; alpha: number }[] = [];
+
+  constructor(
+    x: number,
+    y: number,
+    damage: number,
+    type: 'hit' | 'super' | 'ultra' | 'guard' | 'evade' | 'counter' | 'ougi' | 'sp',
+    subBadge: string = ''
+  ) {
+    this.x = x + (Math.random() - 0.5) * 16;
+    this.y = y - 25;
+    this.damage = damage;
+    this.type = type;
+    this.subBadge = subBadge;
+
+    this.vx = (Math.random() - 0.5) * 0.8;
+    this.vy = -1.6;
+
+    if (type === 'evade') {
+      this.text = '0';
+      this.subBadge = 'EVADED';
+      this.initialScale = 2.2;
+      this.fontSize = 30;
+      this.topColor = '#ffffff';
+      this.midColor = '#55ff88';
+      this.botColor = '#00aa33';
+      this.glowColor = '#39ff14';
+      this.badgeBg = 'rgba(0, 40, 10, 0.88)';
+      this.badgeBorder = '#39ff14';
+    } else if (type === 'guard') {
+      this.text = String(Math.floor(damage));
+      this.subBadge = subBadge || 'GUARD';
+      this.initialScale = 2.2;
+      this.fontSize = 28;
+      this.topColor = '#ffffff';
+      this.midColor = '#40d0ff';
+      this.botColor = '#0066aa';
+      this.glowColor = '#00c8ff';
+      this.badgeBg = 'rgba(0, 25, 45, 0.88)';
+      this.badgeBorder = '#00c8ff';
+    } else if (type === 'counter') {
+      this.text = String(Math.floor(damage));
+      this.subBadge = 'COUNTER';
+      this.initialScale = 3.5;
+      this.fontSize = 38;
+      this.topColor = '#ffffff';
+      this.midColor = '#ffd000';
+      this.botColor = '#ff2200';
+      this.glowColor = '#ffaa00';
+      this.badgeBg = 'rgba(50, 15, 0, 0.92)';
+      this.badgeBorder = '#ffaa00';
+    } else if (type === 'ougi') {
+      this.text = `${Math.floor(damage)}!`;
+      this.subBadge = subBadge || 'SPECIAL';
+      this.initialScale = 4.2;
+      this.fontSize = 46;
+      this.topColor = '#ffffff';
+      this.midColor = '#ff00bb';
+      this.botColor = '#770055';
+      this.glowColor = '#ff00aa';
+      this.badgeBg = 'rgba(40, 0, 30, 0.92)';
+      this.badgeBorder = '#ff00c8';
+    } else if (type === 'ultra') {
+      this.text = String(Math.floor(damage));
+      this.subBadge = 'CRITICAL';
+      this.initialScale = 3.6;
+      this.fontSize = 38;
+      this.topColor = '#ffffff';
+      this.midColor = '#ff9900';
+      this.botColor = '#cc2200';
+      this.glowColor = '#ff5500';
+      this.badgeBg = 'rgba(45, 10, 0, 0.9)';
+      this.badgeBorder = '#ff5500';
+    } else if (type === 'super') {
+      this.text = String(Math.floor(damage));
+      this.subBadge = 'HEAVY';
+      this.initialScale = 3.0;
+      this.fontSize = 34;
+      this.topColor = '#ffffff';
+      this.midColor = '#ffcc00';
+      this.botColor = '#d95500';
+      this.glowColor = '#ffaa00';
+      this.badgeBg = 'rgba(35, 20, 0, 0.88)';
+      this.badgeBorder = '#ffd000';
+    } else if (type === 'sp') {
+      this.text = `+${Math.floor(damage)}`;
+      this.subBadge = 'SP';
+      this.initialScale = 1.8;
+      this.fontSize = 20;
+      this.topColor = '#ffffff';
+      this.midColor = '#00ffaa';
+      this.botColor = '#008855';
+      this.glowColor = '#00ff88';
+      this.vy = -0.9;
+    } else {
+      // 通常 hit
+      this.text = String(Math.floor(damage));
+      this.subBadge = '';
+      this.initialScale = 2.6;
+      this.fontSize = 32;
+      this.topColor = '#ffffff';
+      this.midColor = '#ff4444';
+      this.botColor = '#aa1111';
+      this.glowColor = '#ff2222';
+    }
+
+    this.scale = this.initialScale;
+  }
+
+  public update(): boolean {
+    this.frame++;
+
+    // フェーズ1: 0〜6F ダイナミック・スラムイン (奥から急接近)
+    if (this.frame <= 6) {
+      const progress = this.frame / 6;
+      const ease = 1 - (1 - progress) * (1 - progress);
+      this.scale = this.initialScale + (0.92 - this.initialScale) * ease;
+
+      // 6F到達瞬間に着地シェイク発生
+      if (this.frame === 6) {
+        const shakePower = this.type === 'ougi' ? 8 : (this.type === 'ultra' || this.type === 'counter' ? 6 : 4);
+        this.shakeX = (Math.random() - 0.5) * shakePower;
+        this.shakeY = (Math.random() - 0.5) * shakePower;
+      }
+    }
+    // フェーズ2: 6〜14F リバウンド・バウンス (0.92 ➔ 1.08 ➔ 1.0)
+    else if (this.frame <= 14) {
+      const progress = (this.frame - 6) / 8;
+      const bounce = Math.sin(progress * Math.PI);
+      this.scale = 0.92 + 0.08 * progress + bounce * 0.14;
+      this.shakeX *= 0.65;
+      this.shakeY *= 0.65;
+    }
+    // フェーズ3: 14F〜 スムーズ浮遊 & 物理移動
+    else {
+      this.scale = 1.0;
+      this.shakeX = 0;
+      this.shakeY = 0;
+
+      this.x += this.vx;
+      this.y += this.vy;
+      this.vy *= 0.96;
+    }
+
+    // 奥義・カウンター・ウルトラの残像トレイル更新
+    if ((this.type === 'ougi' || this.type === 'counter' || this.type === 'ultra') && this.frame <= 24 && this.frame % 3 === 0) {
+      this.ghosts.push({ x: this.x, y: this.y, scale: this.scale, alpha: 0.6 });
+    }
+
+    for (const g of this.ghosts) {
+      g.alpha -= 0.07;
+    }
+    this.ghosts = this.ghosts.filter(g => g.alpha > 0);
+
+    return this.frame < this.maxFrames;
+  }
+
+  public draw(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+
+    // 終盤フェードアウト (最後15F)
+    const fadeStart = this.maxFrames - 15;
+    let alpha = 1.0;
+    if (this.frame > fadeStart) {
+      alpha = Math.max(0, (this.maxFrames - this.frame) / 15);
+    }
     ctx.globalAlpha = alpha;
 
-    // ネオン光彩
-    ctx.shadowBlur = 16;
-    ctx.shadowColor = this.glowColor;
-    ctx.font = `900 ${Math.round(this.fontSize * this.scale)}px 'Orbitron', 'Rajdhani', sans-serif`;
+    // 1. 残像トレイル (Ghosts) の描画
+    for (const g of this.ghosts) {
+      ctx.save();
+      ctx.globalAlpha = g.alpha * alpha * 0.4;
+      ctx.font = `italic 900 ${Math.round(this.fontSize * g.scale)}px 'Orbitron', 'Rajdhani', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = this.midColor;
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = this.glowColor;
+      ctx.fillText(this.text, g.x, g.y);
+      ctx.restore();
+    }
+
+    // 2. メイン数値描画
+    ctx.save();
+    ctx.translate(this.x + this.shakeX, this.y + this.shakeY);
+    ctx.scale(this.scale, this.scale);
+
+    // 補助バッジ (CRITICAL, COUNTER, GUARD, EVADED 等)
+    if (this.subBadge) {
+      ctx.save();
+      const badgeText = this.subBadge;
+      const bFontSize = Math.round(this.fontSize * 0.44);
+      ctx.font = `italic 900 ${bFontSize}px 'Orbitron', 'Rajdhani', sans-serif`;
+      const textMetrics = ctx.measureText(badgeText);
+      const bWidth = textMetrics.width + 16;
+      const bHeight = bFontSize + 6;
+      const bY = -this.fontSize * 0.75;
+
+      // スタイリッシュな斜めバッジ背景
+      ctx.save();
+      ctx.transform(1, 0, -0.25, 1, 0, 0); // 鋭角なスキュー変形
+      ctx.fillStyle = this.badgeBg || 'rgba(10, 12, 20, 0.85)';
+      ctx.strokeStyle = this.badgeBorder || this.midColor;
+      ctx.lineWidth = 1.5;
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = this.glowColor;
+
+      ctx.beginPath();
+      if ((ctx as any).roundRect) {
+        (ctx as any).roundRect(-bWidth / 2, bY - bHeight / 2, bWidth, bHeight, 3);
+      } else {
+        ctx.rect(-bWidth / 2, bY - bHeight / 2, bWidth, bHeight);
+      }
+      ctx.fill();
+      ctx.stroke();
+
+      // バッジテキスト
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = this.glowColor;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(badgeText, 0, bY);
+      ctx.restore();
+      ctx.restore();
+    }
+
+    // メイン数値のフォント設定
+    const renderFontSize = this.fontSize;
+    ctx.font = `italic 900 ${renderFontSize}px 'Orbitron', 'Rajdhani', sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // 白い縁取り
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 3;
+    // 立体的な重厚ダークアウターストローク
     ctx.lineJoin = 'round';
-    ctx.strokeText(this.text, this.x, this.y);
+    ctx.strokeStyle = '#05060a';
+    ctx.lineWidth = 7;
+    ctx.shadowBlur = 22;
+    ctx.shadowColor = this.glowColor;
+    ctx.strokeText(this.text, 0, 0);
 
-    // メインカラー
-    ctx.fillStyle = this.color;
-    ctx.fillText(this.text, this.x, this.y);
+    // インナーカラー発光ストローク
+    ctx.strokeStyle = this.midColor;
+    ctx.lineWidth = 2.5;
+    ctx.shadowBlur = 0;
+    ctx.strokeText(this.text, 0, 0);
 
-    // 補助テキスト（GUARD, COUNTER等）
-    if (this.subText) {
-      ctx.font = `700 ${Math.round(this.fontSize * 0.5 * this.scale)}px 'Orbitron', 'Rajdhani', sans-serif`;
-      ctx.fillStyle = this.color;
-      ctx.shadowBlur = 8;
-      ctx.fillText(this.subText, this.x, this.y - this.fontSize * 0.8);
-    }
+    // 鮮烈な縦グラデーション (上部ハイライト ➔ コア ➔ 影)
+    const grad = ctx.createLinearGradient(0, -renderFontSize * 0.5, 0, renderFontSize * 0.5);
+    grad.addColorStop(0.0, this.topColor);
+    grad.addColorStop(0.45, this.midColor);
+    grad.addColorStop(1.0, this.botColor);
 
+    ctx.fillStyle = grad;
+    ctx.fillText(this.text, 0, 0);
+
+    ctx.restore();
     ctx.restore();
   }
 }
@@ -376,6 +674,9 @@ class GameApp {
   private shockwaves: Shockwave[] = [];
   private skillParticles: SkillParticle[] = [];
   private floatingDamages: FloatingDamage[] = [];
+  private hitSlashes: HitSlashEffect[] = [];
+  private speedlines: RadialSpeedline[] = [];
+  private battleCameraZoom: number = 1.0;
   private osugiWhiteoutFrames: number = 0; // 奥義ホワイトアウト演出用
   private displayedPlayerHpPct: number = 100; // HP遅延ダメージバー補間用
   private displayedEnemyHpPct: number = 100;
@@ -5305,6 +5606,9 @@ class GameApp {
     this.shockwaves = [];
     this.skillParticles = [];
     this.floatingDamages = [];
+    this.hitSlashes = [];
+    this.speedlines = [];
+    this.battleCameraZoom = 1.0;
     this.osugiWhiteoutFrames = 0;
     this.displayedPlayerHpPct = 100;
     this.displayedEnemyHpPct = 100;
@@ -5451,29 +5755,117 @@ class GameApp {
           }
         }
 
-        // ★フローティングダメージ数値の生成
-        const isOugiAtk = this.clashPendingChoice.includes('奥義') || this.clashPendingChoice.includes('SPECIAL');
+        // ★1. 攻撃強度・種類の判定
+        const choice = this.clashPendingChoice;
+        const isOugiAtk = choice.includes('奥義') || choice.includes('SPECIAL');
+        const isUltra = choice.includes('ウルトラ') || choice.includes('強');
+        const isSuper = choice.includes('スーパー') || choice.includes('中');
+
+        // ★2. フローティングダメージ数値の生成 (3Dポップイン & キネティックバウンス)
         if (this.clashResultType === 'evade') {
-          // 回避成功: MISS表示（攻撃側ギアの位置に表示）
+          // 回避成功: 0ダメージ＆EVADEDバッジ
           const missX = this.clashPendingSide === 'プレイヤー' ? 600 : 200;
           this.floatingDamages.push(new FloatingDamage(missX, 200, 0, 'evade'));
         } else if (this.clashResultType === 'guard') {
-          // ガード: 軽減後ダメージ（被弾側ギアの位置）
+          // ガード: 軽減後ダメージ＆GUARDバッジ
           const guardX = this.clashPendingSide === 'プレイヤー' ? 600 : 200;
           this.floatingDamages.push(new FloatingDamage(guardX, 200, dmg, 'guard', 'GUARD'));
         } else if (this.clashResultType === 'counter') {
-          // カウンター成功: 反撃ダメージ（攻撃側ギアの位置）
+          // カウンター成功: 反撃ダメージ＆COUNTERバッジ
           const counterDmg = Math.floor(this.clashPendingCounterDamage);
           const counterTargetX = this.clashPendingSide === 'プレイヤー' ? 200 : 600;
           this.floatingDamages.push(new FloatingDamage(counterTargetX, 200, counterDmg, 'counter', 'COUNTER'));
         } else {
-          // 通常被弾 or 奥義被弾
+          // ヒット（通常 / スーパー / ウルトラ / 奥義）
           const hitX = this.clashPendingSide === 'プレイヤー' ? 600 : 200;
-          const dmgType = isOugiAtk ? 'ougi' : 'hit';
-          this.floatingDamages.push(new FloatingDamage(hitX, 180, dmg, dmgType as any));
+          let dmgType: 'hit' | 'super' | 'ultra' | 'ougi' = 'hit';
+          let badgeText = '';
+          if (isOugiAtk) { dmgType = 'ougi'; badgeText = 'SPECIAL'; }
+          else if (isUltra) { dmgType = 'ultra'; badgeText = 'CRITICAL'; }
+          else if (isSuper) { dmgType = 'super'; badgeText = 'HEAVY'; }
+          this.floatingDamages.push(new FloatingDamage(hitX, 180, dmg, dmgType, badgeText));
         }
 
-        // 2. 超巨大な衝撃波＆大爆発パーティクルの発生 (回避成功時は発生させない)
+        // ★3. 衝突点からの閃光スラッシュマーク ＆ 集中線 ＆ カメラクイックズーム
+        if (this.clashResultType === 'evade') {
+          this.battleCameraZoom = 1.0;
+        } else if (this.clashResultType === 'guard') {
+          this.battleCameraZoom = 1.08;
+          this.hitSlashes.push(new HitSlashEffect(400, 300, -0.3, '#00f3ff', '#ffffff', 160));
+          this.snd.playSubBassImpact(0.5);
+        } else if (this.clashResultType === 'counter') {
+          this.battleCameraZoom = 1.34;
+          this.hitSlashes.push(new HitSlashEffect(400, 300, 0.45, '#ffd000', '#ffffff', 270));
+          this.hitSlashes.push(new HitSlashEffect(400, 300, -0.45, '#ff2200', '#ffffff', 270));
+          this.speedlines.push(new RadialSpeedline(400, 300, '#ffaa00'));
+          this.snd.playSubBassImpact(1.6);
+        } else {
+          // 通常〜奥義ヒット
+          if (isOugiAtk) {
+            this.battleCameraZoom = 1.35;
+            this.hitSlashes.push(new HitSlashEffect(400, 300, -0.55, '#ff00aa', '#ffffff', 320));
+            this.hitSlashes.push(new HitSlashEffect(400, 300, 0.55, '#00f3ff', '#ffffff', 320));
+            this.hitSlashes.push(new HitSlashEffect(400, 300, 0, '#ffe600', '#ffffff', 280));
+            this.speedlines.push(new RadialSpeedline(400, 300, '#ff00c8'));
+            this.snd.playSubBassImpact(1.8);
+          } else if (isUltra) {
+            this.battleCameraZoom = 1.25;
+            this.hitSlashes.push(new HitSlashEffect(400, 300, -0.5, '#ff3300', '#ffffff', 250));
+            this.hitSlashes.push(new HitSlashEffect(400, 300, 0.5, '#ffaa00', '#ffffff', 250));
+            this.hitSlashes.push(new HitSlashEffect(400, 300, 0, '#ffffff', '#ffdd00', 220));
+            this.speedlines.push(new RadialSpeedline(400, 300, '#ff5500'));
+            this.snd.playSubBassImpact(1.4);
+          } else if (isSuper) {
+            this.battleCameraZoom = 1.18;
+            this.hitSlashes.push(new HitSlashEffect(400, 300, -0.4, '#ffbb00', '#ffffff', 220));
+            this.hitSlashes.push(new HitSlashEffect(400, 300, 0.4, '#ff5500', '#ffffff', 200));
+            this.speedlines.push(new RadialSpeedline(400, 300, '#ffdd00'));
+            this.snd.playSubBassImpact(1.15);
+          } else {
+            this.battleCameraZoom = 1.14;
+            this.hitSlashes.push(new HitSlashEffect(400, 300, -0.4, '#ffdd00', '#ffffff', 190));
+            this.speedlines.push(new RadialSpeedline(400, 300, '#ffffff'));
+            this.snd.playSubBassImpact(0.85);
+          }
+        }
+
+        // ★4. HPバー＆パネルの打撃被弾シェイク演出
+        if (playerTookDamage) {
+          const pPanel = document.querySelector('.hud-panel.hud-player');
+          if (pPanel) {
+            pPanel.classList.remove('hud-panel-hit-shake');
+            void (pPanel as HTMLElement).offsetWidth;
+            pPanel.classList.add('hud-panel-hit-shake');
+            setTimeout(() => pPanel.classList.remove('hud-panel-hit-shake'), 320);
+          }
+          const pBar = document.getElementById('battle-player-hp-bar');
+          if (pBar) {
+            pBar.classList.remove('hud-bar-hit-flash');
+            void pBar.offsetWidth;
+            pBar.classList.add('hud-bar-hit-flash');
+            setTimeout(() => pBar.classList.remove('hud-bar-hit-flash'), 280);
+          }
+        }
+        const enemyTookDamage = (this.clashPendingSide === 'プレイヤー' && this.clashPendingIsHit && dmg > 0) ||
+                               (this.clashPendingSide === 'エネミー' && this.clashPendingIsCounter && this.clashPendingCounterDamage > 0);
+        if (enemyTookDamage) {
+          const ePanel = document.querySelector('.hud-panel.hud-enemy');
+          if (ePanel) {
+            ePanel.classList.remove('hud-panel-hit-shake');
+            void (ePanel as HTMLElement).offsetWidth;
+            ePanel.classList.add('hud-panel-hit-shake');
+            setTimeout(() => ePanel.classList.remove('hud-panel-hit-shake'), 320);
+          }
+          const eBar = document.getElementById('battle-enemy-hp-bar');
+          if (eBar) {
+            eBar.classList.remove('hud-bar-hit-flash');
+            void eBar.offsetWidth;
+            eBar.classList.add('hud-bar-hit-flash');
+            setTimeout(() => eBar.classList.remove('hud-bar-hit-flash'), 280);
+          }
+        }
+
+        // ★5. 超巨大な衝撃波＆大爆発パーティクルの発生 (回避成功時は発生させない)
         if (this.clashResultType !== 'evade') {
           this.shockwaves.push(new Shockwave(400, 300));
           
@@ -5492,8 +5884,8 @@ class GameApp {
             this.osugiWhiteoutFrames = 8;
           }
 
-          // 火花パーティクルを大量生成（奥義時は80個に増量）
-          const sparkCount = this.clashResultType === 'guard' ? 12 : (isOugiAtk ? 80 : 30);
+          // 火花パーティクルを大量生成（奥義時は80個、ウルトラ時は50個）
+          const sparkCount = this.clashResultType === 'guard' ? 12 : (isOugiAtk ? 80 : (isUltra ? 50 : 30));
           const color1 = this.clashResultType === 'guard' ? '#00f3ff' : '#ff5500';
           const color2 = this.clashResultType === 'guard' ? '#ffffff' : '#ffd800';
 
@@ -5506,34 +5898,42 @@ class GameApp {
           }
         }
 
-        // コミック擬音の生成とポップアップ
+        // ★6. コミック擬音タイポグラフィの生成とポップアップ (本格アーケード演出)
         const btlScreen = document.getElementById('battle-screen');
         if (btlScreen) {
           const clashWord = document.createElement('div');
-          clashWord.className = 'comic-word-overlay';
           
-          // clashResultType に応じた擬音テキスト（奥義ヒット時は SPECIAL!!）
-          if (this.clashResultType === 'counter') clashWord.textContent = 'COUNTER!!';
-          else if (this.clashResultType === 'guard') clashWord.textContent = 'GUARD!!';
-          else if (this.clashResultType === 'evade') clashWord.textContent = 'EVADE!!';
-          else if (isOugiAtk) clashWord.textContent = 'SPECIAL!!';
-          else clashWord.textContent = 'CLASH!!';
-
-          // 奥義時はフォントサイズを拡大
-          if (isOugiAtk && this.clashResultType === 'hit') {
-            clashWord.style.fontSize = '5rem';
+          if (this.clashResultType === 'counter') {
+            clashWord.className = 'comic-word-overlay word-counter';
+            clashWord.textContent = 'COUNTER!!';
+          } else if (this.clashResultType === 'guard') {
+            clashWord.className = 'comic-word-overlay word-guard';
+            clashWord.textContent = 'GUARD!!';
+          } else if (this.clashResultType === 'evade') {
+            clashWord.className = 'comic-word-overlay word-evade';
+            clashWord.textContent = 'EVADED!!';
+          } else if (isOugiAtk) {
+            clashWord.className = 'comic-word-overlay word-special';
+            clashWord.textContent = 'SPECIAL!!';
+          } else if (isUltra) {
+            clashWord.className = 'comic-word-overlay word-critical';
+            clashWord.textContent = 'CRITICAL!!';
+          } else if (isSuper) {
+            clashWord.className = 'comic-word-overlay word-critical';
+            clashWord.textContent = 'HEAVY HIT!!';
+          } else {
+            clashWord.className = 'comic-word-overlay word-clash';
+            clashWord.textContent = 'CLASH!!';
           }
 
-          clashWord.style.left = '50%';
-          clashWord.style.top = '50%';
           btlScreen.appendChild(clashWord);
           
           setTimeout(() => {
             clashWord.remove();
-          }, 800);
+          }, 780);
         }
 
-        // 3. ヒットストップ ＆ スクリーンシェイク適用
+        // ★7. ヒットストップ ＆ スクリーンシェイク適用
         if (this.clashResultType === 'evade') {
           this.battleHitStopFrames = 0;
           this.battleShakeFrames = 0;
@@ -5542,12 +5942,18 @@ class GameApp {
           this.battleShakeFrames = 8;  // シェイクも微小
         } else if (isOugiAtk) {
           // 奥義ヒット・カウンター時は超大シェイク＆長ヒットストップ
-          this.battleHitStopFrames = 20;
-          this.battleShakeFrames = 35;
+          this.battleHitStopFrames = 22;
+          this.battleShakeFrames = 38;
+        } else if (isUltra) {
+          this.battleHitStopFrames = 18;
+          this.battleShakeFrames = 30;
+        } else if (isSuper) {
+          this.battleHitStopFrames = 16;
+          this.battleShakeFrames = 26;
         } else {
-          // 通常ヒット・カウンター成功時は大きなシェイク
-          this.battleHitStopFrames = 15;
-          this.battleShakeFrames = 25;
+          // 通常ヒット
+          this.battleHitStopFrames = 14;
+          this.battleShakeFrames = 22;
         }
 
         // HUDを即時更新
@@ -6630,7 +7036,8 @@ class GameApp {
 
     const ticker = document.createElement('div');
     ticker.className = `combat-ticker ticker-${type}`;
-    ticker.innerHTML = `<span class="ticker-tag">${tag}</span><span class="ticker-msg">${message}</span><span class="ticker-detail">${detail}</span>`;
+    const detailHtml = detail ? `<span class="ticker-detail">${detail}</span>` : '';
+    ticker.innerHTML = `<span class="ticker-tag">${tag}</span><span class="ticker-msg">${message}</span>${detailHtml}`;
     container.appendChild(ticker);
 
     // 最大3件まで表示、超過時は古いものを即座に削除
@@ -6643,7 +7050,7 @@ class GameApp {
       if (container.children.length === 0) {
         container.remove();
       }
-    }, 1500);
+    }, 1200);
   }
 
   // 攻防結果の判定とダメージ処理の集約
@@ -6672,13 +7079,12 @@ class GameApp {
       
       // ダメージ基本計算式
       let ダメージ = 0.18 * 攻撃側アタック * (攻撃側アタック / Math.max(1, 防御側ディフェンス)) * 最終倍率;
-      const 軽減前ダメージ = Math.floor(ダメージ); // 軽減前ダメージ
 
       let isHit = true;
       let isCounterSuccess = false;
-      let tickerTag = 'HIT!';
-      let tickerMsg = `${Math.floor(ダメージ)} DAMAGE`;
-      let tickerDetail = `[${スキル名}]`;
+      let tickerTag = 'DIRECT HIT!';
+      let tickerMsg = スキル名;
+      let tickerDetail = '';
       let tickerType: 'hit' | 'guard' | 'evade' | 'counter' | 'ougi' = is攻撃奥義 ? 'ougi' : 'hit';
 
       // 2. 防御側のコマンド判定処理
@@ -6697,8 +7103,8 @@ class GameApp {
         }
 
         tickerType = 'guard';
-        tickerTag = 'GUARD!';
-        tickerMsg = `${軽減前ダメージ} → ${Math.floor(ダメージ)} (-40%)`;
+        tickerTag = 'IRON GUARD';
+        tickerMsg = '40% CUT';
         tickerDetail = `[${スキル名}]`;
       } 
       else if (防御側コマンド === '防御奥義' && 防御奥義) {
@@ -6718,8 +7124,8 @@ class GameApp {
         ダメージ = ダメージ * cutRate * ウェイト補正;
 
         tickerType = 'guard';
-        tickerTag = 'GUARD OUGI!';
-        tickerMsg = `${軽減前ダメージ} → ${Math.floor(ダメージ)} (-${cutPct}%)`;
+        tickerTag = 'SHIELD OUGI';
+        tickerMsg = `${cutPct}% CUT`;
         tickerDetail = `[${防御奥義.奥義名}]`;
       }
       else if (防御側コマンド === '回避') {
@@ -6741,14 +7147,14 @@ class GameApp {
           isHit = false;
           ダメージ = 0;
           tickerType = 'evade';
-          tickerTag = 'EVADED!';
-          tickerMsg = `完全回避成功! [突破率 ${最終回避率.toFixed(0)}%]`;
-          tickerDetail = `[${スキル名}]`;
+          tickerTag = 'PERFECT EVADE';
+          tickerMsg = 'NO DAMAGE';
+          tickerDetail = '';
         } else {
           tickerType = 'hit';
-          tickerTag = 'EVADE FAILED!';
-          tickerMsg = `回避失敗! 被弾 ${Math.floor(ダメージ)}`;
-          tickerDetail = `[${スキル名}]`;
+          tickerTag = 'EVADE FAILED';
+          tickerMsg = スキル名;
+          tickerDetail = '';
         }
       } 
       else if (防御側コマンド === '回避奥義' && 防御奥義) {
@@ -6771,13 +7177,13 @@ class GameApp {
           isHit = false;
           ダメージ = 0;
           tickerType = 'evade';
-          tickerTag = 'EVADE OUGI!';
-          tickerMsg = `回避奥義成功! [突破率 ${最終回避率.toFixed(0)}%]`;
+          tickerTag = 'EVADE OUGI';
+          tickerMsg = 'PERFECT ESCAPE';
           tickerDetail = `[${防御奥義.奥義名}]`;
         } else {
           tickerType = 'hit';
-          tickerTag = 'EVADE FAILED!';
-          tickerMsg = `回避奥義不発! 被弾 ${Math.floor(ダメージ)}`;
+          tickerTag = 'EVADE FAILED';
+          tickerMsg = スキル名;
           tickerDetail = `[${防御奥義.奥義名}]`;
         }
       }
@@ -6807,15 +7213,15 @@ class GameApp {
 
           this.clashPendingCounterDamage = 反撃ダメージ;
           tickerType = 'counter';
-          tickerTag = 'COUNTER!!';
-          tickerMsg = `反撃炸裂 ${Math.floor(反撃ダメージ)} DAMAGE! [突破率 ${カウンター成功率.toFixed(0)}%]`;
-          tickerDetail = `[${スキル名}]`;
+          tickerTag = 'COUNTER BURST!!';
+          tickerMsg = 'CRUSHING COUNTER';
+          tickerDetail = '';
         } else {
           this.clashPendingCounterDamage = 0;
           tickerType = 'hit';
-          tickerTag = 'COUNTER FAILED!';
-          tickerMsg = `カウンター失敗! 被弾 ${Math.floor(ダメージ)}`;
-          tickerDetail = `[${スキル名}]`;
+          tickerTag = 'COUNTER FAILED';
+          tickerMsg = スキル名;
+          tickerDetail = '';
         }
       }
       else if (防御側コマンド === 'カウンター奥義' && 防御奥義) {
@@ -6851,21 +7257,21 @@ class GameApp {
           this.clashPendingCounterDamage = 反撃ダメージ;
           tickerType = 'counter';
           tickerTag = 'COUNTER OUGI!!';
-          tickerMsg = `強烈反撃 ${Math.floor(反撃ダメージ)} DAMAGE! [突破率 ${カウンター成功率.toFixed(0)}%]`;
+          tickerMsg = 'MAXIMUM COUNTER';
           tickerDetail = `[${防御奥義.奥義名}]`;
         } else {
           this.clashPendingCounterDamage = 0;
           tickerType = 'hit';
-          tickerTag = 'COUNTER FAILED!';
-          tickerMsg = `カウンター奥義不発! 被弾 ${Math.floor(ダメージ)}`;
+          tickerTag = 'COUNTER FAILED';
+          tickerMsg = スキル名;
           tickerDetail = `[${防御奥義.奥義名}]`;
         }
       } else {
         // 通常ヒット
         if (is攻撃奥義) {
-          tickerTag = 'SPECIAL HIT!!';
-          tickerMsg = `痛烈 ${Math.floor(ダメージ)} DAMAGE!`;
-          tickerDetail = `[${スキル名}]`;
+          tickerTag = 'MAXIMUM DRIVE!!';
+          tickerMsg = スキル名;
+          tickerDetail = '';
           tickerType = 'ougi';
         }
       }
@@ -7501,6 +7907,17 @@ class GameApp {
       this.battleShakeFrames--;
     }
 
+    // ★カメラクイックズームの処理 (激突インパクトの寄り＆引き)
+    if (this.battleCameraZoom !== 1.0) {
+      ctx.translate(400, 300);
+      ctx.scale(this.battleCameraZoom, this.battleCameraZoom);
+      ctx.translate(-400, -300);
+      this.battleCameraZoom += (1.0 - this.battleCameraZoom) * 0.12;
+      if (Math.abs(this.battleCameraZoom - 1.0) < 0.003) {
+        this.battleCameraZoom = 1.0;
+      }
+    }
+
     const pX = this.battleManager.プレイヤー位置X;
     const pY = this.battleManager.プレイヤー位置Y;
     const eX = this.battleManager.エネミー位置X;
@@ -8036,6 +8453,12 @@ class GameApp {
       ctx.restore();
     }
 
+    // 放射状アクション集中線の描画＆更新 (ギアの背後)
+    this.speedlines = this.speedlines.filter(sl => {
+      sl.draw(ctx);
+      return sl.update();
+    });
+
     // エフェクトの描画
     this.particles.forEach(p => p.draw(ctx));
     this.shockwaves.forEach(s => s.draw(ctx));
@@ -8066,6 +8489,12 @@ class GameApp {
     // ギアの描画
     this.drawGear(ctx, pX, pY, 25, this.battleManager.プレイヤーギア, this.playerRotation, isPlayerPinch);
     this.drawGear(ctx, eX, eY, 25, this.battleManager.エネミーギア, this.enemyRotation, isEnemyPinch);
+
+    // 閃光スラッシュマークの描画＆更新 (ギアの前面)
+    this.hitSlashes = this.hitSlashes.filter(hs => {
+      hs.draw(ctx);
+      return hs.update();
+    });
 
     // フローティングダメージ数値の描画＆更新
     this.floatingDamages = this.floatingDamages.filter(fd => {
