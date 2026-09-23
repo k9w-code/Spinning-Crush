@@ -383,6 +383,7 @@ class GameApp {
   private osugiCutinFrames: number = 0;
   private onOsugiCutinComplete: (() => void) | null = null;
   private currentEnemySelectedOsugi: 奥義マスタ行 | null = null;
+  private isOugiSubmenuActive: boolean = false;
 
   // 激突突進アニメーション用ステート
   private isClashAnimationActive: boolean = false;
@@ -1434,10 +1435,25 @@ class GameApp {
           return;
         }
 
+        // ESC / Backspace で奥義サブメニューから戻る
+        if (key === 'escape' || key === 'backspace') {
+          if (this.isOugiSubmenuActive) {
+            e.preventDefault();
+            this.openCommandSelection();
+            return;
+          }
+        }
+
         if (key === 'w' || e.key === 'ArrowUp') {
           e.preventDefault();
-          this.moveCommandSelection(-1);
+          this.moveCommandSelection(-2);
         } else if (key === 's' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          this.moveCommandSelection(2);
+        } else if (key === 'a' || e.key === 'ArrowLeft') {
+          e.preventDefault();
+          this.moveCommandSelection(-1);
+        } else if (key === 'd' || e.key === 'ArrowRight') {
           e.preventDefault();
           this.moveCommandSelection(1);
         } else if (key === 'f' || e.key === 'Enter') {
@@ -1449,23 +1465,11 @@ class GameApp {
           e.preventDefault();
           const idx = Number(key) - 1;
           if (idx >= 0 && idx < this.activeCommandButtons.length) {
-            this.selectedCommandIndex = idx;
-            this.confirmCommandSelection();
-          }
-        }
-        // アルファベットキーによる連想直接コマンド実行
-        // A/D (1番目), E (2番目), C (3番目), Q/S (4番目)
-        else if (['a', 'd', 'e', 'c', 'q'].includes(key)) {
-          e.preventDefault();
-          let idx = -1;
-          if (key === 'a' || key === 'd') idx = 0; // 攻撃(Attack) / 防御(Defense)
-          else if (key === 'e') idx = 1;           // 回避(Evade)
-          else if (key === 'c') idx = 2;           // カウンター(Counter)
-          else if (key === 'q') idx = 3;           // 奥義(Quest-Ultimate)
-
-          if (idx >= 0 && idx < this.activeCommandButtons.length) {
-            this.selectedCommandIndex = idx;
-            this.confirmCommandSelection();
+            const targetBtn = this.activeCommandButtons[idx];
+            if (targetBtn && !targetBtn.disabled) {
+              this.selectedCommandIndex = idx;
+              this.confirmCommandSelection();
+            }
           }
         }
       }
@@ -5828,84 +5832,179 @@ class GameApp {
     }
   }
 
-  // コマンドフェーズ移行時のUI展開
+  // コマンドフェーズ移行時のUI展開 (攻撃ターン)
   private openCommandSelection() {
     const overlay = document.getElementById('command-overlay');
     if (!overlay) return;
-    if (overlay.classList.contains('active')) return;
 
+    this.isOugiSubmenuActive = false;
+    const isFirstOpen = !overlay.classList.contains('active');
     overlay.classList.add('active');
-    this.snd.playBleep(); // コマンド開始アラート音
-    
-    // コマンドフェーズ移行時の手応え演出 (短いフリーズ＆シェイク)
-    this.battleHitStopFrames = 2;
-    this.battleShakeFrames = 8;
-    
-    // コマンドフェーズ移行直後の誤入力防止クールダウン (約300ms)
-    this.commandPhaseCooldownFrames = 18;
+
+    if (isFirstOpen) {
+      this.snd.playBleep(); // コマンド開始アラート音
+      this.battleHitStopFrames = 2;
+      this.battleShakeFrames = 8;
+      this.commandPhaseCooldownFrames = 18;
+      document.getElementById('distance-controls')?.classList.add('hidden');
+    }
 
     const titleEl = document.getElementById('command-title-text');
     if (titleEl) titleEl.textContent = "プレイヤーの攻撃ターン！";
+    const subEl = document.getElementById('command-sub-text');
+    if (subEl) subEl.textContent = "コマンドを選択してください";
 
     const container = document.getElementById('battle-command-list');
     if (!container) return;
     container.innerHTML = '';
+    container.className = 'command-list command-card-grid';
 
     this.activeCommandButtons = [];
     this.selectedCommandIndex = 0;
 
-    // 通常コマンド3種
-    const commands = [
-      { name: '通常攻撃 (弱)', type: 'weak', cost: '消費ATK:30', info: '倍率 0.7倍 / SP獲得 +20' },
-      { name: '通常攻撃 (中)', type: 'mid', cost: '消費ATK:50', info: '倍率 1.0倍 / SP獲得 +30' },
-      { name: '通常攻撃 (強)', type: 'strong', cost: '消費ATK:70', info: '倍率 1.5倍 / SP獲得 +40' }
-    ];
+    const playerAtkGauge = Math.floor(this.battleManager ? this.battleManager.プレイヤー攻撃ゲージ : 0);
+    const playerSpGauge = Math.floor(this.battleManager ? this.battleManager.プレイヤー奥義ゲージ : 0);
 
-    commands.forEach(cmd => {
+    // 解放されている奥義の有無・発動可能性を判定
+    const playerSlot = this.saveData.ギアスロット[this.vsSlotIndex.toString()] as SlotData;
+    const playerAssembled = アセンブル実行(
+      playerSlot.チップ, playerSlot.ブレード, playerSlot.ウェイト, playerSlot.ソール, playerSlot.レベル,
+      this.パーツマスタ, this.チップマスタ, this.奥義マスタ
+    );
+
+    const offensiveOugis = playerAssembled.解放奥義
+      .map(id => this.奥義マスタ.find(o => o.奥義ID === id))
+      .filter((o): o is 奥義マスタ行 => !!o && (o.奥義種別 === '1' || o.奥義種別 === '2'));
+
+    const hasAnyOffensiveOugi = offensiveOugis.length > 0;
+    const canUseAnyOugi = offensiveOugis.some(o =>
+      playerAtkGauge >= Number(o.消費攻撃ゲージ || 0) &&
+      playerSpGauge >= Number(o.消費奥義ゲージ || 0)
+    );
+
+    const createCard = (title: string, themeClass: string, canUse: boolean, onClick: () => void, extraClass: string = '') => {
       const btn = document.createElement('button');
-      btn.className = 'command-btn';
-      btn.innerHTML = `
-        <span class="command-btn-name">${cmd.name}</span>
-        <span style="font-size: 0.8rem; color: var(--color-neon-orange);">${cmd.info}</span>
-        <span class="command-btn-cost">${cmd.cost}</span>
-      `;
-      btn.addEventListener('mouseenter', () => this.snd.playBleep());
+      btn.className = `command-card ${themeClass} ${extraClass} ${!canUse ? 'disabled' : ''}`;
+      btn.disabled = !canUse;
+      btn.innerHTML = `<span class="command-card-title">${title}</span>`;
+      btn.addEventListener('mouseenter', () => {
+        if (!btn.disabled) this.snd.playBleep();
+      });
       btn.addEventListener('click', () => {
-        if (this.commandPhaseCooldownFrames > 0) return;
+        if (this.commandPhaseCooldownFrames > 0 || btn.disabled) return;
         this.snd.playClick();
-        this.executePlayerAttack(cmd.type);
+        onClick();
       });
       container.appendChild(btn);
       this.activeCommandButtons.push(btn);
+      return btn;
+    };
+
+    // 1. アタック (消費ATK: 30)
+    createCard('アタック', 'card-attack', playerAtkGauge >= 30, () => {
+      this.executePlayerAttack('weak');
     });
 
-    // 解放されている奥義の追加
+    // 2. スーパーアタック (消費ATK: 50)
+    createCard('スーパーアタック', 'card-super', playerAtkGauge >= 50, () => {
+      this.executePlayerAttack('mid');
+    });
+
+    // 3. ウルトラアタック (消費ATK: 70)
+    createCard('ウルトラアタック', 'card-ultra', playerAtkGauge >= 70, () => {
+      this.executePlayerAttack('strong');
+    });
+
+    // 4. 奥義 (攻撃奥義習得済みかつゲージ充足時のみ活性)
+    createCard('奥義', 'card-ougi', hasAnyOffensiveOugi && canUseAnyOugi, () => {
+      this.openOugiSelection();
+    });
+
+    this.updateCommandHighlight();
+  }
+
+  // 奥義選択サブメニュー (2段階目展開)
+  private openOugiSelection() {
+    if (!this.battleManager) return;
+    this.isOugiSubmenuActive = true;
+
+    const titleEl = document.getElementById('command-title-text');
+    if (titleEl) titleEl.textContent = "奥義選択";
+    const subEl = document.getElementById('command-sub-text');
+    if (subEl) subEl.textContent = "発動する奥義を選択してください";
+
+    const container = document.getElementById('battle-command-list');
+    if (!container) return;
+    container.innerHTML = '';
+    container.className = 'command-list command-card-grid';
+
+    this.activeCommandButtons = [];
+    this.selectedCommandIndex = 0;
+
+    const playerAtkGauge = Math.floor(this.battleManager.プレイヤー攻撃ゲージ);
+    const playerSpGauge = Math.floor(this.battleManager.プレイヤー奥義ゲージ);
+
     const playerSlot = this.saveData.ギアスロット[this.vsSlotIndex.toString()] as SlotData;
-    const playerAssembled = アセンブル実行(playerSlot.チップ, playerSlot.ブレード, playerSlot.ウェイト, playerSlot.ソール, playerSlot.レベル, this.パーツマスタ, this.チップマスタ, this.奥義マスタ);
+    const playerAssembled = アセンブル実行(
+      playerSlot.チップ, playerSlot.ブレード, playerSlot.ウェイト, playerSlot.ソール, playerSlot.レベル,
+      this.パーツマスタ, this.チップマスタ, this.奥義マスタ
+    );
 
-    playerAssembled.解放奥義.forEach(osugiId => {
-      const osugi = this.奥義マスタ.find(o => o.奥義ID === osugiId);
-      if (osugi && (osugi.奥義種別 === '1' || osugi.奥義種別 === '2')) {
-        const canUse = this.battleManager && 
-                       this.battleManager.プレイヤー攻撃ゲージ >= Number(osugi.消費攻撃ゲージ) &&
-                       this.battleManager.プレイヤー奥義ゲージ >= Number(osugi.消費奥義ゲージ);
+    // 弱奥義 (種別1) と 強奥義 (種別2)
+    const weakOugi = playerAssembled.解放奥義
+      .map(id => this.奥義マスタ.find(o => o.奥義ID === id))
+      .find(o => o && o.奥義種別 === '1');
 
-        const btn = document.createElement('button');
-        btn.className = 'command-btn command-osugi';
-        btn.disabled = !canUse;
-        btn.innerHTML = `
-          <span class="command-btn-name">【奥義】${osugi.奥義名}</span>
-          <span style="font-size: 0.8rem; color: var(--color-neon-pink);">${osugi.効果量}%ダメージ</span>
-          <span class="command-btn-cost">消費ATK:${osugi.消費攻撃ゲージ}/SP:${osugi.消費奥義ゲージ}</span>
-        `;
-        btn.addEventListener('click', () => {
-          if (this.commandPhaseCooldownFrames > 0) return;
-          this.executePlayerAttack('osugi', osugi);
-        });
-        container.appendChild(btn);
-        this.activeCommandButtons.push(btn);
+    const strongOugi = playerAssembled.解放奥義
+      .map(id => this.奥義マスタ.find(o => o.奥義ID === id))
+      .find(o => o && o.奥義種別 === '2');
+
+    const canUseWeak = !!weakOugi &&
+      playerAtkGauge >= Number(weakOugi.消費攻撃ゲージ || 0) &&
+      playerSpGauge >= Number(weakOugi.消費奥義ゲージ || 0);
+
+    const canUseStrong = !!strongOugi &&
+      playerAtkGauge >= Number(strongOugi.消費攻撃ゲージ || 0) &&
+      playerSpGauge >= Number(strongOugi.消費奥義ゲージ || 0);
+
+    const createCard = (title: string, themeClass: string, canUse: boolean, onClick: () => void, extraClass: string = '') => {
+      const btn = document.createElement('button');
+      btn.className = `command-card ${themeClass} ${extraClass} ${!canUse ? 'disabled' : ''}`;
+      btn.disabled = !canUse;
+      btn.innerHTML = `<span class="command-card-title">${title}</span>`;
+      btn.addEventListener('mouseenter', () => {
+        if (!btn.disabled) this.snd.playBleep();
+      });
+      btn.addEventListener('click', () => {
+        if (this.commandPhaseCooldownFrames > 0 || btn.disabled) return;
+        this.snd.playClick();
+        onClick();
+      });
+      container.appendChild(btn);
+      this.activeCommandButtons.push(btn);
+      return btn;
+    };
+
+    // 1. 弱奥義
+    createCard('弱奥義', 'card-ougi', canUseWeak, () => {
+      if (weakOugi) {
+        this.isOugiSubmenuActive = false;
+        this.executePlayerAttack('osugi', weakOugi);
       }
     });
+
+    // 2. 強奥義
+    createCard('強奥義', 'card-ougi', canUseStrong, () => {
+      if (strongOugi) {
+        this.isOugiSubmenuActive = false;
+        this.executePlayerAttack('osugi', strongOugi);
+      }
+    });
+
+    // 3. もどる (全幅2列スパン)
+    createCard('もどる', 'card-back', true, () => {
+      this.openCommandSelection();
+    }, 'card-full-span');
 
     this.updateCommandHighlight();
   }
@@ -6211,6 +6310,7 @@ class GameApp {
     if (!overlay) return;
     if (overlay.classList.contains('active')) return;
 
+    this.isOugiSubmenuActive = false;
     overlay.classList.add('active');
     this.snd.playBleep(); // ディフェンス開始アラート音
 
@@ -6223,59 +6323,21 @@ class GameApp {
 
     const titleEl = document.getElementById('command-title-text');
     if (titleEl) titleEl.textContent = `相手の攻撃！「${enemySkillName}」`;
+    const subEl = document.getElementById('command-sub-text');
+    if (subEl) subEl.textContent = "防御コマンドを選択してください";
 
     const container = document.getElementById('battle-command-list');
     if (!container) return;
     container.innerHTML = '';
+    container.className = 'command-list command-card-grid';
 
     this.activeCommandButtons = [];
     this.selectedCommandIndex = 0;
 
-    // 通常の防御側の選択肢 (通常防御 & 通常回避)
-    const defChoices = [
-      { name: '防御', type: '防御', info: 'ダメージ40%カット / SP獲得 +10' },
-      { name: '回避', type: '回避', info: '確率で完全無効 / 失敗時通常被弾 / SP+10' }
-    ];
+    const playerAtkGauge = Math.floor(this.battleManager ? this.battleManager.プレイヤー攻撃ゲージ : 0);
+    const playerSpGauge = Math.floor(this.battleManager ? this.battleManager.プレイヤー奥義ゲージ : 0);
 
-    defChoices.forEach(choice => {
-      const btn = document.createElement('button');
-      btn.className = 'command-btn';
-      btn.innerHTML = `
-        <span class="command-btn-name">${choice.name}</span>
-        <span style="font-size: 0.8rem; color: var(--color-neon-blue);">${choice.info}</span>
-        <span class="command-btn-cost">消費なし</span>
-      `;
-      btn.addEventListener('mouseenter', () => this.snd.playBleep());
-      btn.addEventListener('click', () => {
-        if (this.commandPhaseCooldownFrames > 0) return;
-        this.snd.playClick();
-        this.executePlayerDefense(choice.type as any, enemyAtkMultiplier, enemySkillName);
-      });
-      container.appendChild(btn);
-      this.activeCommandButtons.push(btn);
-    });
-
-    // 通常カウンター（攻撃/奥義ゲージ30以上）
-    const canCounter = this.battleManager &&
-                       this.battleManager.プレイヤー攻撃ゲージ >= 30 &&
-                       this.battleManager.プレイヤー奥義ゲージ >= 30;
-
-    const btnCounter = document.createElement('button');
-    btnCounter.className = 'command-btn command-osugi';
-    btnCounter.disabled = !canCounter;
-    btnCounter.innerHTML = `
-      <span class="command-btn-name">カウンター</span>
-      <span style="font-size: 0.8rem; color: var(--color-neon-pink);">成功時無効+通常反撃 / 失敗時被弾 / SP獲得なし</span>
-      <span class="command-btn-cost">消費ATK:30/SP:30</span>
-    `;
-    btnCounter.addEventListener('click', () => {
-      if (this.commandPhaseCooldownFrames > 0) return;
-      this.executePlayerDefense('カウンター', enemyAtkMultiplier, enemySkillName);
-    });
-    container.appendChild(btnCounter);
-    this.activeCommandButtons.push(btnCounter);
-
-    // 解放されている防御系奥義 (種別3, 4, 5) の追加
+    // 解放されている防御系奥義 (種別3, 4, 5) の取得
     const playerSlot = this.saveData.ギアスロット[this.vsSlotIndex.toString()] as SlotData;
     const playerAssembled = アセンブル実行(
       playerSlot.チップ,
@@ -6288,47 +6350,56 @@ class GameApp {
       this.奥義マスタ
     );
 
-    playerAssembled.解放奥義.forEach(osugiId => {
-      const osugi = this.奥義マスタ.find(o => o.奥義ID === osugiId);
-      if (osugi && (osugi.奥義種別 === '3' || osugi.奥義種別 === '4' || osugi.奥義種別 === '5')) {
-        const osugiSpCost = Number(osugi.消費奥義ゲージ);
-        const osugiAtkCost = Number(osugi.消費攻撃ゲージ || 0);
+    const defOsugi = playerAssembled.解放奥義
+      .map(id => this.奥義マスタ.find(o => o.奥義ID === id))
+      .find(o => !!o && (o.奥義種別 === '3' || o.奥義種別 === '4' || o.奥義種別 === '5'));
 
-        const canUse = this.battleManager &&
-                       this.battleManager.プレイヤー攻撃ゲージ >= osugiAtkCost &&
-                       this.battleManager.プレイヤー奥義ゲージ >= osugiSpCost;
+    const canUseDefOsugi = !!defOsugi &&
+      playerAtkGauge >= Number(defOsugi.消費攻撃ゲージ || 0) &&
+      playerSpGauge >= Number(defOsugi.消費奥義ゲージ || 0);
 
-        let typeText = "防御奥義";
-        let colorTheme = "var(--color-neon-blue)";
-        let descText = "";
+    const canCounter = playerAtkGauge >= 30 && playerSpGauge >= 30;
 
-        if (osugi.奥義種別 === '3') {
-          typeText = "防御奥義";
-          descText = `被ダメージを ${osugi.効果量}% 軽減する`;
-        } else if (osugi.奥義種別 === '4') {
-          typeText = "回避奥義";
-          descText = `基礎回避率 ${osugi.効果量}% で完全無効化`;
-          colorTheme = "var(--color-neon-green)";
-        } else if (osugi.奥義種別 === '5') {
-          typeText = "カウンター奥義";
-          descText = `無効化し、倍率 ${osugi.効果量}% で手痛く反撃`;
-          colorTheme = "var(--color-neon-pink)";
-        }
+    const createCard = (title: string, themeClass: string, canUse: boolean, onClick: () => void, extraClass: string = '') => {
+      const btn = document.createElement('button');
+      btn.className = `command-card ${themeClass} ${extraClass} ${!canUse ? 'disabled' : ''}`;
+      btn.disabled = !canUse;
+      btn.innerHTML = `<span class="command-card-title">${title}</span>`;
+      btn.addEventListener('mouseenter', () => {
+        if (!btn.disabled) this.snd.playBleep();
+      });
+      btn.addEventListener('click', () => {
+        if (this.commandPhaseCooldownFrames > 0 || btn.disabled) return;
+        this.snd.playClick();
+        onClick();
+      });
+      container.appendChild(btn);
+      this.activeCommandButtons.push(btn);
+      return btn;
+    };
 
-        const btnOsugi = document.createElement('button');
-        btnOsugi.className = 'command-btn command-osugi';
-        btnOsugi.disabled = !canUse;
-        btnOsugi.innerHTML = `
-          <span class="command-btn-name">【${typeText}】${osugi.奥義名}</span>
-          <span style="font-size: 0.8rem; color: ${colorTheme};">${descText}</span>
-          <span class="command-btn-cost">消費ATK:${osugiAtkCost}/SP:${osugiSpCost}</span>
-        `;
-        btnOsugi.addEventListener('click', () => {
-          if (this.commandPhaseCooldownFrames > 0) return;
-          this.executePlayerDefense(typeText as any, enemyAtkMultiplier, enemySkillName, osugi);
-        });
-        container.appendChild(btnOsugi);
-        this.activeCommandButtons.push(btnOsugi);
+    // 1. 防御 (常時使用可能)
+    createCard('防御', 'card-guard', true, () => {
+      this.executePlayerDefense('防御', enemyAtkMultiplier, enemySkillName);
+    });
+
+    // 2. 回避 (常時使用可能)
+    createCard('回避', 'card-evade', true, () => {
+      this.executePlayerDefense('回避', enemyAtkMultiplier, enemySkillName);
+    });
+
+    // 3. カウンター (ATK >= 30 && SP >= 30)
+    createCard('カウンター', 'card-counter', canCounter, () => {
+      this.executePlayerDefense('カウンター', enemyAtkMultiplier, enemySkillName);
+    });
+
+    // 4. 奥義 (防御系奥義習得済み & ゲージ充足時のみ活性)
+    createCard('奥義', 'card-ougi', canUseDefOsugi, () => {
+      if (defOsugi) {
+        let typeText: '防御奥義' | '回避奥義' | 'カウンター奥義' = '防御奥義';
+        if (defOsugi.奥義種別 === '4') typeText = '回避奥義';
+        else if (defOsugi.奥義種別 === '5') typeText = 'カウンター奥義';
+        this.executePlayerDefense(typeText, enemyAtkMultiplier, enemySkillName, defOsugi);
       }
     });
 
