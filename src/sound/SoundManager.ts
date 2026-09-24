@@ -158,10 +158,37 @@ export class SoundManager {
     return curve;
   }
 
-  // UI選択音 (心地よく抜けるピコッ音)
-  public playBleep() {
-    if (this.playSE('se_bleep.wav', 0.45, 0.02)) return;
+  // UIソフトホバー音 (アイテム一覧やNPCカード用の耳に優しい極小タップ音)
+  public playSoftHover() {
+    this.initContext();
+    this.resumeContext();
+    if (!this.ctx) return;
 
+    const time = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const filter = this.ctx.createBiquadFilter();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(420, time);
+    osc.frequency.exponentialRampToValueAtTime(320, time + 0.025);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(800, time);
+
+    gain.gain.setValueAtTime(0.035, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.028);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(time);
+    osc.stop(time + 0.03);
+  }
+
+  // カウントアップ・JP加算・微小ダイヤル用マイクロクリック音
+  public playSoftTick() {
     this.initContext();
     this.resumeContext();
     if (!this.ctx) return;
@@ -171,8 +198,239 @@ export class SoundManager {
     const gain = this.ctx.createGain();
 
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(800, time);
-    osc.frequency.exponentialRampToValueAtTime(1600, time + 0.04);
+    osc.frequency.setValueAtTime(540, time);
+    osc.frequency.exponentialRampToValueAtTime(280, time + 0.015);
+
+    gain.gain.setValueAtTime(0.025, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.018);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(time);
+    osc.stop(time + 0.02);
+  }
+
+  // 会話送り・テキスト進行用ソフトピコ音
+  public playDialogBlip() {
+    this.initContext();
+    this.resumeContext();
+    if (!this.ctx) return;
+
+    const time = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(480, time);
+    osc.frequency.exponentialRampToValueAtTime(400, time + 0.02);
+
+    gain.gain.setValueAtTime(0.025, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.022);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(time);
+    osc.stop(time + 0.025);
+  }
+
+  // ガレージパーツ換装時の高級感あるメカニカルラッチ音 (カチャッ！)
+  public playEquipPart() {
+    this.initContext();
+    this.resumeContext();
+    if (!this.ctx) return;
+
+    const time = this.ctx.currentTime;
+
+    // 1段目: 高精度金属クリック (カチッ)
+    const osc1 = this.ctx.createOscillator();
+    const gain1 = this.ctx.createGain();
+    osc1.type = 'triangle';
+    osc1.frequency.setValueAtTime(520, time);
+    osc1.frequency.exponentialRampToValueAtTime(220, time + 0.06);
+
+    gain1.gain.setValueAtTime(0.05, time);
+    gain1.gain.exponentialRampToValueAtTime(0.001, time + 0.07);
+
+    osc1.connect(gain1);
+    gain1.connect(this.ctx.destination);
+    osc1.start(time);
+    osc1.stop(time + 0.08);
+
+    // 2段目: 重厚なメカニカルロック低域 (ガチャン)
+    const osc2 = this.ctx.createOscillator();
+    const gain2 = this.ctx.createGain();
+    const filter = this.ctx.createBiquadFilter();
+
+    osc2.type = 'sawtooth';
+    osc2.frequency.setValueAtTime(170, time + 0.02);
+    osc2.frequency.linearRampToValueAtTime(70, time + 0.12);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(320, time + 0.02);
+
+    gain2.gain.setValueAtTime(0.001, time);
+    gain2.gain.setValueAtTime(0.05, time + 0.025);
+    gain2.gain.exponentialRampToValueAtTime(0.001, time + 0.14);
+
+    osc2.connect(filter);
+    filter.connect(gain2);
+    gain2.connect(this.ctx.destination);
+
+    osc2.start(time + 0.02);
+    osc2.stop(time + 0.15);
+  }
+
+  // 洗練された対戦開始・VSカットイン音 (サイバーパルス ＋ 締まったゴング打撃 ＋ タイトなサブキック)
+  public playVsIntro() {
+    this.initContext();
+    this.resumeContext();
+    if (!this.ctx) return;
+
+    const time = this.ctx.currentTime;
+
+    // 1. サイバーライザー (急速なエネルギーチャージ)
+    const riserOsc = this.ctx.createOscillator();
+    const riserGain = this.ctx.createGain();
+    const riserFilter = this.ctx.createBiquadFilter();
+
+    riserOsc.type = 'triangle';
+    riserOsc.frequency.setValueAtTime(180, time);
+    riserOsc.frequency.exponentialRampToValueAtTime(540, time + 0.32);
+
+    riserFilter.type = 'bandpass';
+    riserFilter.frequency.setValueAtTime(400, time);
+    riserFilter.Q.setValueAtTime(2.5, time);
+
+    riserGain.gain.setValueAtTime(0.01, time);
+    riserGain.gain.linearRampToValueAtTime(0.12, time + 0.28);
+    riserGain.gain.exponentialRampToValueAtTime(0.001, time + 0.35);
+
+    riserOsc.connect(riserFilter);
+    riserFilter.connect(riserGain);
+    riserGain.connect(this.ctx.destination);
+
+    riserOsc.start(time);
+    riserOsc.stop(time + 0.36);
+
+    // 2. 締まったクリア金属ゴング／打撃 (キリッとした決闘宣言)
+    const strikeTime = time + 0.12;
+    const strikeFreqs = [587, 880, 1318];
+    const gongGain = this.ctx.createGain();
+    gongGain.gain.setValueAtTime(0.14, strikeTime);
+    gongGain.gain.exponentialRampToValueAtTime(0.001, strikeTime + 0.45);
+
+    strikeFreqs.forEach(freq => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, strikeTime);
+      osc.connect(gongGain);
+      osc.start(strikeTime);
+      osc.stop(strikeTime + 0.48);
+    });
+    gongGain.connect(this.ctx.destination);
+
+    // 3. タイトなサブキック (心地よい重低音の引き締め)
+    const kickOsc = this.ctx.createOscillator();
+    const kickGain = this.ctx.createGain();
+    kickOsc.type = 'sine';
+    kickOsc.frequency.setValueAtTime(95, strikeTime);
+    kickOsc.frequency.exponentialRampToValueAtTime(32, strikeTime + 0.22);
+
+    kickGain.gain.setValueAtTime(0.25, strikeTime);
+    kickGain.gain.exponentialRampToValueAtTime(0.001, strikeTime + 0.24);
+
+    kickOsc.connect(kickGain);
+    kickGain.connect(this.ctx.destination);
+
+    kickOsc.start(strikeTime);
+    kickOsc.stop(strikeTime + 0.26);
+  }
+
+  // 激突突進開始音 (高速接近の鋭い風切り＆タービン音)
+  public playClashDash() {
+    this.initContext();
+    this.resumeContext();
+    if (!this.ctx) return;
+
+    const time = this.ctx.currentTime;
+    const duration = 0.28;
+
+    // バンドパスノイズ風切り
+    const bufferSize = Math.floor(this.ctx.sampleRate * duration);
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(380, time);
+    bp.frequency.exponentialRampToValueAtTime(1800, time + duration);
+    bp.Q.setValueAtTime(1.8, time);
+
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.02, time);
+    noiseGain.gain.linearRampToValueAtTime(0.09, time + duration * 0.7);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+    noise.connect(bp);
+    bp.connect(noiseGain);
+    noiseGain.connect(this.ctx.destination);
+
+    noise.start(time);
+    noise.stop(time + duration);
+  }
+
+  // せめぎ合い摩擦音 (ブレード火花の高速微小チャター)
+  public playFrictionGrind() {
+    this.initContext();
+    this.resumeContext();
+    if (!this.ctx) return;
+
+    const time = this.ctx.currentTime;
+    const duration = 0.045;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const filter = this.ctx.createBiquadFilter();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(1200 + Math.random() * 600, time);
+
+    filter.type = 'highpass';
+    filter.frequency.setValueAtTime(2400, time);
+
+    gain.gain.setValueAtTime(0.035, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(time);
+    osc.stop(time + duration);
+  }
+
+  // リアルタイム衝突音 (フィールド上でコマ同士が小気味よく当たる音)
+  public playGearCol() {
+    if (this.playSE('se_hit.wav', 0.22, 0.15)) return;
+
+    this.initContext();
+    this.resumeContext();
+    if (!this.ctx) return;
+
+    const time = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(950 + Math.random() * 200, time);
+    osc.frequency.exponentialRampToValueAtTime(400, time + 0.04);
 
     gain.gain.setValueAtTime(0.06, time);
     gain.gain.exponentialRampToValueAtTime(0.001, time + 0.045);
@@ -184,9 +442,35 @@ export class SoundManager {
     osc.stop(time + 0.05);
   }
 
+  // UI選択音 (心地よく抜けるピコッ音: 音量と周波数をマイルド化)
+  public playBleep() {
+    if (this.playSE('se_bleep.wav', 0.18, 0.02)) return;
+
+    this.initContext();
+    this.resumeContext();
+    if (!this.ctx) return;
+
+    const time = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(500, time);
+    osc.frequency.exponentialRampToValueAtTime(760, time + 0.04);
+
+    gain.gain.setValueAtTime(0.035, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.045);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(time);
+    osc.stop(time + 0.05);
+  }
+
   // UI決定音 / シャッター開閉音 (きらびやかなピシィーン音)
   public playClick() {
-    if (this.playSE('se_click.wav', 0.60, 0.02)) return;
+    if (this.playSE('se_click.wav', 0.40, 0.02)) return;
 
     this.initContext();
     this.resumeContext();
@@ -197,17 +481,17 @@ export class SoundManager {
     const osc2 = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
-    // 金属的響きを出すための高周波サイン波とマイルドな三角波
+    // 金属的響きを出すためのサイン波と三角波 (音圧を耳に優しく調整)
     osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(580, time);
-    osc1.frequency.exponentialRampToValueAtTime(2200, time + 0.12);
+    osc1.frequency.setValueAtTime(520, time);
+    osc1.frequency.exponentialRampToValueAtTime(1600, time + 0.11);
 
     osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(290, time);
-    osc2.frequency.exponentialRampToValueAtTime(1100, time + 0.12);
+    osc2.frequency.setValueAtTime(260, time);
+    osc2.frequency.exponentialRampToValueAtTime(800, time + 0.11);
 
-    gain.gain.setValueAtTime(0.08, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.14);
+    gain.gain.setValueAtTime(0.06, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.13);
 
     osc1.connect(gain);
     osc2.connect(gain);
@@ -215,8 +499,8 @@ export class SoundManager {
 
     osc1.start(time);
     osc2.start(time);
-    osc1.stop(time + 0.15);
-    osc2.stop(time + 0.15);
+    osc1.stop(time + 0.14);
+    osc2.stop(time + 0.14);
   }
 
   // 通常ヒット音 / 被弾金属音 (カキィィン！という硬質で迫力のあるリアルな金属打撃音)
@@ -243,7 +527,6 @@ export class SoundManager {
       const osc = this.ctx.createOscillator();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, time);
-      // ピッチを瞬時にスイープさせて衝突の硬さを出す
       osc.frequency.exponentialRampToValueAtTime(freq * 0.8, time + 0.05);
       
       osc.connect(hitGain);
@@ -253,7 +536,7 @@ export class SoundManager {
     hitGain.connect(this.ctx.destination);
 
     // 2. 金属の擦れ合い・火花のハイパスノイズ (バシッというアタック音)
-    const bufferSize = this.ctx.sampleRate * 0.05; // 0.05秒の摩擦
+    const bufferSize = Math.floor(this.ctx.sampleRate * 0.05);
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
@@ -282,8 +565,50 @@ export class SoundManager {
     noise.stop(time + 0.06);
   }
 
-  // 防御/ガード金属音 (キィィン！という硬質シールド音)
-  public playGuard() {
+  // スーパーアタック重打撃音 (ガシャァン！と響く厚みのある金属粉砕音)
+  public playHitHeavy() {
+    this.playHit();
+
+    this.initContext();
+    this.resumeContext();
+    if (!this.ctx) return;
+
+    const time = this.ctx.currentTime;
+    const duration = 0.24;
+
+    const osc1 = this.ctx.createOscillator();
+    const osc2 = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc1.type = 'triangle';
+    osc1.frequency.setValueAtTime(480, time);
+    osc1.frequency.exponentialRampToValueAtTime(70, time + duration);
+
+    osc2.type = 'sawtooth';
+    osc2.frequency.setValueAtTime(260, time);
+    osc2.frequency.exponentialRampToValueAtTime(50, time + duration);
+
+    gain.gain.setValueAtTime(0.18, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc1.start(time);
+    osc2.start(time);
+    osc1.stop(time + duration + 0.02);
+    osc2.stop(time + duration + 0.02);
+  }
+
+  // ウルトラアタック特大打撃音 (ドガシャァン！という超衝撃波クラッシュ)
+  public playHitUltra() {
+    this.playHitHeavy();
+    this.playExplosion();
+  }
+
+  // 防御/ガードシールド音 (重厚なエネルギーバリア展開 ＆ キィィン！という硬質弾き音)
+  public playShieldGuard() {
     if (this.playSE('se_guard.wav', 0.85, 0.04)) return;
 
     this.initContext();
@@ -291,30 +616,49 @@ export class SoundManager {
     if (!this.ctx) return;
 
     const time = this.ctx.currentTime;
-    const duration = 0.22;
-    const freqs = [1200, 1800, 2400];
-    const oscs: OscillatorNode[] = [];
-    const gain = this.ctx.createGain();
+    const duration = 0.28;
 
-    gain.gain.setValueAtTime(0.12, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+    // 1. 硬質金属弾き (1100Hz & 1760Hz)
+    const freqs = [1100, 1760];
+    const metalGain = this.ctx.createGain();
+    metalGain.gain.setValueAtTime(0.12, time);
+    metalGain.gain.exponentialRampToValueAtTime(0.001, time + 0.22);
 
     freqs.forEach(f => {
       if (!this.ctx) return;
       const osc = this.ctx.createOscillator();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(f, time);
-      osc.connect(gain);
-      oscs.push(osc);
+      osc.connect(metalGain);
+      osc.start(time);
+      osc.stop(time + 0.24);
     });
+    metalGain.connect(this.ctx.destination);
 
-    gain.connect(this.ctx.destination);
-    oscs.forEach(o => o.start(time));
-    oscs.forEach(o => o.stop(time + duration + 0.02));
+    // 2. エネルギーバリア共鳴 (ウゥゥンと広がる防御力場)
+    const shieldOsc = this.ctx.createOscillator();
+    const shieldGain = this.ctx.createGain();
+    shieldOsc.type = 'triangle';
+    shieldOsc.frequency.setValueAtTime(280, time);
+    shieldOsc.frequency.linearRampToValueAtTime(140, time + duration);
+
+    shieldGain.gain.setValueAtTime(0.15, time);
+    shieldGain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+    shieldOsc.connect(shieldGain);
+    shieldGain.connect(this.ctx.destination);
+
+    shieldOsc.start(time);
+    shieldOsc.stop(time + duration);
   }
 
-  // 回避/ドッジ風切り音 (シュッ！という高速回避音)
-  public playDodge() {
+  // 防御メソッド (互換性用エイリアス)
+  public playGuard() {
+    this.playShieldGuard();
+  }
+
+  // 回避/ドッジ専用風切り音 (シュバッ！というスタイリッシュ残像回避音)
+  public playEvadeWhoosh() {
     if (this.playSE('se_dodge.wav', 0.80, 0.03)) return;
 
     this.initContext();
@@ -322,8 +666,8 @@ export class SoundManager {
     if (!this.ctx) return;
 
     const time = this.ctx.currentTime;
-    const duration = 0.12;
-    const bufferSize = this.ctx.sampleRate * duration;
+    const duration = 0.16;
+    const bufferSize = Math.floor(this.ctx.sampleRate * duration);
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
@@ -333,21 +677,43 @@ export class SoundManager {
     const noise = this.ctx.createBufferSource();
     noise.buffer = buffer;
 
+    // スタイリッシュに抜けるバンドパススイープ
     const filter = this.ctx.createBiquadFilter();
     filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(3000, time);
-    filter.frequency.exponentialRampToValueAtTime(500, time + duration);
+    filter.frequency.setValueAtTime(2600, time);
+    filter.frequency.exponentialRampToValueAtTime(380, time + duration);
+    filter.Q.setValueAtTime(2.2, time);
 
     const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0.15, time);
+    gain.gain.setValueAtTime(0.18, time);
     gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
 
     noise.connect(filter);
     filter.connect(gain);
     gain.connect(this.ctx.destination);
 
+    // 抜けのホイッスルサイン波 (ヒュンッ！)
+    const whistle = this.ctx.createOscillator();
+    const whistleGain = this.ctx.createGain();
+    whistle.type = 'sine';
+    whistle.frequency.setValueAtTime(1200, time);
+    whistle.frequency.exponentialRampToValueAtTime(420, time + duration);
+
+    whistleGain.gain.setValueAtTime(0.05, time);
+    whistleGain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+    whistle.connect(whistleGain);
+    whistleGain.connect(this.ctx.destination);
+
     noise.start(time);
+    whistle.start(time);
     noise.stop(time + duration);
+    whistle.stop(time + duration);
+  }
+
+  // 回避メソッド (互換性用エイリアス)
+  public playDodge() {
+    this.playEvadeWhoosh();
   }
 
   // 被弾/重ダメージ音 (ガツゥン！というヘビーインパクト)
@@ -377,8 +743,8 @@ export class SoundManager {
     osc.stop(time + duration);
   }
 
-  // カウンター閃光撃砕音 (バシィィン！という強烈な反撃音)
-  public playCounter() {
+  // カウンター閃光撃砕音 (キィィン閃光パリィ ＋ バギィィン痛烈反撃音！)
+  public playCounterParry() {
     if (this.playSE('se_counter.wav', 0.90, 0.03)) return;
 
     this.initContext();
@@ -386,24 +752,48 @@ export class SoundManager {
     if (!this.ctx) return;
 
     const time = this.ctx.currentTime;
-    const duration = 0.3;
 
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(1400, time);
-    osc.frequency.exponentialRampToValueAtTime(300, time + duration);
+    // 1. パリィ閃光高音ベル (キィィン！)
+    const parryFreqs = [2093, 2637];
+    const parryGain = this.ctx.createGain();
+    parryGain.gain.setValueAtTime(0.18, time);
+    parryGain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
 
-    gain.gain.setValueAtTime(0.22, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+    parryFreqs.forEach(f => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, time);
+      osc.connect(parryGain);
+      osc.start(time);
+      osc.stop(time + 0.16);
+    });
+    parryGain.connect(this.ctx.destination);
 
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    // 2. 痛烈カウンター粉砕打撃 (ズババァン！)
+    const hitTime = time + 0.03;
+    const smashOsc = this.ctx.createOscillator();
+    const smashGain = this.ctx.createGain();
+    smashOsc.type = 'sawtooth';
+    smashOsc.frequency.setValueAtTime(180, hitTime);
+    smashOsc.frequency.exponentialRampToValueAtTime(38, hitTime + 0.28);
 
-    osc.start(time);
-    osc.stop(time + duration);
+    smashGain.gain.setValueAtTime(0.24, hitTime);
+    smashGain.gain.exponentialRampToValueAtTime(0.001, hitTime + 0.28);
 
+    smashOsc.connect(smashGain);
+    smashGain.connect(this.ctx.destination);
+
+    smashOsc.start(hitTime);
+    smashOsc.stop(hitTime + 0.3);
+
+    // 3. 金属打撃
     this.playHit();
+  }
+
+  // カウンターメソッド (互換性用エイリアス)
+  public playCounter() {
+    this.playCounterParry();
   }
 
   // 激突大爆発音 (サチュレートされた歪み ＆ 腹に響く45Hzサブベースによるドズゥゥン音)

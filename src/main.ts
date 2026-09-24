@@ -722,6 +722,7 @@ class GameApp {
   private currentScreenId: string = 'title-screen';
   private isTransitioning: boolean = false;
   private resultJpIntervalId: any = null;
+  private lastHoverSoundTime: number = 0;
 
   // カスタマイズ画面用ステータス
   private editingSlotId: string = '1';
@@ -1419,11 +1420,27 @@ class GameApp {
   }
 
   private bindButtonHoverSound() {
-    document.querySelectorAll('button, .command-btn, .inventory-item, .map-pin, .npc-card').forEach(el => {
+    // 1. ボタン・コマンドボタン等の一般操作要素
+    document.querySelectorAll('button, .command-btn').forEach(el => {
       if (el.getAttribute('data-sound-bound') === '1') return;
       el.setAttribute('data-sound-bound', '1');
       el.addEventListener('mouseenter', () => {
-        this.snd.playBleep();
+        if (Date.now() - this.lastHoverSoundTime >= 50) {
+          this.lastHoverSoundTime = Date.now();
+          this.snd.playSoftHover();
+        }
+      });
+    });
+
+    // 2. アイテムカード・NPCカード・マップピン（グリッド連続通過時のキンキン乱発を防止するスロットル制御）
+    document.querySelectorAll('.inventory-item, .map-pin, .npc-card').forEach(el => {
+      if (el.getAttribute('data-sound-bound') === '1') return;
+      el.setAttribute('data-sound-bound', '1');
+      el.addEventListener('mouseenter', () => {
+        if (Date.now() - this.lastHoverSoundTime >= 65) {
+          this.lastHoverSoundTime = Date.now();
+          this.snd.playSoftHover();
+        }
       });
     });
   }
@@ -2062,49 +2079,9 @@ class GameApp {
     this.renderAssembleSimStats();
   }
 
-  // 換装用のガシャコン金属音
+  // 換装用のメカニカルラッチ音 (カチャッ！)
   private playEquipSound() {
-    const snd = SoundManager.getInstance();
-    snd.initContext();
-    const ctx = (snd as any).ctx;
-    if (!ctx) return;
-
-    const time = ctx.currentTime;
-    
-    // 1段目: 高めの金属打撃
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = 'triangle';
-    osc1.frequency.setValueAtTime(600, time);
-    osc1.frequency.linearRampToValueAtTime(150, time + 0.12);
-    gain1.gain.setValueAtTime(0.04, time);
-    gain1.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-    osc1.start(time);
-    osc1.stop(time + 0.18);
-
-    // 2段目: 低いラッチ（少し遅らせて重なりを演出）
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'sawtooth';
-    osc2.frequency.setValueAtTime(200, time + 0.05);
-    osc2.frequency.linearRampToValueAtTime(80, time + 0.18);
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(350, time + 0.05);
-
-    gain2.gain.setValueAtTime(0.001, time + 0.05);
-    gain2.gain.linearRampToValueAtTime(0.06, time + 0.07);
-    gain2.gain.exponentialRampToValueAtTime(0.001, time + 0.22);
-
-    osc2.connect(filter);
-    filter.connect(gain2);
-    gain2.connect(ctx.destination);
-    
-    osc2.start(time + 0.05);
-    osc2.stop(time + 0.25);
+    this.snd.playEquipPart();
   }
 
   private renderAssembleSimStats() {
@@ -2259,6 +2236,7 @@ class GameApp {
         card.addEventListener('mouseenter', () => this.showPartDetailInDrawer(item, 'チップ'));
         card.addEventListener('click', () => {
           this.customGearSim.チップ = item.チップID;
+          this.playEquipSound();
           this.updateCustomAssembleArea();
           document.getElementById('inventory-drawer')?.classList.remove('active');
         });
@@ -2328,6 +2306,7 @@ class GameApp {
           else if (type === 'ウェイト') this.customGearSim.ウェイト = item.パーツID;
           else this.customGearSim.ソール = item.パーツID;
           
+          this.playEquipSound();
           this.updateCustomAssembleArea();
           document.getElementById('inventory-drawer')?.classList.remove('active');
         });
@@ -2340,6 +2319,7 @@ class GameApp {
       }
     }
 
+    this.bindButtonHoverSound();
     document.getElementById('inventory-drawer')?.classList.add('active');
   }
 
@@ -3056,6 +3036,7 @@ class GameApp {
       `;
 
       card.addEventListener('click', () => {
+        this.snd.playClick();
         this.selectedNpc = npc;
         
         // 対戦前会話の背景を必ずこのステージの背景画像にセット！
@@ -3091,6 +3072,8 @@ class GameApp {
 
       listEl.appendChild(card);
     });
+
+    this.bindButtonHoverSound();
 
     // 進行状況ゲージ更新
     const gaugeFill = document.getElementById('stage-clear-gauge-fill');
@@ -3455,7 +3438,7 @@ class GameApp {
 
     // 演出を活性化
     overlay.classList.add('active');
-    this.snd.playOsugiCharge(); // 立ち上がりで盛り上げる充電金属SEを借用
+    this.snd.playVsIntro(); // スタイリッシュな対戦開始ジングル（過剰な爆音・金属LFOを解消）
 
     // クリックでスキップ、または2.2秒後に自動完了
     let completed = false;
@@ -5705,8 +5688,11 @@ class GameApp {
       this.playerRotation += rotSpeed;
       this.enemyRotation -= rotSpeed;
 
-      // 25〜45F：せめぎ合いガリガリ摩擦期間中に火花を連続生成 (回避時は摩擦なし)
+      // 25〜45F：せめぎ合いガリガリ摩擦期間中に火花と摩擦音を連続生成 (回避時は摩擦なし)
       if (this.clashAnimFrame >= 25 && this.clashAnimFrame < 45 && this.clashResultType !== 'evade') {
+        if (this.clashAnimFrame % 6 === 1) {
+          this.snd.playFrictionGrind();
+        }
         if (this.clashResultType === 'guard') {
           // ガード時は青白い摩擦火花
           this.particles.push(new SparkParticle(400 + (Math.random() - 0.5) * 30, 300 + (Math.random() - 0.5) * 30, '#00f3ff'));
@@ -5786,18 +5772,21 @@ class GameApp {
           this.floatingDamages.push(new FloatingDamage(hitX, 180, dmg, dmgType, badgeText));
         }
 
-        // ★3. 衝突点からの閃光スラッシュマーク ＆ 集中線 ＆ カメラクイックズーム
+        // ★3. 衝突点からの閃光スラッシュマーク ＆ 集中線 ＆ カメラクイックズーム ＆ 決着迫力SE再生
         if (this.clashResultType === 'evade') {
           this.battleCameraZoom = 1.0;
+          this.snd.playEvadeWhoosh(); // 回避成功の爽快なすり抜け風切り音！
         } else if (this.clashResultType === 'guard') {
           this.battleCameraZoom = 1.08;
           this.hitSlashes.push(new HitSlashEffect(400, 300, -0.3, '#00f3ff', '#ffffff', 160));
+          this.snd.playShieldGuard(); // 硬質エネルギーシールド展開音！
           this.snd.playSubBassImpact(0.5);
         } else if (this.clashResultType === 'counter') {
           this.battleCameraZoom = 1.34;
           this.hitSlashes.push(new HitSlashEffect(400, 300, 0.45, '#ffd000', '#ffffff', 270));
           this.hitSlashes.push(new HitSlashEffect(400, 300, -0.45, '#ff2200', '#ffffff', 270));
           this.speedlines.push(new RadialSpeedline(400, 300, '#ffaa00'));
+          this.snd.playCounterParry(); // パリィ閃光＋痛烈カウンター打撃音！
           this.snd.playSubBassImpact(1.6);
         } else {
           // 通常〜奥義ヒット
@@ -5807,6 +5796,7 @@ class GameApp {
             this.hitSlashes.push(new HitSlashEffect(400, 300, 0.55, '#00f3ff', '#ffffff', 320));
             this.hitSlashes.push(new HitSlashEffect(400, 300, 0, '#ffe600', '#ffffff', 280));
             this.speedlines.push(new RadialSpeedline(400, 300, '#ff00c8'));
+            this.snd.playOugiImpact(); // 奥義専用 特大衝撃音！
             this.snd.playSubBassImpact(1.8);
           } else if (isUltra) {
             this.battleCameraZoom = 1.25;
@@ -5814,17 +5804,24 @@ class GameApp {
             this.hitSlashes.push(new HitSlashEffect(400, 300, 0.5, '#ffaa00', '#ffffff', 250));
             this.hitSlashes.push(new HitSlashEffect(400, 300, 0, '#ffffff', '#ffdd00', 220));
             this.speedlines.push(new RadialSpeedline(400, 300, '#ff5500'));
+            this.snd.playHitUltra(); // ウルトラアタック特大打撃音！
             this.snd.playSubBassImpact(1.4);
           } else if (isSuper) {
             this.battleCameraZoom = 1.18;
             this.hitSlashes.push(new HitSlashEffect(400, 300, -0.4, '#ffbb00', '#ffffff', 220));
             this.hitSlashes.push(new HitSlashEffect(400, 300, 0.4, '#ff5500', '#ffffff', 200));
             this.speedlines.push(new RadialSpeedline(400, 300, '#ffdd00'));
+            this.snd.playHitHeavy(); // スーパーアタック重金属打撃音！
             this.snd.playSubBassImpact(1.15);
           } else {
             this.battleCameraZoom = 1.14;
             this.hitSlashes.push(new HitSlashEffect(400, 300, -0.4, '#ffdd00', '#ffffff', 190));
             this.speedlines.push(new RadialSpeedline(400, 300, '#ffffff'));
+            if (this.clashPendingSide === 'エネミー') {
+              this.snd.playDamage();
+            } else {
+              this.snd.playHit(); // 通常アタックヒット音！
+            }
             this.snd.playSubBassImpact(0.85);
           }
         }
@@ -6016,6 +6013,7 @@ class GameApp {
 
       // 激突の衝撃波 (Shockwave) を生成
       this.shockwaves.push(new Shockwave(this.battleManager.collisionX, this.battleManager.collisionY));
+      this.snd.playGearCol(); // リアルタイム物理衝突時の小気味よい接触金属音！
 
       // リアルタイム衝突時のヒットストップ＆シェイク強化 (パッケージA)
       this.battleHitStopFrames = 5; // より強い衝突フィードバック
@@ -6220,7 +6218,7 @@ class GameApp {
       if (!this.activeCommandButtons[nextIdx].disabled) {
         this.selectedCommandIndex = nextIdx;
         this.updateCommandHighlight();
-        this.snd.playBleep(); // ホバー移動音
+        this.snd.playSoftHover(); // ホバー移動音
         break;
       }
     }
@@ -6248,7 +6246,7 @@ class GameApp {
     overlay.classList.add('active');
 
     if (isFirstOpen) {
-      this.snd.playBleep(); // コマンド開始アラート音
+      this.snd.playSoftTick(); // コマンド開始アラート音
       this.battleHitStopFrames = 2;
       this.battleShakeFrames = 8;
       this.commandPhaseCooldownFrames = 18;
@@ -6294,7 +6292,7 @@ class GameApp {
       btn.disabled = !canUse;
       btn.innerHTML = `<span class="command-card-title">${title}</span>`;
       btn.addEventListener('mouseenter', () => {
-        if (!btn.disabled) this.snd.playBleep();
+        if (!btn.disabled) this.snd.playSoftHover();
       });
       btn.addEventListener('click', () => {
         if (this.commandPhaseCooldownFrames > 0 || btn.disabled) return;
@@ -6379,7 +6377,7 @@ class GameApp {
       btn.disabled = !canUse;
       btn.innerHTML = `<span class="command-card-title">${title}</span>`;
       btn.addEventListener('mouseenter', () => {
-        if (!btn.disabled) this.snd.playBleep();
+        if (!btn.disabled) this.snd.playSoftHover();
       });
       btn.addEventListener('click', () => {
         if (this.commandPhaseCooldownFrames > 0 || btn.disabled) return;
@@ -6718,7 +6716,7 @@ class GameApp {
 
     this.isOugiSubmenuActive = false;
     overlay.classList.add('active');
-    this.snd.playBleep(); // ディフェンス開始アラート音
+    this.snd.playSoftTick(); // ディフェンス開始アラート音
 
     // コマンドフェーズ移行時の手応え演出 (短いフリーズ＆シェイク)
     this.battleHitStopFrames = 2;
@@ -6772,7 +6770,7 @@ class GameApp {
       btn.disabled = !canUse;
       btn.innerHTML = `<span class="command-card-title">${title}</span>`;
       btn.addEventListener('mouseenter', () => {
-        if (!btn.disabled) this.snd.playBleep();
+        if (!btn.disabled) this.snd.playSoftHover();
       });
       btn.addEventListener('click', () => {
         if (this.commandPhaseCooldownFrames > 0 || btn.disabled) return;
@@ -7294,39 +7292,15 @@ class GameApp {
         this.clashResultType = 'hit';
       }
 
-      // 左右激突突進アニメーションを開始し、攻防結果に応じた効果音を再生
+      // 左右激突突進アニメーションを開始し、高速突進ダッシュ音を再生
       this.isClashAnimationActive = true;
       this.clashAnimFrame = 0;
-
-      if (this.clashResultType === 'guard') {
-        this.snd.playGuard();
-      } else if (this.clashResultType === 'evade') {
-        this.snd.playDodge();
-      } else if (this.clashResultType === 'counter') {
-        this.snd.playCounter();
-      } else {
-        this.snd.playExplosion();
-      }
+      this.snd.playClashDash(); // 突進ダッシュ風切り音！
 
       this.clashOnComplete = () => {
         // 激突被弾の瞬間にヒットストップ (0.08秒フリーズ) ＆ 大振動シェイクを発動！
         this.triggerHitStop(0.08);
         this.triggerScreenShake(is攻撃奥義 ? 15 : 8);
-
-        // 激突完了の被弾瞬間に衝撃音を再生（奥義ヒット時は新設した奥義専用SE）
-        if (is攻撃奥義 && this.clashResultType === 'hit') {
-          this.snd.playOugiImpact();
-        } else if (this.clashResultType === 'counter') {
-          this.snd.playCounter();
-        } else if (this.clashResultType === 'guard') {
-          this.snd.playGuard();
-        } else if (this.clashPendingIsHit) {
-          if (this.clashPendingSide === 'エネミー') {
-            this.snd.playDamage();
-          } else {
-            this.snd.playHit();
-          }
-        }
 
         // ★ADVダイアログ（クリック待ち）を廃止し、スマートなコンバットティッカーを画面上部に表示！
         this.showCombatTicker(tickerTag, tickerMsg, tickerDetail, tickerType);
@@ -7573,7 +7547,7 @@ class GameApp {
         this.resultJpIntervalId = setInterval(() => {
           current++;
           rewardJpEl.textContent = `+${current} JP`;
-          this.snd.playBleep();
+          this.snd.playSoftTick();
           if (current >= diff) {
             clearInterval(this.resultJpIntervalId);
             this.resultJpIntervalId = null;
@@ -8706,6 +8680,7 @@ class GameApp {
     }
 
     const current = this.talkQueue[this.currentTalkIndex];
+    this.snd.playDialogBlip();
     
     const speakerEl = document.getElementById('talk-speaker-name');
     const textEl = document.getElementById('talk-text-content');
