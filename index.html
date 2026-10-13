@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Dela+Gothic+One&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/src/index.css">
   <title>DriveGear Crash - 2D格闘ホビーRPG</title>
 </head>
@@ -378,18 +378,42 @@
           <button id="btn-action-approach" class="btn btn-action">接近する [D]</button>
         </div>
 
-        <!-- 聖獣召喚カットインオーバーレイ -->
-        <div class="seiju-cutin-overlay" id="seiju-cutin-overlay">
-          <div class="seiju-cutin-box">
-            <img id="seiju-cutin-img" src="" alt="聖獣召喚" />
-            <div class="seiju-cutin-fallback-text" id="seiju-cutin-fallback-text"></div>
-            <div class="seiju-cutin-flash"></div>
+        <!-- 奥義カットイン（多段演出：①顔カットイン → ②聖獣顕現 → ③技名タイトル → ④閃光） -->
+        <div class="ougi-seq" id="seiju-cutin-overlay">
+          <div class="ougi-seq-bg"></div>
+          <div class="ougi-seq-speedlines"></div>
+
+          <!-- ① 暗転＋キャラクター顔カットイン -->
+          <div class="ougi-stage ougi-stage-face">
+            <div class="ougi-face-band">
+              <div class="ougi-face-portrait" id="ougi-face-portrait"></div>
+              <div class="ougi-face-gloss"></div>
+            </div>
+            <div class="ougi-shout">
+              <div class="ougi-shout-speaker" id="seiju-shout-speaker"></div>
+              <div class="ougi-shout-text" id="seiju-shout-text"></div>
+            </div>
           </div>
-          <!-- 必殺技叫びセリフ・スキル名カットインバンナー -->
-          <div class="seiju-shout-container" id="seiju-shout-container">
-            <div class="seiju-shout-speaker" id="seiju-shout-speaker">主人公</div>
-            <div class="seiju-shout-text" id="seiju-shout-text">「行けぇぇッ！【ドラゴニック・ノヴァ】！！！」</div>
+
+          <!-- ② 聖獣の顕現 -->
+          <div class="ougi-stage ougi-stage-seiju">
+            <div class="ougi-rune-circle"></div>
+            <div class="ougi-rune-circle ougi-rune-inner"></div>
+            <img id="seiju-cutin-img" src="" alt="聖獣" />
+            <div class="ougi-seiju-fallback" id="seiju-cutin-fallback-text"></div>
+            <div class="ougi-seiju-name" id="ougi-seiju-name"></div>
           </div>
+
+          <!-- ③ 技名タイトル -->
+          <div class="ougi-stage ougi-stage-title">
+            <div class="ougi-title-label" id="ougi-title-label">奥義</div>
+            <div class="ougi-title-name" id="ougi-title-name"></div>
+            <div class="ougi-title-line"></div>
+          </div>
+
+          <!-- ④ 閃光 -->
+          <div class="ougi-flash"></div>
+          <div class="ougi-skip-hint">TAP TO SKIP</div>
         </div>
 
         <!-- コマンドフェーズ(静) UI -->

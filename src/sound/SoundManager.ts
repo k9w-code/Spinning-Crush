@@ -941,6 +941,98 @@ export class SoundManager {
     osc.stop(time + duration + 0.02);
   }
 
+  // =================================================================
+  // 奥義多段演出SEシーケンス（CSSタイムライン 3.4秒と同期）
+  //  0.00s スティンガー（暗転＋顔カットイン） / 1.00s 聖獣顕現（上昇音＋きらめき）
+  //  2.05s 技名スラム（重低音＋金属打撃）     / 2.40-2.90s 閃光前のスウェル
+  // =================================================================
+  private ougiSeqNodes: AudioScheduledSourceNode[] = [];
+  private ougiSeqGain: GainNode | null = null;
+
+  public playOugiSequence() {
+    this.initContext();
+    this.resumeContext();
+    if (!this.ctx) return;
+    this.stopOugiSequence();
+
+    const ctx = this.ctx;
+    const t0 = ctx.currentTime + 0.02;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(this.seVolume, t0);
+    master.connect(ctx.destination);
+    this.ougiSeqGain = master;
+
+    const track = (n: AudioScheduledSourceNode) => { this.ougiSeqNodes.push(n); return n; };
+    const noiseBuffer = (sec: number) => {
+      const len = Math.floor(ctx.sampleRate * sec);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      return buf;
+    };
+    const tone = (type: OscillatorType, f0: number, f1: number, start: number, dur: number, peak: number, attack = 0.005) => {
+      const o = track(ctx.createOscillator()) as OscillatorNode;
+      const g = ctx.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(f0, start);
+      o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), start + dur);
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.linearRampToValueAtTime(peak, start + attack);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+      o.connect(g); g.connect(master);
+      o.start(start); o.stop(start + dur + 0.02);
+    };
+    const noise = (start: number, dur: number, peak: number, filterType: BiquadFilterType, f0: number, f1: number, attack = 0.005) => {
+      const s = track(ctx.createBufferSource()) as AudioBufferSourceNode;
+      s.buffer = noiseBuffer(dur);
+      const f = ctx.createBiquadFilter();
+      f.type = filterType;
+      f.frequency.setValueAtTime(f0, start);
+      f.frequency.exponentialRampToValueAtTime(f1, start + dur);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.linearRampToValueAtTime(peak, start + attack);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+      s.connect(f); f.connect(g); g.connect(master);
+      s.start(start); s.stop(start + dur);
+    };
+
+    // ① 0.00s：暗転スティンガー（シャキーン＋低いドン）
+    noise(t0, 0.35, 0.16, 'bandpass', 600, 5000, 0.01);
+    tone('triangle', 1320, 1980, t0 + 0.04, 0.32, 0.07);
+    tone('sine', 90, 40, t0, 0.3, 0.32);
+
+    // ② 1.00s：聖獣顕現（閃光インパクト＋上昇する神秘的な和音）
+    const t1 = t0 + 1.0;
+    tone('sine', 70, 28, t1, 0.5, 0.42);
+    noise(t1, 0.25, 0.12, 'highpass', 3000, 8000);
+    [392, 587, 784].forEach((f, i) => tone('sine', f, f * 1.5, t1 + 0.02 + i * 0.04, 0.95, 0.05, 0.12));
+    tone('triangle', 196, 392, t1, 0.95, 0.06, 0.25);
+
+    // ③ 2.05s：技名スラム（重低音キック＋金属打撃）
+    const t2 = t0 + 2.05;
+    tone('sine', 110, 32, t2, 0.45, 0.5);
+    tone('square', 220, 55, t2, 0.18, 0.06);
+    [740, 1110, 1480].forEach(f => tone('sine', f, f * 0.92, t2, 0.5, 0.06));
+    noise(t2, 0.12, 0.14, 'bandpass', 2500, 900);
+
+    // ④ 2.40-2.90s：閃光へ向かうスウェル（リバースシンバル風）
+    const t3 = t0 + 2.4;
+    noise(t3, 0.5, 0.12, 'highpass', 1500, 9000, 0.48);
+    tone('sawtooth', 120, 480, t3, 0.5, 0.035, 0.45);
+  }
+
+  public stopOugiSequence() {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    this.ougiSeqNodes.forEach(n => { try { n.stop(now); } catch (_) { /* 既に停止済み */ } });
+    this.ougiSeqNodes = [];
+    if (this.ougiSeqGain) {
+      try { this.ougiSeqGain.disconnect(); } catch (_) { /* noop */ }
+      this.ougiSeqGain = null;
+    }
+  }
+
   // 奥義発動チャージ音 (ウワウワキュィィィン)
   public playOsugiCharge() {
     if (this.playSE('se_charge.wav', 0.85, 0)) return;

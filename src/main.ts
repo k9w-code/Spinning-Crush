@@ -808,7 +808,6 @@ class GameApp {
         const transImg = new Image();
         transImg.src = blobUrl;
         transImg.onload = () => {
-          URL.revokeObjectURL(blobUrl);
           resolve(transImg);
         };
         transImg.onerror = () => {
@@ -5627,10 +5626,26 @@ class GameApp {
   }
 
   private runBattleLoop() {
-    const loop = () => {
+    // 固定60Hzタイムステップ：モニターのリフレッシュレートに関係なくゲーム速度を一定に保つ
+    const STEP_MS = 1000 / 60;
+    let lastTime = performance.now();
+    let accumulator = 0;
+
+    const loop = (now: number) => {
       if (this.isBattleFinished) return;
 
-      this.updateBattle();
+      accumulator += Math.min(250, Math.max(0, now - lastTime));
+      lastTime = now;
+
+      let steps = 0;
+      while (accumulator >= STEP_MS && steps < 5) {
+        this.updateBattle();
+        accumulator -= STEP_MS;
+        steps++;
+        if (this.isBattleFinished) return;
+      }
+      if (steps >= 5) accumulator = 0; // 処理落ち時は追いつき処理を打ち切る
+
       this.drawBattle();
 
       this.battleLoopId = requestAnimationFrame(loop);
@@ -5658,9 +5673,13 @@ class GameApp {
       this.particles = this.particles.filter(p => p.update());
       this.shockwaves = this.shockwaves.filter(s => s.update());
       
-      // カットインフラッシュ時に少し画面を揺らす
-      if (this.osugiCutinFrames === 60) {
-        this.battleShakeFrames = 15;
+      // 多段演出の要所で画面を揺らす（残りフレーム基準：聖獣顕現1.0s / 技名スラム2.05s / 閃光2.9s）
+      if (this.osugiCutinFrames === 144) {
+        this.battleShakeFrames = 12;
+      } else if (this.osugiCutinFrames === 81) {
+        this.battleShakeFrames = 18;
+      } else if (this.osugiCutinFrames === 30) {
+        this.battleShakeFrames = 10;
       }
 
       if (this.osugiCutinFrames <= 0) {
@@ -6852,9 +6871,9 @@ class GameApp {
       return;
     }
 
-    this.snd.playOsugiCharge(); // 奥義発動チャージ音
+    this.snd.playOugiSequence(); // 4段階に同期した奥義SEシーケンス
     this.isOsugiCutinActive = true;
-    this.osugiCutinFrames = 84; // 1.4秒 (84フレーム)
+    this.osugiCutinFrames = 204; // 3.4秒 (204フレーム) ※CSSタイムラインと同期
     this.battleShakeFrames = 5; // カットイン出現時の前震シェイク
     this.onOsugiCutinComplete = onComplete;
 
@@ -6867,13 +6886,12 @@ class GameApp {
     const chip = this.チップマスタ.find(c => c.チップID === chipId || c.チップ名 === chipId);
     const chipName = chip ? chip.チップ名 : '聖獣';
     const chipIdKey = chip ? chip.チップID : chipId;
-    const seijuName = `${chipName} 召喚！！！`;
+    const seijuName = chipName;
 
     const chipImgEl = this.chipImages[chipIdKey] || this.chipImages[chipName];
     const cutinImg = document.getElementById('seiju-cutin-img') as HTMLImageElement;
     const cutinText = document.getElementById('seiju-cutin-fallback-text') as HTMLElement;
     const cutinOverlay = document.getElementById('seiju-cutin-overlay');
-    const cutinBox = cutinOverlay?.querySelector('.seiju-cutin-box') as HTMLElement;
 
     // 必殺技叫び演出データの生成
     const ougiName = _ougi ? _ougi.奥義名 : '必殺奥義';
@@ -6945,30 +6963,35 @@ class GameApp {
 
     const shoutSpeakerEl = document.getElementById('seiju-shout-speaker');
     const shoutTextEl = document.getElementById('seiju-shout-text');
-    const shoutContainer = document.getElementById('seiju-shout-container');
 
-    if (shoutSpeakerEl) shoutSpeakerEl.textContent = speakerName;
-    if (shoutTextEl) {
-      // 既にテキスト中に奥義名が含まれている場合（変数置換後または直書き）は二重付与せず、含まれない場合のみ強調付与
-      if (finalShout.includes(ougiName)) {
-        shoutTextEl.textContent = `「${finalShout}」`;
-      } else {
-        shoutTextEl.textContent = `「${finalShout}【${ougiName}】！！！」`;
-      }
-      shoutTextEl.style.textShadow = `0 0 10px ${neonColor}, 0 0 25px ${neonColor}, 0 0 40px ${neonColor}`;
-    }
-    if (shoutContainer) {
-      shoutContainer.style.borderColor = neonColor;
-      shoutContainer.style.boxShadow = `0 0 25px ${neonColor}, inset 0 0 15px ${neonColor}`;
+    // ① 叫び（技名は③のタイトルで大きく見せるため、ここではセリフのみ）
+    if (shoutSpeakerEl) shoutSpeakerEl.textContent = side === 'プレイヤー' ? 'PLAYER' : speakerName;
+    if (shoutTextEl) shoutTextEl.textContent = `「${finalShout}」`;
+
+    // ① キャラクター顔カットイン（立ち絵の顔部分を大写しにトリミング）
+    const facePortrait = document.getElementById('ougi-face-portrait');
+    if (facePortrait) {
+      const faceImg = side === 'プレイヤー'
+        ? (this.charaImages['主人公'] || this.charaImages['あなた'])
+        : (this.selectedNpc ? this.charaImages[this.getCharaIllustKey(this.selectedNpc)] : undefined);
+      facePortrait.style.backgroundImage = faceImg ? `url('${faceImg.src}')` : 'none';
     }
 
-    // 属性に応じたダイナミックネオン背景の適用
-    if (cutinBox) {
-      cutinBox.style.background = `linear-gradient(90deg, transparent 0%, ${neonColor} 30%, ${neonColor} 70%, transparent 100%)`;
-      cutinBox.style.boxShadow = `0 0 40px ${neonColor}`;
+    // ② 聖獣名 / ③ 技名タイトル
+    const seijuNameEl = document.getElementById('ougi-seiju-name');
+    if (seijuNameEl) seijuNameEl.textContent = seijuName;
+    const titleNameEl = document.getElementById('ougi-title-name');
+    if (titleNameEl) titleNameEl.textContent = ougiName;
+    const titleLabelEl = document.getElementById('ougi-title-label');
+    if (titleLabelEl) {
+      const typeLabel: Record<string, string> = { '1': '奥義', '2': '極奥義', '3': '守護奥義', '4': '幻影奥義', '5': '反撃奥義' };
+      titleLabelEl.textContent = typeLabel[ougiType] || '奥義';
     }
 
     if (cutinOverlay) {
+      cutinOverlay.style.setProperty('--ougi-color', neonColor);
+      cutinOverlay.classList.toggle('side-enemy', side !== 'プレイヤー');
+
       if (chipImgEl && chipImgEl.complete && chipImgEl.naturalWidth !== 0) {
         if (cutinImg) {
           cutinImg.src = chipImgEl.src;
@@ -6982,24 +7005,27 @@ class GameApp {
         if (cutinText) {
           cutinText.textContent = seijuName;
           cutinText.style.display = 'block';
-          cutinText.style.textShadow = `0 0 10px ${neonColor}, 0 0 25px ${neonColor}, 0 0 50px ${neonColor}`;
         }
       }
+
+      // CSSアニメーションを毎回頭から再生させるため、クラスを外してリフローしてから付与
+      cutinOverlay.classList.remove('active');
+      void cutinOverlay.offsetWidth;
       cutinOverlay.classList.add('active');
 
       // 画面タップ・クリックでカットイン演出を一瞬でスキップ！
       const skipCutin = () => {
         cutinOverlay.classList.remove('active');
-        cutinOverlay.removeEventListener('click', skipCutin);
+        this.snd.stopOugiSequence();
         this.osugiCutinFrames = 0;
+        this.isOsugiCutinActive = false;
         if (this.onOsugiCutinComplete) {
           const cb = this.onOsugiCutinComplete;
           this.onOsugiCutinComplete = null;
           cb();
         }
       };
-      cutinOverlay.removeEventListener('click', skipCutin);
-      cutinOverlay.addEventListener('click', skipCutin, { once: true });
+      cutinOverlay.onclick = skipCutin;
     }
 
     // 必殺エフェクト用パーティクルの生成
@@ -8898,4 +8924,6 @@ class GameApp {
 }
 
 // アプリケーション起動
-new GameApp();
+const gameApp = new GameApp();
+// 開発時のみ：自動ビジュアル検証用にインスタンスを公開（本番ビルドでは除去される）
+if ((import.meta as any).env?.DEV) (window as any).__app = gameApp;
