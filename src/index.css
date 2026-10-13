@@ -5876,3 +5876,300 @@ body, html {
   14%, 85% { opacity: 1; }
   88%, 100% { opacity: 0; }
 }
+
+/* ================== 開戦演出「DRIVE ENGAGE」オーバーレイ ================== */
+.drive-engage-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 2500;
+  transition: opacity 0.2s ease;
+}
+
+.drive-engage-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drive-engage-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, rgba(3, 10, 24, 0.75) 0%, rgba(1, 4, 10, 0.95) 100%);
+  backdrop-filter: blur(3px);
+}
+
+.drive-engage-scanlines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 243, 255, 0.05) 0px,
+    rgba(0, 243, 255, 0.05) 2px,
+    transparent 2px,
+    transparent 4px
+  );
+  pointer-events: none;
+}
+
+.drive-engage-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transform: scale(0.8);
+  opacity: 0;
+}
+
+.drive-engage-overlay.active .drive-engage-container {
+  animation: drive-engage-slam-anim 0.6s cubic-bezier(0.1, 0.9, 0.2, 1.2) forwards;
+}
+
+@keyframes drive-engage-slam-anim {
+  0% { transform: scale(2.2); opacity: 0; filter: blur(12px); }
+  60% { transform: scale(0.95); opacity: 1; filter: blur(0); }
+  100% { transform: scale(1.0); opacity: 1; filter: blur(0); }
+}
+
+.drive-engage-sub {
+  font-family: var(--font-hud);
+  font-size: 1.1rem;
+  letter-spacing: 5px;
+  color: #00f3ff;
+  text-shadow: 0 0 10px #00f3ff;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.drive-engage-main {
+  font-family: 'Dela Gothic One', sans-serif;
+  font-size: 3.8rem;
+  letter-spacing: 6px;
+  color: #ffffff;
+  text-shadow: 
+    0 0 20px #00f3ff,
+    0 0 40px #00f3ff,
+    3px 3px 0 #051a2e;
+  -webkit-text-stroke: 2px #00f3ff;
+  transform: skewX(-6deg);
+}
+
+.drive-engage-line {
+  width: 320px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #00f3ff, #ffffff, #00f3ff, transparent);
+  box-shadow: 0 0 15px #00f3ff;
+  margin-top: 12px;
+}
+
+.drive-engage-skip {
+  position: absolute;
+  bottom: 25px;
+  right: 35px;
+  font-family: var(--font-hud);
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 2px;
+  animation: ougi-skip-pulse 1s infinite alternate;
+  z-index: 5;
+}
+
+/* ================== ガチャ演出超強化スタイル ================== */
+.capsule-aura {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.capsule-crack-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 3105;
+}
+
+/* カプセル通常 (ブルー) */
+.gacha-capsule-fall.capsule-rarity-normal .capsule-top {
+  background: linear-gradient(135deg, #00e1ff 0%, #0066cc 100%);
+  border-color: #003366;
+}
+.gacha-capsule-fall.capsule-rarity-normal .capsule-bottom {
+  background: rgba(240, 248, 255, 0.95);
+  border-color: #003366;
+}
+.gacha-capsule-fall.capsule-rarity-normal .capsule-aura {
+  opacity: 0.6;
+  box-shadow: 0 0 25px rgba(0, 225, 255, 0.7);
+}
+
+/* カプセル高レア (24K ゴールド) */
+.gacha-capsule-fall.capsule-rarity-gold .capsule-top {
+  background: linear-gradient(135deg, #fff3a8 0%, #ffd700 45%, #e6a100 100%);
+  border-color: #7a5000;
+  box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.8);
+}
+.gacha-capsule-fall.capsule-rarity-gold .capsule-bottom {
+  background: linear-gradient(135deg, #fff8d6 0%, #ffdf40 70%, #d49500 100%);
+  border-color: #7a5000;
+}
+.gacha-capsule-fall.capsule-rarity-gold .capsule-aura {
+  opacity: 0.9;
+  box-shadow: 0 0 45px #ffd700, 0 0 90px rgba(255, 215, 0, 0.6);
+  animation: gold-pulse 0.8s infinite alternate;
+}
+
+@keyframes gold-pulse {
+  0% { transform: scale(1.0); opacity: 0.7; }
+  100% { transform: scale(1.2); opacity: 1.0; }
+}
+
+/* カプセル最高レア (オーロラ・レインボー) */
+.gacha-capsule-fall.capsule-rarity-rainbow .capsule-top {
+  background: linear-gradient(135deg, #ff0077, #ffaa00, #00f3ff, #aa00ff);
+  background-size: 300% 300%;
+  animation: rainbow-shift 1.5s infinite linear;
+  border-color: #ffffff;
+  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.9);
+}
+.gacha-capsule-fall.capsule-rarity-rainbow .capsule-bottom {
+  background: linear-gradient(135deg, #00f3ff, #00ff88, #ffff00, #ff0077);
+  background-size: 300% 300%;
+  animation: rainbow-shift 1.5s infinite linear reverse;
+  border-color: #ffffff;
+}
+.gacha-capsule-fall.capsule-rarity-rainbow .capsule-aura {
+  opacity: 1.0;
+  box-shadow: 0 0 50px rgba(0, 243, 255, 0.9), 0 0 90px rgba(255, 0, 128, 0.8);
+  animation: rainbow-pulse 0.6s infinite alternate;
+}
+
+@keyframes rainbow-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes rainbow-pulse {
+  0% { transform: scale(1.05) rotate(0deg); opacity: 0.8; }
+  100% { transform: scale(1.35) rotate(180deg); opacity: 1.0; filter: hue-rotate(90deg); }
+}
+
+/* 昇格ヒビ割れアニメーション */
+.gacha-capsule-fall.cracking .capsule-crack-glow {
+  opacity: 1;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 215, 0, 0.8) 50%, transparent 80%);
+  animation: crack-radiate 0.35s ease-out forwards;
+}
+
+@keyframes crack-radiate {
+  0% { transform: scale(0.6); opacity: 0; }
+  50% { transform: scale(1.4); opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0.8; }
+}
+
+/* スターバースト光彩レイヤー */
+.gacha-burst-rays {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 800px;
+  height: 800px;
+  margin-top: -400px;
+  margin-left: -400px;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 3140;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(255, 215, 0, 0.25) 0deg,
+    rgba(255, 215, 0, 0.25) 15deg,
+    transparent 15deg,
+    transparent 30deg
+  );
+  border-radius: 50%;
+}
+
+.gacha-burst-rays.active {
+  opacity: 1;
+  animation: burst-rays-spin 12s linear infinite;
+}
+
+@keyframes burst-rays-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* カードヘッダー＆レア度バッジ */
+.gacha-result-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.gacha-rarity-badge {
+  font-family: var(--font-hud);
+  font-size: 0.85rem;
+  font-weight: 900;
+  padding: 4px 10px;
+  border-radius: 6px;
+  letter-spacing: 1px;
+}
+
+.gacha-rarity-badge.badge-normal {
+  background: #0077cc;
+  color: #fff;
+  border: 2px solid #004488;
+}
+
+.gacha-rarity-badge.badge-gold {
+  background: linear-gradient(135deg, #ffd700, #ff8800);
+  color: #000;
+  border: 2px solid #fff;
+  box-shadow: 0 0 10px #ffd700;
+}
+
+.gacha-rarity-badge.badge-rainbow {
+  background: linear-gradient(135deg, #ff0077, #00f3ff, #ffdd00);
+  color: #fff;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 15px rgba(255, 0, 128, 0.8);
+  animation: rainbow-shift 1.5s infinite linear;
+}
+
+/* ================== ガレージ・アセンブル用吸着アニメーション ================== */
+@keyframes slot-snap-bounce {
+  0% { transform: scale(0.85); filter: brightness(1.6); }
+  50% { transform: scale(1.14); filter: brightness(1.2); }
+  100% { transform: scale(1.0); filter: brightness(1.0); }
+}
+
+.slot-snap-anim {
+  animation: slot-snap-bounce 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+}

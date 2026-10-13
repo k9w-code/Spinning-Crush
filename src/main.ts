@@ -730,6 +730,15 @@ class GameApp {
   // 敵NPCがゲージ100%かつレンジ内になった時の攻撃移行ディレイフレーム
   private enemyTransitionDelayFrames: number = 0;
 
+  // 開戦演出「DRIVE ENGAGE」ステート
+  private isDriveEngageActive: boolean = false;
+  private driveEngageFrames: number = 0;
+
+  // 激突つばぜり合いスロー演出ステート
+  private isClashGrindActive: boolean = false;
+  private clashGrindFrames: number = 0;
+  private clashGrindCallback: (() => void) | null = null;
+
   // マスタデータ
   public パーツマスタ: パーツマスタ行[] = [];
   public チップマスタ: チップマスタ行[] = [];
@@ -1872,6 +1881,28 @@ class GameApp {
       if (overlay) {
         overlay.classList.remove('active');
       }
+      document.getElementById('gacha-burst-rays')?.classList.remove('active');
+      const capsule = document.getElementById('gacha-capsule-fall');
+      if (capsule) {
+        capsule.classList.remove('drop-active', 'split-active', 'cracking', 'capsule-rarity-normal', 'capsule-rarity-gold', 'capsule-rarity-rainbow');
+        capsule.style.opacity = '0';
+      }
+      const card = document.getElementById('gacha-perf-result-card');
+      if (card) {
+        card.classList.remove('card-visible');
+      }
+      const handle = document.getElementById('gacha-perf-handle');
+      if (handle) {
+        handle.classList.remove('turn-action');
+      }
+      const flash = document.getElementById('gacha-perf-flash');
+      if (flash) {
+        flash.classList.remove('flash-active');
+      }
+      const btn = document.getElementById('btn-shop-gacha') as HTMLButtonElement;
+      if (btn) btn.disabled = false;
+      const btnChip = document.getElementById('btn-shop-gacha-chip') as HTMLButtonElement;
+      if (btnChip) btnChip.disabled = false;
       this.initShopScreen();
     });
 
@@ -2035,7 +2066,14 @@ class GameApp {
         void (canvas as any).offsetWidth; // リフロー
         canvas.classList.add('equip-flash-active');
       }
-      // ガシャコン換装SEの再生
+      // スロットボタンのマグネット吸着バウンス
+      const slotBtns = document.querySelectorAll('.slot-item-card, .custom-slot-btn');
+      slotBtns.forEach(el => {
+        el.classList.remove('slot-snap-anim');
+        void (el as HTMLElement).offsetWidth;
+        el.classList.add('slot-snap-anim');
+      });
+      // メカニカルラッチSE（カチッ！）の再生
       this.playEquipSound();
     }
 
@@ -2102,7 +2140,7 @@ class GameApp {
 
   // 換装用のメカニカルラッチ音 (カチャッ！)
   private playEquipSound() {
-    this.snd.playEquipPart();
+    this.snd.playRatchetClick();
   }
 
   private renderAssembleSimStats() {
@@ -3736,123 +3774,7 @@ class GameApp {
     this.saveData.インベントリ.push(reward.id);
     localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
 
-    // ガチャ演出オーバーレイのDOM要素を取得
-    const overlay = document.getElementById('gacha-performance-overlay');
-    const handle = document.getElementById('gacha-perf-handle');
-    const capsule = document.getElementById('gacha-capsule-fall');
-    const flash = document.getElementById('gacha-perf-flash');
-    const card = document.getElementById('gacha-perf-result-card');
-
-    if (overlay && handle && capsule && flash && card) {
-      // クラスを初期化
-      overlay.classList.add('active');
-      handle.classList.remove('turn-action');
-      capsule.classList.remove('drop-active', 'split-active');
-      capsule.style.opacity = '0';
-      flash.classList.remove('flash-active');
-      card.classList.remove('card-visible');
-
-      // 1. ハンドル回転
-      setTimeout(() => {
-        handle.classList.add('turn-action');
-        this.snd.playGachaSpin(); // ハンドル回転音
-      }, 50);
-
-      // 2. カプセル落下 (ハンドルが回りきった0.5秒後)
-      setTimeout(() => {
-        capsule.style.opacity = '1';
-        capsule.classList.add('drop-active');
-      }, 550);
-
-      // 3. カプセル分裂 ＆ 閃光 (落下完了の1.3秒後)
-      setTimeout(() => {
-        capsule.classList.add('split-active');
-        flash.classList.add('flash-active');
-        this.snd.playCapsuleDropOpen(); // カプセル分裂音
-        this.snd.playExplosion(); // 閃光爆発音
-      }, 1300);
-
-      // 4. カード出現 ＆ 2D Canvas描画 (1.5秒後)
-      setTimeout(() => {
-        // 獲得アイテム情報のバインド
-        const nameEl = document.getElementById('gacha-result-part-name');
-        if (nameEl) nameEl.textContent = reward.name;
-
-        const statsEl = document.getElementById('gacha-result-part-stats');
-        if (statsEl) {
-          if (reward.type === 'chip') {
-            statsEl.innerHTML = `
-              <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#00ffff; font-weight:800;">
-                <span>種別: カスタムチップ</span>
-                <span>属性: なし</span>
-              </div>
-              <div style="font-size:0.8rem; margin-top:5px; font-weight:500; color:#ccc;">
-                スロットに装備して強力な奥義戦術を解放可能！
-              </div>
-            `;
-          } else {
-            const pObj = this.パーツマスタ.find(p => p.パーツID === reward.id);
-            if (pObj) {
-              statsEl.innerHTML = `
-                <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#ff5500; font-weight:800;">
-                  <span>部位: ${pObj.種別 === '1' ? 'ブレード' : (pObj.種別 === '2' ? 'ウェイト' : 'ソール')}</span>
-                  <span>属性: ${pObj.属性}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; margin-top:5px; font-weight:700;">
-                  <span>HP: +${pObj.ライフ}</span>
-                  <span>ATK: +${pObj.アタック}</span>
-                  <span>DEF: +${pObj.ディフェンス}</span>
-                </div>
-              `;
-            }
-          }
-        }
-
-        // 獲得アイテムのCanvasプレビュー描画
-        const visualContainer = document.getElementById('gacha-result-part-visual');
-        if (visualContainer) {
-          visualContainer.innerHTML = '<canvas id="gacha-reward-canvas" width="80" height="80"></canvas>';
-          if (reward.type === 'chip') {
-            const canvas = document.getElementById('gacha-reward-canvas') as HTMLCanvasElement;
-            const ctx = canvas?.getContext('2d');
-            if (ctx) {
-              ctx.fillStyle = '#00ffff';
-              ctx.beginPath();
-              ctx.arc(40, 40, 30, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.strokeStyle = '#ffffff';
-              ctx.lineWidth = 3;
-              ctx.stroke();
-              ctx.fillStyle = '#0b0c10';
-              ctx.font = 'bold 12px sans-serif';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText('CHIP', 40, 40);
-            }
-          } else {
-            const rewardAssembled = アセンブル実行(
-              'c001',
-              reward.id.endsWith('_f') || reward.id.endsWith('_a') || reward.id.endsWith('_e') || reward.id.endsWith('_w') || reward.id.endsWith('_n') ? reward.id : 'b101_n',
-              reward.id.startsWith('w') ? reward.id : 'w101_n',
-              reward.id.startsWith('s') ? reward.id : 's101_n',
-              1,
-              this.パーツマスタ,
-              this.チップマスタ,
-              this.奥義マスタ
-            );
-            this.renderGearPreview('gacha-reward-canvas', rewardAssembled);
-          }
-        }
-
-        card.classList.add('card-visible');
-        this.snd.playVictoryJingle(); // 獲得お祝いファンファーレ
-      }, 1500);
-    } else {
-      // フォールバック
-      this.initShopScreen();
-      this.snd.playVictoryJingle();
-      this.showSystemModal('ガチャ結果', `新アイテム「${reward.name}」を獲得しました！`);
-    }
+    this.playGachaPerformanceSequence(reward);
   }
 
   // チップ専用ガチャの実行
@@ -3891,69 +3813,155 @@ class GameApp {
     this.saveData.インベントリ.push(reward.id);
     localStorage.setItem('spinning_crush_save', JSON.stringify(this.saveData));
 
-    // ガチャ演出オーバーレイのDOM要素を取得
+    this.playGachaPerformanceSequence({ id: reward.id, name: reward.name, type: 'chip' });
+  }
+
+  // ガチャ演出シーケンス共通処理 (商業品質：カプセル色分け・ヒビ割れ昇格・スターバースト・ファンファーレ)
+  private playGachaPerformanceSequence(reward: { id: string; name: string; type: string }) {
     const overlay = document.getElementById('gacha-performance-overlay');
     const handle = document.getElementById('gacha-perf-handle');
     const capsule = document.getElementById('gacha-capsule-fall');
     const flash = document.getElementById('gacha-perf-flash');
     const card = document.getElementById('gacha-perf-result-card');
+    const burstRays = document.getElementById('gacha-burst-rays');
 
-    if (overlay && handle && capsule && flash && card) {
-      // クラスを初期化
-      overlay.classList.add('active');
-      handle.classList.remove('turn-action');
-      capsule.classList.remove('drop-active', 'split-active');
-      capsule.style.opacity = '0';
-      flash.classList.remove('flash-active');
-      card.classList.remove('card-visible');
+    if (!overlay || !handle || !capsule || !flash || !card) {
+      this.initShopScreen();
+      this.snd.playVictoryJingle();
+      this.showSystemModal('ガチャ結果', `新アイテム「${reward.name}」を獲得しました！`);
+      return;
+    }
 
-      // 1. ハンドル回転
+    // レア度判定: チップまたはランク5以上はRainbow、ランク3-4はGold、それ以外はNormal
+    let finalRarity: 'normal' | 'gold' | 'rainbow' = 'normal';
+    if (reward.type === 'chip') {
+      finalRarity = 'rainbow';
+    } else {
+      const pObj = this.パーツマスタ.find(p => p.パーツID === reward.id);
+      const pRank = pObj ? parseInt(pObj.ランク, 10) : 1;
+      if (pRank >= 5) {
+        finalRarity = 'rainbow';
+      } else if (pRank >= 3) {
+        finalRarity = 'gold';
+      } else {
+        finalRarity = 'normal';
+      }
+    }
+
+    // 昇格演出判定: レインボーの場合50%でゴールドから昇格、ゴールドの場合35%でノーマルから昇格
+    let initialAppearance: 'normal' | 'gold' | 'rainbow' = finalRarity;
+    let willPromote = false;
+    if (finalRarity === 'rainbow' && Math.random() < 0.5) {
+      initialAppearance = 'gold';
+      willPromote = true;
+    } else if (finalRarity === 'gold' && Math.random() < 0.35) {
+      initialAppearance = 'normal';
+      willPromote = true;
+    }
+
+    // クラスを初期化
+    overlay.classList.add('active');
+    handle.classList.remove('turn-action');
+    capsule.classList.remove('drop-active', 'split-active', 'cracking', 'capsule-rarity-normal', 'capsule-rarity-gold', 'capsule-rarity-rainbow');
+    capsule.classList.add(`capsule-rarity-${initialAppearance}`);
+    capsule.style.opacity = '0';
+    flash.classList.remove('flash-active');
+    card.classList.remove('card-visible');
+    if (burstRays) burstRays.classList.remove('active');
+
+    // 1. ハンドル回転
+    setTimeout(() => {
+      handle.classList.add('turn-action');
+      this.snd.playGachaSpin(); // ハンドル回転音
+    }, 50);
+
+    // 2. カプセル落下 (0.55秒後)
+    setTimeout(() => {
+      capsule.style.opacity = '1';
+      capsule.classList.add('drop-active');
+    }, 550);
+
+    // 2.5 昇格ヒビ割れ演出 (昇格がある場合: 1050ms)
+    if (willPromote) {
       setTimeout(() => {
-        handle.classList.add('turn-action');
-        this.snd.playGachaSpin(); // ハンドル回転音
-      }, 50);
+        capsule.classList.add('cracking');
+        this.snd.playGachaCrack(); // ヒビ割れガラス破壊音
+        setTimeout(() => {
+          capsule.classList.remove(`capsule-rarity-${initialAppearance}`);
+          capsule.classList.add(`capsule-rarity-${finalRarity}`);
+        }, 250);
+      }, 1050);
+    }
 
-      // 2. カプセル落下 (ハンドルが回りきった0.5秒後)
-      setTimeout(() => {
-        capsule.style.opacity = '1';
-        capsule.classList.add('drop-active');
-      }, 550);
+    // 3. カプセル分裂 ＆ 閃光爆発 ＆ スターバースト (1.35秒後)
+    setTimeout(() => {
+      capsule.classList.add('split-active');
+      flash.classList.add('flash-active');
+      if (burstRays && (finalRarity === 'gold' || finalRarity === 'rainbow')) {
+        burstRays.classList.add('active');
+      }
+      this.snd.playCapsuleDropOpen(); // カプセル分裂音
+      this.snd.playExplosion(); // 閃光爆発音
+    }, 1350);
 
-      // 3. カプセル分裂 ＆ 閃光 (落下完了の1.3秒後)
-      setTimeout(() => {
-        capsule.classList.add('split-active');
-        flash.classList.add('flash-active');
-        this.snd.playCapsuleDropOpen(); // カプセル分裂音
-        this.snd.playExplosion(); // 閃光爆発音
-      }, 1300);
+    // 4. カード出現 ＆ 2D Canvas描画 ＆ ファンファーレ (1.55秒後)
+    setTimeout(() => {
+      // レア度バッジの設定
+      const badgeEl = document.getElementById('gacha-result-rarity-badge');
+      if (badgeEl) {
+        badgeEl.className = `gacha-rarity-badge badge-${finalRarity}`;
+        if (finalRarity === 'rainbow') {
+          badgeEl.textContent = '★★★ RAINBOW ★★★';
+        } else if (finalRarity === 'gold') {
+          badgeEl.textContent = '★★ GOLD RARE ★★';
+        } else {
+          badgeEl.textContent = '★ STANDARD ★';
+        }
+      }
 
-      // 4. カード出現 ＆ 2D Canvas描画 (1.5秒後)
-      setTimeout(() => {
-        // 獲得チップ情報のバインド
-        const nameEl = document.getElementById('gacha-result-part-name');
-        if (nameEl) nameEl.textContent = reward.name;
+      // 獲得アイテム情報のバインド
+      const nameEl = document.getElementById('gacha-result-part-name');
+      if (nameEl) nameEl.textContent = reward.name;
 
-        const statsEl = document.getElementById('gacha-result-part-stats');
-        if (statsEl) {
+      const statsEl = document.getElementById('gacha-result-part-stats');
+      if (statsEl) {
+        if (reward.type === 'chip') {
           statsEl.innerHTML = `
-            <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#ff007f; font-weight:800;">
-              <span>種別: レジェンドチップ</span>
+            <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#ff007f; font-weight:800; white-space:nowrap;">
+              <span>種別: カスタムチップ</span>
               <span>属性: なし</span>
             </div>
             <div style="font-size:0.8rem; margin-top:5px; font-weight:500; color:#ccc;">
-              伝説の奥義を解放する最上位カスタムコア。
+              スロットに装備して強力な奥義戦術を解放可能！
             </div>
           `;
+        } else {
+          const pObj = this.パーツマスタ.find(p => p.パーツID === reward.id);
+          if (pObj) {
+            statsEl.innerHTML = `
+              <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#ff5500; font-weight:800; white-space:nowrap;">
+                <span>部位: ${pObj.種別 === '1' ? 'ブレード' : (pObj.種別 === '2' ? 'ウェイト' : 'ソール')}</span>
+                <span>属性: ${pObj.属性}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-top:5px; font-weight:700;">
+                <span>HP: +${pObj.ライフ}</span>
+                <span>ATK: +${pObj.アタック}</span>
+                <span>DEF: +${pObj.ディフェンス}</span>
+              </div>
+            `;
+          }
         }
+      }
 
-        // 獲得チップのCanvasプレビュー描画
-        const visualContainer = document.getElementById('gacha-result-part-visual');
-        if (visualContainer) {
-          visualContainer.innerHTML = '<canvas id="gacha-reward-canvas" width="80" height="80"></canvas>';
+      // 獲得アイテムのCanvasプレビュー描画
+      const visualContainer = document.getElementById('gacha-result-part-visual');
+      if (visualContainer) {
+        visualContainer.innerHTML = '<canvas id="gacha-reward-canvas" width="80" height="80"></canvas>';
+        if (reward.type === 'chip') {
           const canvas = document.getElementById('gacha-reward-canvas') as HTMLCanvasElement;
           const ctx = canvas?.getContext('2d');
           if (ctx) {
-            ctx.fillStyle = '#ff007f';
+            ctx.fillStyle = finalRarity === 'rainbow' ? '#ff007f' : '#00ffff';
             ctx.beginPath();
             ctx.arc(40, 40, 30, 0, Math.PI * 2);
             ctx.fill();
@@ -3964,19 +3972,32 @@ class GameApp {
             ctx.font = 'bold 12px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('LEGEND', 40, 40);
+            ctx.fillText(finalRarity === 'rainbow' ? 'CHIP' : 'CHIP', 40, 40);
           }
+        } else {
+          const rewardAssembled = アセンブル実行(
+            'c001',
+            reward.id.endsWith('_f') || reward.id.endsWith('_a') || reward.id.endsWith('_e') || reward.id.endsWith('_w') || reward.id.endsWith('_n') ? reward.id : 'b101_n',
+            reward.id.startsWith('w') ? reward.id : 'w101_n',
+            reward.id.startsWith('s') ? reward.id : 's101_n',
+            1,
+            this.パーツマスタ,
+            this.チップマスタ,
+            this.奥義マスタ
+          );
+          this.renderGearPreview('gacha-reward-canvas', rewardAssembled);
         }
+      }
 
-        card.classList.add('card-visible');
-        this.snd.playVictoryJingle(); // 獲得お祝いファンファーレ
-      }, 1500);
-    } else {
-      // フォールバック
-      this.initShopScreen();
-      this.snd.playVictoryJingle();
-      this.showSystemModal('ガチャ結果', `新チップ「${reward.name}」を獲得しました！`);
-    }
+      card.classList.add('card-visible');
+
+      // レア度に応じたファンファーレ再生
+      if (finalRarity === 'rainbow') {
+        this.snd.playRainbowGachaFanfare();
+      } else {
+        this.snd.playVictoryJingle();
+      }
+    }, 1550);
   }
 
   // ==========================================
@@ -5431,6 +5452,24 @@ class GameApp {
     this.battleHitStopFrames = 0;
     this.battleShakeFrames = 0;
 
+    // 開戦演出「DRIVE ENGAGE」ステートの初期化と発火
+    this.isDriveEngageActive = true;
+    this.driveEngageFrames = 75; // 約1.25秒の始動シークエンス
+    const engageOverlay = document.getElementById('drive-engage-overlay');
+    if (engageOverlay) {
+      engageOverlay.classList.remove('hidden');
+      engageOverlay.classList.add('active');
+      engageOverlay.onclick = () => {
+        if (this.isDriveEngageActive) {
+          this.driveEngageFrames = 0;
+          this.isDriveEngageActive = false;
+          engageOverlay.classList.remove('active');
+          setTimeout(() => engageOverlay.classList.add('hidden'), 250);
+        }
+      };
+    }
+    this.snd.playDriveEngage();
+
     // 最初のディスタンスフェーズ開始
     this.runBattleLoop();
   }
@@ -5465,8 +5504,81 @@ class GameApp {
     this.battleLoopId = requestAnimationFrame(loop);
   }
 
+  // 激突つばぜり合いスロー演出の開始 (0.4秒の火花・金属摩擦・カメラズーム)
+  private startClashGrind(onComplete: () => void) {
+    this.isClashGrindActive = true;
+    this.clashGrindFrames = 22; // 約0.36秒のつばぜり合いスロー
+    this.clashGrindCallback = onComplete;
+    this.battleCameraZoom = 1.14;
+    this.battleShakeFrames = 8;
+    this.snd.playClashGrind();
+  }
+
   private updateBattle() {
     if (!this.battleManager) return;
+
+    // 開戦演出「DRIVE ENGAGE」中の処理
+    if (this.isDriveEngageActive) {
+      if (this.keyState[' '] || this.keyState['enter'] || this.keyState['f']) {
+        this.driveEngageFrames = 0;
+        this.keyState[' '] = false;
+        this.keyState['enter'] = false;
+        this.keyState['f'] = false;
+      }
+      this.driveEngageFrames--;
+      this.playerRotation += 0.45;
+      this.enemyRotation -= 0.45;
+
+      if (this.driveEngageFrames <= 0) {
+        this.isDriveEngageActive = false;
+        const engageOverlay = document.getElementById('drive-engage-overlay');
+        if (engageOverlay) {
+          engageOverlay.classList.remove('active');
+          setTimeout(() => engageOverlay.classList.add('hidden'), 250);
+        }
+      }
+      return;
+    }
+
+    // 激突つばぜり合いスロー演出中の処理 (コマンド突入前の刹那のせめぎ合い)
+    if (this.isClashGrindActive) {
+      this.clashGrindFrames--;
+
+      // スロー効果：パーティクル更新のみ進行
+      this.particles = this.particles.filter(p => p.update());
+      this.shockwaves = this.shockwaves.filter(s => s.update());
+      this.skillParticles = this.skillParticles.filter(sp => sp.update());
+
+      // ギアの超高速スピン
+      this.playerRotation += 0.55;
+      this.enemyRotation -= 0.55;
+
+      // 接触点（または両者の中間）から高密度の摩擦火花を噴出
+      const cx = this.battleManager.collisionX || (this.battleManager.プレイヤー位置X + this.battleManager.エネミー位置X) / 2 || 400;
+      const cy = this.battleManager.collisionY || (this.battleManager.プレイヤー位置Y + this.battleManager.エネミー位置Y) / 2 || 300;
+      this.particles.push(new SparkParticle(cx + (Math.random() - 0.5) * 24, cy + (Math.random() - 0.5) * 24, '#ffd800'));
+      this.particles.push(new SparkParticle(cx + (Math.random() - 0.5) * 24, cy + (Math.random() - 0.5) * 24, '#ff5500'));
+      if (this.clashGrindFrames % 3 === 0) {
+        this.particles.push(new SparkParticle(cx + (Math.random() - 0.5) * 16, cy + (Math.random() - 0.5) * 16, '#ffffff'));
+      }
+
+      // カメラズーム維持と微細振動
+      this.battleCameraZoom = 1.12 + Math.sin(this.clashGrindFrames * 0.8) * 0.03;
+      if (this.clashGrindFrames % 5 === 0) {
+        this.battleShakeFrames = 4;
+      }
+
+      if (this.clashGrindFrames <= 0) {
+        this.isClashGrindActive = false;
+        this.battleCameraZoom = 1.0;
+        if (this.clashGrindCallback) {
+          const cb = this.clashGrindCallback;
+          this.clashGrindCallback = null;
+          cb();
+        }
+      }
+      return;
+    }
 
     // 被弾ヒットストップ中はフレーム停止
     if (this.isHitStopped || this.battleHitStopFrames > 0) {
@@ -5874,11 +5986,14 @@ class GameApp {
       this.battleManager.現在フェーズ === 'コマンド' &&
       this.battleManager.攻撃側 === 'プレイヤー' &&
       !this.isClashAnimationActive &&
+      !this.isClashGrindActive &&
       !isTalkActive
     ) {
       const overlay = document.getElementById('command-overlay');
       if (overlay && !overlay.classList.contains('active')) {
-        this.openCommandSelection();
+        this.startClashGrind(() => {
+          this.openCommandSelection();
+        });
       }
     }
 
@@ -5908,7 +6023,9 @@ class GameApp {
         this.enemyTransitionDelayFrames = 0;
         this.battleManager.現在フェーズ = 'コマンド';
         this.battleManager.攻撃側 = 'エネミー';
-        this.triggerEnemyCommandPhase();
+        this.startClashGrind(() => {
+          this.triggerEnemyCommandPhase();
+        });
       }
     } else {
       // 範囲外に逃げられた場合や衝突反発で離れた場合は、即時0リセットするのではなく、毎フレーム1ずつ蓄積を戻す（遅延を戻す）

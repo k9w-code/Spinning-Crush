@@ -1816,4 +1816,211 @@ export class SoundManager {
       osc.stop(startTime + duration + 0.1);
     });
   }
+
+  // 開戦演出「DRIVE ENGAGE」始動音 (フライホイール猛烈スピンアップ ＆ 重低音インパクト)
+  public playDriveEngage() {
+    this.initContext();
+    this.resumeContext();
+    const ctx = this.ctx;
+    if (!ctx) return;
+
+    const time = ctx.currentTime;
+
+    // 1. フライホイール猛烈加速スピン (高回転キュイイイイン)
+    const spinOsc = ctx.createOscillator();
+    const spinGain = ctx.createGain();
+    const spinFilter = ctx.createBiquadFilter();
+
+    spinOsc.type = 'sawtooth';
+    spinOsc.frequency.setValueAtTime(80, time);
+    spinOsc.frequency.exponentialRampToValueAtTime(1400, time + 0.85);
+
+    spinFilter.type = 'lowpass';
+    spinFilter.frequency.setValueAtTime(400, time);
+    spinFilter.frequency.exponentialRampToValueAtTime(4000, time + 0.85);
+
+    spinGain.gain.setValueAtTime(0.01, time);
+    spinGain.gain.linearRampToValueAtTime(0.22, time + 0.6);
+    spinGain.gain.exponentialRampToValueAtTime(0.001, time + 0.95);
+
+    spinOsc.connect(spinFilter);
+    spinFilter.connect(spinGain);
+    spinGain.connect(ctx.destination);
+
+    spinOsc.start(time);
+    spinOsc.stop(time + 1.0);
+
+    // 2. 重低音点火インパクト (ドンッ！)
+    const thudTime = time + 0.7;
+    const thudOsc = ctx.createOscillator();
+    const thudGain = ctx.createGain();
+
+    thudOsc.type = 'sine';
+    thudOsc.frequency.setValueAtTime(160, thudTime);
+    thudOsc.frequency.exponentialRampToValueAtTime(35, thudTime + 0.45);
+
+    thudGain.gain.setValueAtTime(0.35, thudTime);
+    thudGain.gain.exponentialRampToValueAtTime(0.001, thudTime + 0.45);
+
+    thudOsc.connect(thudGain);
+    thudGain.connect(ctx.destination);
+
+    thudOsc.start(thudTime);
+    thudOsc.stop(thudTime + 0.5);
+  }
+
+  // 激突つばぜり合い摩擦音 (ギギギギッ！という金属摩擦スロー)
+  public playClashGrind() {
+    this.initContext();
+    this.resumeContext();
+    const ctx = this.ctx;
+    if (!ctx) return;
+
+    const time = ctx.currentTime;
+    const duration = 0.42;
+
+    // 激しい金属摩擦 (変調ノコギリ波)
+    const osc = ctx.createOscillator();
+    const mod = ctx.createOscillator();
+    const modGain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(680, time);
+    osc.frequency.linearRampToValueAtTime(520, time + duration);
+
+    mod.type = 'square';
+    mod.frequency.setValueAtTime(75, time); // 激しいガタガタ振動
+    modGain.gain.setValueAtTime(350, time);
+
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(1400, time);
+    filter.Q.setValueAtTime(3.5, time);
+
+    gain.gain.setValueAtTime(0.24, time);
+    gain.gain.exponentialRampToValueAtTime(0.01, time + duration);
+
+    mod.connect(modGain);
+    modGain.connect(osc.frequency);
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
+    mod.start(time);
+    osc.start(time);
+    mod.stop(time + duration);
+    osc.stop(time + duration);
+  }
+
+  // ガチャカプセル昇格・ヒビ割れ音 (ピキッ！というクリスタル破壊)
+  public playGachaCrack() {
+    this.initContext();
+    this.resumeContext();
+    const ctx = this.ctx;
+    if (!ctx) return;
+
+    const time = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(3200, time);
+    osc.frequency.exponentialRampToValueAtTime(800, time + 0.08);
+
+    gain.gain.setValueAtTime(0.28, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.09);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(time);
+    osc.stop(time + 0.1);
+  }
+
+  // 最高レア専用・虹色レインボーファンファーレ
+  public playRainbowGachaFanfare() {
+    this.initContext();
+    this.resumeContext();
+    const ctx = this.ctx;
+    if (!ctx) return;
+
+    const time = ctx.currentTime;
+    // 輝くアルペジオ (C5 -> E5 -> G5 -> B5 -> D6 -> G6)
+    const arpeggio = [523.25, 659.25, 783.99, 987.77, 1174.66, 1567.98];
+
+    arpeggio.forEach((freq, idx) => {
+      const noteTime = time + idx * 0.07;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, noteTime);
+
+      gain.gain.setValueAtTime(0.18, noteTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.5);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(noteTime);
+      osc.stop(noteTime + 0.55);
+    });
+
+    // クライマックスの重厚な和音 (0.5秒後に炸裂)
+    const chordTime = time + 0.45;
+    const chord = [261.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
+    chord.forEach(freq => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, chordTime);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(800, chordTime);
+      filter.frequency.exponentialRampToValueAtTime(3200, chordTime + 0.3);
+
+      gain.gain.setValueAtTime(0.08, chordTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, chordTime + 1.2);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(chordTime);
+      osc.stop(chordTime + 1.3);
+    });
+  }
+
+  // ガレージ・アセンブル時の機械式ラチェット音 (カチッ！)
+  public playRatchetClick() {
+    this.initContext();
+    this.resumeContext();
+    const ctx = this.ctx;
+    if (!ctx) return;
+
+    const time = ctx.currentTime;
+    
+    // ダブルクリック (10ms差) で本物のソケットレンチの噛み合わせ感を再現
+    for (let i = 0; i < 2; i++) {
+      const clickTime = time + i * 0.015;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(i === 0 ? 1800 : 2400, clickTime);
+      osc.frequency.exponentialRampToValueAtTime(400, clickTime + 0.035);
+
+      gain.gain.setValueAtTime(0.18, clickTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, clickTime + 0.035);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(clickTime);
+      osc.stop(clickTime + 0.04);
+    }
+  }
 }

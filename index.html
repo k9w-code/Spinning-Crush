@@ -378,6 +378,18 @@
           <button id="btn-action-approach" class="btn btn-action">接近する [D]</button>
         </div>
 
+        <!-- 開戦演出「DRIVE ENGAGE」オーバーレイ -->
+        <div class="drive-engage-overlay" id="drive-engage-overlay">
+          <div class="drive-engage-bg"></div>
+          <div class="drive-engage-scanlines"></div>
+          <div class="drive-engage-container">
+            <div class="drive-engage-sub" id="drive-engage-sub">DRIVE SYSTEM... ONLINE</div>
+            <div class="drive-engage-main">DRIVE ── ENGAGE!!</div>
+            <div class="drive-engage-line"></div>
+          </div>
+          <div class="drive-engage-skip">TAP TO SKIP</div>
+        </div>
+
         <!-- 奥義カットイン（多段演出：①顔カットイン → ②聖獣顕現 → ③技名タイトル → ④閃光） -->
         <div class="ougi-seq" id="seiju-cutin-overlay">
           <div class="ougi-seq-bg"></div>
@@ -595,15 +607,21 @@
 
         <!-- 2. 落下＆分裂するカプセル -->
         <div id="gacha-capsule-fall" class="gacha-capsule-fall">
+          <div class="capsule-aura" id="gacha-capsule-aura"></div>
           <div class="capsule-half capsule-top"></div>
           <div class="capsule-half capsule-bottom"></div>
+          <div class="capsule-crack-glow" id="gacha-capsule-crack-glow"></div>
         </div>
 
+        <div id="gacha-burst-rays" class="gacha-burst-rays"></div>
         <div id="gacha-perf-flash" class="gacha-perf-flash"></div>
 
         <!-- 3. 獲得したトイカード -->
         <div id="gacha-perf-result-card" class="gacha-result-card">
-          <div class="gacha-result-header">NEW PARTS GET!!</div>
+          <div class="gacha-result-top-row">
+            <div class="gacha-result-header">NEW ITEM GET!!</div>
+            <div class="gacha-rarity-badge" id="gacha-result-rarity-badge">★ RARE ★</div>
+          </div>
           <div class="gacha-result-body">
             <div id="gacha-result-part-visual" class="gacha-part-visual"></div>
             <h3 id="gacha-result-part-name">アイアンブレード</h3>
