@@ -99,12 +99,21 @@ class SparkParticle {
 
   public draw(ctx: CanvasRenderingContext2D) {
     ctx.save();
-    ctx.fillStyle = this.color;
-    ctx.shadowBlur = 8;
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = Math.max(1, this.size * this.life);
+    ctx.shadowBlur = 10;
     ctx.shadowColor = this.color;
-    ctx.globalAlpha = this.life;
+    ctx.globalAlpha = Math.max(0, this.life);
+    // 高速火花のストリーク線（進行方向に尾を引く金属火花）
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.moveTo(this.x - this.vx * 2.2, this.y - this.vy * 2.2);
+    ctx.lineTo(this.x, this.y);
+    ctx.stroke();
+
+    // 先端の白熱コア（キラリと光る白球）
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, Math.max(0.6, this.size * 0.45 * this.life), 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
@@ -156,28 +165,41 @@ class SmokeParticle {
 class Shockwave {
   public x: number;
   public y: number;
-  private radius: number = 5;
-  private maxRadius: number = 40;
+  private radius: number = 8;
+  private maxRadius: number = 75;
   private life: number = 1.0;
-  private speed: number = 2.5;
+  private speed: number = 4.2;
+  private color: string;
 
-  constructor(x: number, y: number) {
+  constructor(x: number, y: number, color: string = '#00f3ff') {
     this.x = x;
     this.y = y;
+    this.color = color;
   }
 
   public update(): boolean {
     this.radius += this.speed;
-    this.life = 1.0 - (this.radius / this.maxRadius);
-    return this.life > 0;
+    this.speed *= 0.94;
+    this.life = Math.max(0, 1.0 - (this.radius / this.maxRadius));
+    return this.life > 0.02;
   }
 
   public draw(ctx: CanvasRenderingContext2D) {
     ctx.save();
-    ctx.strokeStyle = `rgba(255, 255, 255, ${this.life * 0.8})`;
-    ctx.lineWidth = 3 * this.life;
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = Math.max(1, 4 * this.life);
+    ctx.shadowBlur = 14;
+    ctx.shadowColor = this.color;
+    ctx.globalAlpha = this.life;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 内側の高輝度シャープリング（衝撃波の芯）
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = Math.max(0.5, 1.8 * this.life);
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, Math.max(0, this.radius - 3), 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
@@ -4809,6 +4831,20 @@ class GameApp {
 
     ctx.translate(x + offsetX, y + offsetY);
 
+    // ★接地立体シャドウ（スタジアム床面に落ちるリアルなコマの影）
+    ctx.save();
+    ctx.translate(0, radius * 0.16);
+    ctx.scale(1.0, 0.42);
+    const shadowGrad = ctx.createRadialGradient(0, 0, radius * 0.15, 0, 0, radius * 1.18);
+    shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.7)');
+    shadowGrad.addColorStop(0.55, 'rgba(0, 6, 16, 0.35)');
+    shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = shadowGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 1.18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
     // 1. 各部位の属性（火・水・風・土・無）に応じたネオンカラーの決定 (完全属性カラーリング)
     const getAttributeColor = (attr: string): string => {
       if (attr === '火') return '#ff0055';      // ネオンレッド (火)
@@ -4824,6 +4860,21 @@ class GameApp {
     
     // 全体演出用 (ブレードカラー基準)
     const neonColor = bladeColor;
+
+    // ★高速回転モーションブラー（残像レイヤー）
+    if (this.currentScreenId === 'battle-screen') {
+      ctx.save();
+      ctx.globalAlpha = 0.25;
+      ctx.rotate(rotation - 0.14);
+      ctx.strokeStyle = bladeColor;
+      ctx.lineWidth = radius * 0.08;
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = bladeColor;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.85, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // パーツの個性(ID末尾 of タイプ)とランクを取得するヘルパー
     const getPartNumber = (partId: string): number => {
@@ -5276,11 +5327,20 @@ class GameApp {
     // 3. 第一層：ブレード (物理回転翼の完全差別化形状)
     // ==========================================
     ctx.save();
+    // ★3Dメタリック＆ポリカーボネート樹脂の多層グラデーション
+    const bladeGrad = ctx.createRadialGradient(-radius * 0.25, -radius * 0.25, radius * 0.08, 0, 0, radius * 1.3);
+    bladeGrad.addColorStop(0, 'rgba(255, 255, 255, 0.75)'); // 鋭い環境光スペキュラ
+    bladeGrad.addColorStop(0.18, bladeColor);
+    bladeGrad.addColorStop(0.58, 'rgba(8, 12, 22, 0.88)');  // 重厚スモーククリアボディ
+    bladeGrad.addColorStop(0.88, bladeColor);              // エッジの透過発光
+    bladeGrad.addColorStop(0.96, '#ffffff');              // 金属ダイキャスト外周リム
+    bladeGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.9)');    // 最外周ベベルシャドウ
+
     ctx.strokeStyle = bladeColor;
-    ctx.lineWidth = radius * 0.07;
-    ctx.shadowBlur = 12;
+    ctx.lineWidth = radius * 0.055;
+    ctx.shadowBlur = 14;
     ctx.shadowColor = bladeColor;
-    ctx.fillStyle = 'rgba(10, 12, 20, 0.72)'; // スモーククリア樹脂
+    ctx.fillStyle = bladeGrad;
 
     const outerScale = 1.1 + (bladeRank * 0.035);
 
@@ -5454,6 +5514,15 @@ class GameApp {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+
+    // ★金属ダイキャストのハイライトベベル（光を反射する精密削り出しエッジ）
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.lineWidth = 1.6;
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = '#ffffff';
+    ctx.stroke();
+    ctx.restore();
     ctx.restore();
 
     // ==========================================
@@ -5522,8 +5591,38 @@ class GameApp {
       }
     }
 
+    ctx.restore(); // コアチップのクリッピング解除
+
+    // ★クリスタル・アクリルクリアドーム（コアチップを覆う高透明樹脂の艶・球面ハイライト）
+    ctx.save();
+    // 1. 外周の金属クロームベゼルリング
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = 2.0;
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.3, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 2. 球面レンズ反射光（上部三日月ハイライト）
+    const domeGrad = ctx.createLinearGradient(-radius * 0.2, -radius * 0.25, radius * 0.1, radius * 0.15);
+    domeGrad.addColorStop(0, 'rgba(255, 255, 255, 0.65)');
+    domeGrad.addColorStop(0.35, 'rgba(255, 255, 255, 0.12)');
+    domeGrad.addColorStop(0.6, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = domeGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.28, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3. 右下のエッジリムグロー
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.27, Math.PI * 0.2, Math.PI * 0.6);
+    ctx.stroke();
     ctx.restore();
-    ctx.restore();
+
+    ctx.restore(); // drawGear全体のコンテキスト復元
   }
 
 
@@ -5701,6 +5800,9 @@ class GameApp {
       this.particles = this.particles.filter(p => p.update());
       this.shockwaves = this.shockwaves.filter(s => s.update());
       this.skillParticles = this.skillParticles.filter(sp => sp.update());
+      this.speedlines = this.speedlines.filter(sl => sl.update());
+      this.hitSlashes = this.hitSlashes.filter(hs => hs.update());
+      this.floatingDamages = this.floatingDamages.filter(fd => fd.update());
 
       // コマ自体を高速回転させる (せめぎ合い中はさらに高速に)
       const rotSpeed = (this.clashAnimFrame >= 25 && this.clashAnimFrame < 45) ? 0.6 : 0.35;
@@ -5769,26 +5871,26 @@ class GameApp {
         // ★2. フローティングダメージ数値の生成 (3Dポップイン & キネティックバウンス)
         if (this.clashResultType === 'evade') {
           // 回避成功: 0ダメージ＆EVADEDバッジ
-          const missX = this.clashPendingSide === 'プレイヤー' ? 600 : 200;
+          const missX = this.clashPendingSide === 'プレイヤー' ? 560 : 240;
           this.floatingDamages.push(new FloatingDamage(missX, 200, 0, 'evade'));
         } else if (this.clashResultType === 'guard') {
           // ガード: 軽減後ダメージ＆GUARDバッジ
-          const guardX = this.clashPendingSide === 'プレイヤー' ? 600 : 200;
+          const guardX = this.clashPendingSide === 'プレイヤー' ? 560 : 240;
           this.floatingDamages.push(new FloatingDamage(guardX, 200, dmg, 'guard', 'GUARD'));
         } else if (this.clashResultType === 'counter') {
           // カウンター成功: 反撃ダメージ＆COUNTERバッジ
           const counterDmg = Math.floor(this.clashPendingCounterDamage);
-          const counterTargetX = this.clashPendingSide === 'プレイヤー' ? 200 : 600;
+          const counterTargetX = this.clashPendingSide === 'プレイヤー' ? 240 : 560;
           this.floatingDamages.push(new FloatingDamage(counterTargetX, 200, counterDmg, 'counter', 'COUNTER'));
         } else {
           // ヒット（通常 / スーパー / ウルトラ / 奥義）
-          const hitX = this.clashPendingSide === 'プレイヤー' ? 600 : 200;
+          const hitX = this.clashPendingSide === 'プレイヤー' ? 560 : 240;
           let dmgType: 'hit' | 'super' | 'ultra' | 'ougi' = 'hit';
           let badgeText = '';
           if (isOugiAtk) { dmgType = 'ougi'; badgeText = 'SPECIAL'; }
           else if (isUltra) { dmgType = 'ultra'; badgeText = 'CRITICAL'; }
           else if (isSuper) { dmgType = 'super'; badgeText = 'HEAVY'; }
-          this.floatingDamages.push(new FloatingDamage(hitX, 180, dmg, dmgType, badgeText));
+          this.floatingDamages.push(new FloatingDamage(hitX, 220, dmg, dmgType, badgeText));
         }
 
         // ★3. 衝突点からの閃光スラッシュマーク ＆ 集中線 ＆ カメラクイックズーム ＆ 決着迫力SE再生
@@ -5797,13 +5899,13 @@ class GameApp {
           this.snd.playEvadeWhoosh(); // 回避成功の爽快なすり抜け風切り音！
         } else if (this.clashResultType === 'guard') {
           this.battleCameraZoom = 1.08;
-          this.hitSlashes.push(new HitSlashEffect(400, 300, -0.3, '#00f3ff', '#ffffff', 160));
+          this.hitSlashes.push(new HitSlashEffect(400, 300, -0.3, '#00f3ff', '#ffffff', 180));
           this.snd.playShieldGuard(); // 硬質エネルギーシールド展開音！
           this.snd.playSubBassImpact(0.5);
         } else if (this.clashResultType === 'counter') {
           this.battleCameraZoom = 1.34;
-          this.hitSlashes.push(new HitSlashEffect(400, 300, 0.45, '#ffd000', '#ffffff', 270));
-          this.hitSlashes.push(new HitSlashEffect(400, 300, -0.45, '#ff2200', '#ffffff', 270));
+          this.hitSlashes.push(new HitSlashEffect(400, 300, 0.45, '#ffd000', '#ffffff', 280));
+          this.hitSlashes.push(new HitSlashEffect(400, 300, -0.45, '#ff2200', '#ffffff', 280));
           this.speedlines.push(new RadialSpeedline(400, 300, '#ffaa00'));
           this.snd.playCounterParry(); // パリィ閃光＋痛烈カウンター打撃音！
           this.snd.playSubBassImpact(1.6);
@@ -5811,30 +5913,30 @@ class GameApp {
           // 通常〜奥義ヒット
           if (isOugiAtk) {
             this.battleCameraZoom = 1.35;
-            this.hitSlashes.push(new HitSlashEffect(400, 300, -0.55, '#ff00aa', '#ffffff', 320));
-            this.hitSlashes.push(new HitSlashEffect(400, 300, 0.55, '#00f3ff', '#ffffff', 320));
-            this.hitSlashes.push(new HitSlashEffect(400, 300, 0, '#ffe600', '#ffffff', 280));
+            this.hitSlashes.push(new HitSlashEffect(400, 300, -0.55, '#ff00aa', '#ffffff', 340));
+            this.hitSlashes.push(new HitSlashEffect(400, 300, 0.55, '#00f3ff', '#ffffff', 340));
+            this.hitSlashes.push(new HitSlashEffect(400, 300, 0, '#ffe600', '#ffffff', 300));
             this.speedlines.push(new RadialSpeedline(400, 300, '#ff00c8'));
             this.snd.playOugiImpact(); // 奥義専用 特大衝撃音！
             this.snd.playSubBassImpact(1.8);
           } else if (isUltra) {
             this.battleCameraZoom = 1.25;
-            this.hitSlashes.push(new HitSlashEffect(400, 300, -0.5, '#ff3300', '#ffffff', 250));
-            this.hitSlashes.push(new HitSlashEffect(400, 300, 0.5, '#ffaa00', '#ffffff', 250));
-            this.hitSlashes.push(new HitSlashEffect(400, 300, 0, '#ffffff', '#ffdd00', 220));
+            this.hitSlashes.push(new HitSlashEffect(400, 300, -0.5, '#ff3300', '#ffffff', 260));
+            this.hitSlashes.push(new HitSlashEffect(400, 300, 0.5, '#ffaa00', '#ffffff', 260));
+            this.hitSlashes.push(new HitSlashEffect(400, 300, 0, '#ffffff', '#ffdd00', 230));
             this.speedlines.push(new RadialSpeedline(400, 300, '#ff5500'));
             this.snd.playHitUltra(); // ウルトラアタック特大打撃音！
             this.snd.playSubBassImpact(1.4);
           } else if (isSuper) {
             this.battleCameraZoom = 1.18;
-            this.hitSlashes.push(new HitSlashEffect(400, 300, -0.4, '#ffbb00', '#ffffff', 220));
-            this.hitSlashes.push(new HitSlashEffect(400, 300, 0.4, '#ff5500', '#ffffff', 200));
+            this.hitSlashes.push(new HitSlashEffect(400, 300, -0.4, '#ffbb00', '#ffffff', 230));
+            this.hitSlashes.push(new HitSlashEffect(400, 300, 0.4, '#ff5500', '#ffffff', 210));
             this.speedlines.push(new RadialSpeedline(400, 300, '#ffdd00'));
             this.snd.playHitHeavy(); // スーパーアタック重金属打撃音！
             this.snd.playSubBassImpact(1.15);
           } else {
             this.battleCameraZoom = 1.14;
-            this.hitSlashes.push(new HitSlashEffect(400, 300, -0.4, '#ffdd00', '#ffffff', 190));
+            this.hitSlashes.push(new HitSlashEffect(400, 300, -0.4, '#ffdd00', '#ffffff', 200));
             this.speedlines.push(new RadialSpeedline(400, 300, '#ffffff'));
             if (this.clashPendingSide === 'エネミー') {
               this.snd.playDamage();
@@ -5883,32 +5985,33 @@ class GameApp {
 
         // ★5. 超巨大な衝撃波＆大爆発パーティクルの発生 (回避成功時は発生させない)
         if (this.clashResultType !== 'evade') {
-          this.shockwaves.push(new Shockwave(400, 300));
+          const shockColor = this.clashResultType === 'guard' ? '#00f3ff' : (isOugiAtk ? '#ff00aa' : (isUltra ? '#ff5500' : '#ffd800'));
+          this.shockwaves.push(new Shockwave(400, 300, shockColor));
           
-          const bigShock = new Shockwave(400, 300);
-          (bigShock as any).maxRadius = 150;
-          (bigShock as any).speed = 4.5;
+          const bigShock = new Shockwave(400, 300, '#ffffff');
+          (bigShock as any).maxRadius = 160;
+          (bigShock as any).speed = 5.0;
           this.shockwaves.push(bigShock);
 
           // 奥義ヒット時は超特大の衝撃波を追加生成！
           if (isOugiAtk && this.clashResultType === 'hit') {
-            const megaShock = new Shockwave(400, 300);
+            const megaShock = new Shockwave(400, 300, '#ff00c8');
             (megaShock as any).maxRadius = 400;
-            (megaShock as any).speed = 6.0;
+            (megaShock as any).speed = 7.0;
             this.shockwaves.push(megaShock);
             // ホワイトアウトフラッシュ発動
             this.osugiWhiteoutFrames = 8;
           }
 
-          // 火花パーティクルを大量生成（奥義時は80個、ウルトラ時は50個）
-          const sparkCount = this.clashResultType === 'guard' ? 12 : (isOugiAtk ? 80 : (isUltra ? 50 : 30));
-          const color1 = this.clashResultType === 'guard' ? '#00f3ff' : '#ff5500';
-          const color2 = this.clashResultType === 'guard' ? '#ffffff' : '#ffd800';
+          // 火花パーティクルを大量生成（奥義時は80個、ウルトラ時は55個、スーパー時は42個、通常時32個）
+          const sparkCount = this.clashResultType === 'guard' ? 18 : (isOugiAtk ? 80 : (isUltra ? 55 : (isSuper ? 42 : 32)));
+          const color1 = this.clashResultType === 'guard' ? '#00f3ff' : (isOugiAtk ? '#ff00aa' : '#ff5500');
+          const color2 = this.clashResultType === 'guard' ? '#ffffff' : (isOugiAtk ? '#ffd800' : '#ffd800');
 
           for (let i = 0; i < sparkCount; i++) {
             this.particles.push(new SparkParticle(400, 300, color1));
             this.particles.push(new SparkParticle(400, 300, color2));
-            if (Math.random() < 0.5) {
+            if (Math.random() < 0.6) {
               this.particles.push(new SparkParticle(400, 300, '#ffffff'));
             }
           }
@@ -8078,17 +8181,17 @@ class GameApp {
             // 通常被弾 (hit) または ガード (guard) 時：
             // 攻撃側のみが中央へ突進し、防御側は中央でじっと身構えて待ち受ける
             if (this.clashPendingSide === 'プレイヤー') {
-              // プレイヤーが防御側（中央待機）、エネミーが攻撃側（突撃）
-              drawPX = 400 - 55;
-              drawPY = 300 - 41;
-              drawEX = 600 - (600 - (400 + 55)) * easeIn;
-              drawEY = 200 + (300 + 41 - 200) * easeIn;
-            } else {
-              // エネミーが防御側（中央待機）、プレイヤーが攻撃側（突撃）
+              // プレイヤーが攻撃側（突撃）、エネミーが防御側（中央待機）
               drawPX = 200 + (400 - 55 - 200) * easeIn;
               drawPY = 200 + (300 - 41 - 200) * easeIn;
               drawEX = 400 + 55;
               drawEY = 300 + 41;
+            } else {
+              // エネミーが攻撃側（突撃）、プレイヤーが防御側（中央待機）
+              drawPX = 400 - 55;
+              drawPY = 300 - 41;
+              drawEX = 600 - (600 - (400 + 55)) * easeIn;
+              drawEY = 200 + (300 + 41 - 200) * easeIn;
             }
           }
 
@@ -8099,12 +8202,12 @@ class GameApp {
             ctx.beginPath();
             
             // カウンターの時、またはプレイヤーが攻撃する時に、プレイヤー側にラインを引く
-            if (this.clashResultType === 'counter' || this.clashPendingSide === 'エネミー') {
+            if (this.clashResultType === 'counter' || this.clashPendingSide === 'プレイヤー') {
               ctx.moveTo(drawPX - 80, drawPY - 60);
               ctx.lineTo(drawPX - 20, drawPY - 15);
             }
             // カウンターの時、またはエネミーが攻撃する時に、エネミー側にラインを引く
-            if (this.clashResultType === 'counter' || this.clashPendingSide === 'プレイヤー') {
+            if (this.clashResultType === 'counter' || this.clashPendingSide === 'エネミー') {
               ctx.moveTo(drawEX + 80, drawEY + 60);
               ctx.lineTo(drawEX + 20, drawEY + 15);
             }
@@ -8271,90 +8374,106 @@ class GameApp {
         ctx.restore();
       }
 
-      // GBA風の太い斜め分割スプリット境界線を上に重ねて描画する (ハザードイエロー)
-      // コマンド選択中（静止中）は非表示にし、激突演出中（スピードライン中）のみ描画して迫力を出す
+      // スプリット演出：突進フェーズ (0〜24F) はエネルギースリット線、45F衝突瞬間はクロススターフレアを展開
       if (this.isClashAnimationActive) {
-        ctx.save();
-        ctx.strokeStyle = '#ffd800';
-        ctx.lineWidth = 12;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = '#ffd800';
-        ctx.beginPath();
-        ctx.moveTo(-50, 480);
-        ctx.lineTo(850, 120);
-        ctx.stroke();
-        ctx.restore();
+        if (this.clashAnimFrame < 25) {
+          // 突進時のスプリット境界（ネオンシーム＋光速パルス）
+          const seamAlpha = Math.max(0.2, 1.0 - this.clashAnimFrame / 25);
+          ctx.save();
+          ctx.strokeStyle = `rgba(0, 243, 255, ${seamAlpha * 0.85})`;
+          ctx.lineWidth = 3;
+          ctx.shadowBlur = 12;
+          ctx.shadowColor = '#00f3ff';
+          ctx.beginPath();
+          ctx.moveTo(440, -10);
+          ctx.lineTo(360, 610);
+          ctx.stroke();
+
+          // 境界線を走る高エネルギー光球
+          const pulseY = (this.clashAnimFrame * 32) % 620;
+          const pulseX = 440 + (360 - 440) * (pulseY / 600);
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowBlur = 16;
+          ctx.shadowColor = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(pulseX, pulseY, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        } else if (this.clashAnimFrame >= 45 && this.clashAnimFrame <= 58) {
+          // ★激突インパクト時のクロススターフレア ＆ プリズム結晶光彩 (45〜58F)
+          const flareAge = this.clashAnimFrame - 45;
+          const flareAlpha = Math.max(0, 1.0 - flareAge / 13);
+          const flareScale = Math.sin((flareAge / 13) * Math.PI * 0.5);
+          const flareLen = (1.0 + flareScale * 1.8) * 160;
+          const flareColor = this.clashResultType === 'guard' ? '#00f3ff' : (this.clashPendingChoice.includes('奥義') ? '#ff00aa' : (this.clashPendingChoice.includes('ウルトラ') ? '#ff5500' : '#ffd800'));
+
+          ctx.save();
+          ctx.translate(400, 300);
+          ctx.globalAlpha = flareAlpha;
+
+          // 1. 中心ハロー
+          const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 70);
+          coreGrad.addColorStop(0, '#ffffff');
+          coreGrad.addColorStop(0.3, flareColor);
+          coreGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          ctx.fillStyle = coreGrad;
+          ctx.beginPath();
+          ctx.arc(0, 0, 70, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 2. 十字＆八方スターフレア
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowBlur = 20;
+          ctx.shadowColor = flareColor;
+
+          const drawSpike = (angle: number, length: number, width: number) => {
+            ctx.save();
+            ctx.rotate(angle);
+            ctx.beginPath();
+            ctx.moveTo(0, -width);
+            ctx.lineTo(length, 0);
+            ctx.lineTo(0, width);
+            ctx.lineTo(-length, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+          };
+
+          drawSpike(0, flareLen, 4.5);              // 水平光芒
+          drawSpike(Math.PI / 2, flareLen * 0.75, 4.5); // 垂直光芒
+          drawSpike(Math.PI / 4, flareLen * 0.45, 2.5);  // 斜め45度
+          drawSpike(-Math.PI / 4, flareLen * 0.45, 2.5); // 斜め-45度
+
+          // 3. ダイヤモンド結晶プリズムリング
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2.0;
+          ctx.beginPath();
+          const dSize = 35 * (1 + flareScale * 0.8);
+          ctx.moveTo(0, -dSize);
+          ctx.lineTo(dSize, 0);
+          ctx.lineTo(0, dSize);
+          ctx.lineTo(-dSize, 0);
+          ctx.closePath();
+          ctx.stroke();
+
+          ctx.restore();
+        }
       }
 
-      // 6. 各種エフェクト（衝撃波・奥義必殺・火花）の描画
-      this.particles.forEach(p => p.draw(ctx));
-      this.shockwaves.forEach(s => s.draw(ctx));
-      this.skillParticles.forEach(sp => sp.draw(ctx));
-
-      // 7. 衝突瞬間 (45〜50F) の全画面ホワイトアウト閃光フラッシュ
+      // 6. 衝突瞬間 (45〜50F) の全画面ホワイトアウト閃光フラッシュ (エフェクトの背後に敷く)
       if (this.isClashAnimationActive && this.clashAnimFrame >= 45 && this.clashAnimFrame <= 50) {
-        const flashAlpha = 1.0 - (this.clashAnimFrame - 45) / 5;
-        ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.95})`;
+        const flashAlpha = (1.0 - (this.clashAnimFrame - 45) / 5) * 0.65;
+        ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
         ctx.fillRect(0, 0, 800, 600);
       }
 
-      // 7.5. バトル結果判定「デカ文字ネオンスライド」演出 (45〜75Fの間) (パッケージ4)
-      if (this.isClashAnimationActive && this.clashAnimFrame >= 45 && this.clashAnimFrame <= 75) {
-        let text = 'HIT!!';
-        let color = '#ff0055'; // 赤 (デフォルト)
-
-        if (this.clashResultType === 'evade') {
-          text = 'EVADE!!';
-          color = '#39ff14'; // 緑
-        } else if (this.clashResultType === 'counter') {
-          text = 'COUNTER!!';
-          color = '#ffaa00'; // オレンジ
-        } else if (this.clashResultType === 'guard') {
-          text = 'DEFENDED!!';
-          color = '#00f3ff'; // 水色
-        } else {
-          // 通常ヒット時：奥義かどうかで変化
-          const isOsugi = this.clashPendingChoice && this.clashPendingChoice.includes('奥義');
-          text = isOsugi ? 'SPECIAL!!' : 'HIT!!';
-          color = isOsugi ? '#ff007f' : '#ff0055';
-        }
-
-        ctx.save();
-        ctx.font = 'italic 900 72px "Impact", "Outfit", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        const frame = this.clashAnimFrame;
-        let x = 400;
-        let alpha = 1.0;
-
-        if (frame < 52) {
-          // 爆速スライドイン (45Fから52Fで中央へ)
-          const t = (frame - 45) / 7;
-          x = 850 - 450 * t;
-        } else if (frame > 70) {
-          // 左へフェードアウト (70Fから75Fでスライド退場)
-          const t = (frame - 70) / 5;
-          x = 400 - 150 * t;
-          alpha = 1.0 - t;
-        }
-
-        ctx.globalAlpha = alpha;
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 10;
-        ctx.lineJoin = 'miter';
-        ctx.miterLimit = 2;
-
-        ctx.shadowBlur = 25;
-        ctx.shadowColor = color;
-        ctx.fillStyle = color;
-
-        // 白い光る縁取りとネオンの塗りを重ねて立体感を出す
-        ctx.strokeText(text, x, 300);
-        ctx.fillText(text, x, 300);
-
-        ctx.restore();
-      }
+      // 7. 各種エフェクト（スピードライン・衝撃波・奥義必殺・火花・斬撃刃・ダメージ数字）の描画
+      this.speedlines.forEach(sl => sl.draw(ctx));
+      this.particles.forEach(p => p.draw(ctx));
+      this.shockwaves.forEach(s => s.draw(ctx));
+      this.skillParticles.forEach(sp => sp.draw(ctx));
+      this.hitSlashes.forEach(hs => hs.draw(ctx));
+      this.floatingDamages.forEach(fd => fd.draw(ctx));
 
       ctx.restore();
       return;
@@ -8409,6 +8528,40 @@ class GameApp {
     for (let y = -300; y < 900; y += 45) {
       ctx.beginPath(); ctx.moveTo(-200, y); ctx.lineTo(1000, y); ctx.stroke();
     }
+
+    // ★スタジアムすり鉢ボウルの3D立体陰影グラデーション (中央への深みとバンクの傾斜表現)
+    ctx.save();
+    const bowlGrad = ctx.createRadialGradient(400, 300, 15, 400, 300, 255);
+    bowlGrad.addColorStop(0, 'rgba(0, 4, 12, 0.45)');      // 最深部（中央）の深い影
+    bowlGrad.addColorStop(0.55, 'rgba(0, 8, 20, 0.18)');   // スロープ中間
+    bowlGrad.addColorStop(0.9, 'rgba(0, 243, 255, 0.08)'); // 外周バンクの反射ハイライト
+    bowlGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.65)');     // 外周フェンスの立ち上がり
+    ctx.fillStyle = bowlGrad;
+    ctx.beginPath();
+    ctx.arc(400, 300, 250, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ★スタジアム・オーバートラスのスポットライト光彩
+    const spotGrad = ctx.createRadialGradient(400, 260, 30, 400, 280, 270);
+    spotGrad.addColorStop(0, 'rgba(255, 255, 255, 0.07)');
+    spotGrad.addColorStop(0.45, 'rgba(0, 243, 255, 0.035)');
+    spotGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = spotGrad;
+    ctx.beginPath();
+    ctx.arc(400, 300, 250, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ★すり鉢スロープの等高線（3Dボウル深度ガイド）
+    ctx.strokeStyle = 'rgba(0, 243, 255, 0.06)';
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([4, 6]);
+    [75, 125, 175, 215].forEach(r => {
+      ctx.beginPath();
+      ctx.arc(400, 300, r, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+    ctx.setLineDash([]);
+    ctx.restore();
 
     // スタジアムの外枠の描画
     ctx.strokeStyle = 'rgba(0, 243, 255, 0.18)';
